@@ -104,14 +104,16 @@ Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>"
 - Create: `gestion-envios/services/api/internal/platform/http/response.go`
 - Create: `gestion-envios/services/api/internal/handlers/health.go`
 - Create: `gestion-envios/services/api/internal/handlers/health_test.go`
-- Create: `gestion-envios/services/api/internal/platform/http/router.go`
+- Create: `gestion-envios/services/api/internal/httprouter/router.go`
 - Create: `gestion-envios/services/api/cmd/api/main.go`
+
+> **[COMPLETADO Y AJUSTADO]** El router vive en su propio paquete `internal/httprouter` (no en `internal/platform/http`), para evitar un ciclo de imports: `handlers` necesita `httpx.WriteJSON`/`WriteError`, y el router necesita referenciar `handlers.Health`. `internal/platform/http` (paquete `httpx`) contiene solo `response.go`. Ver ledger del Task 1.
 
 **Interfaces:**
 - Produces: `config.Config{Port, DatabaseURL, JWTSecret, CORSOrigins, Env string}` y `config.Load() (Config, error)`.
-- Produces: `httpx.WriteJSON(w http.ResponseWriter, status int, payload any)` y `httpx.WriteError(w http.ResponseWriter, status int, code, message string)`.
+- Produces: `httpx.WriteJSON(w http.ResponseWriter, status int, payload any)` y `httpx.WriteError(w http.ResponseWriter, status int, code, message string)` en `movii/api/internal/platform/http`.
 - Produces: `handlers.Health(w http.ResponseWriter, r *http.Request)`.
-- Produces: `httprouter.New(deps httprouter.Deps) http.Handler` — router que monta todas las rutas (por ahora solo `/health`); `Deps` se irá ampliando en tareas siguientes.
+- Produces: `httprouter.New(deps httprouter.Deps) http.Handler` en `movii/api/internal/httprouter` — router que monta todas las rutas (por ahora solo `/health`); `Deps{CORSOrigins []string}` se irá ampliando en tareas siguientes.
 
 - [ ] **Paso 1: Inicializar el módulo Go**
 
@@ -548,8 +550,8 @@ import (
 	"github.com/joho/godotenv"
 
 	"movii/api/internal/config"
+	"movii/api/internal/httprouter"
 	"movii/api/internal/platform/db"
-	httpx "movii/api/internal/platform/http"
 )
 
 func main() {
@@ -567,7 +569,7 @@ func main() {
 	}
 	defer pool.Close()
 
-	router := httpx.NewRouter(httpx.Deps{CORSOrigins: cfg.CORSOrigins})
+	router := httprouter.New(httprouter.Deps{CORSOrigins: cfg.CORSOrigins})
 
 	log.Printf("API escuchando en :%s (env=%s)", cfg.Port, cfg.Env)
 	if err := http.ListenAndServe(":"+cfg.Port, router); err != nil {
@@ -575,6 +577,8 @@ func main() {
 	}
 }
 ```
+
+(Nota: Task 1 quedó con el router en el paquete `internal/httprouter`, no `internal/platform/http` — ver ajuste registrado al principio de este documento.)
 
 - [ ] **Paso 7: Verificar que arranca contra Supabase**
 
@@ -2179,20 +2183,20 @@ Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>"
 ## Task 10: Montaje final del router + smoke test end-to-end
 
 **Files:**
-- Modify: `gestion-envios/services/api/internal/platform/http/router.go`
+- Modify: `gestion-envios/services/api/internal/httprouter/router.go`
 - Modify: `gestion-envios/services/api/cmd/api/main.go`
 - Create: `gestion-envios/services/api/tests/auth_flow_test.go`
 
 **Interfaces:**
 - Consumes: todo lo anterior (`repository.UsuarioRepo`, `services.AuthService`, `handlers.AuthHandler`, `handlers.UsuariosHandler`, `middleware.RequireAuth`, `middleware.RequireRole`).
-- Produces: `httpx.NewRouter` ahora acepta `Deps{CORSOrigins, JWTSecret, AuthHandler, UsuariosHandler}` y monta `POST /auth/register`, `POST /auth/login`, `GET /users` (protegida).
+- Produces: `httprouter.New` (paquete `movii/api/internal/httprouter`, ver ajuste del Task 1) ahora acepta `Deps{CORSOrigins, JWTSecret, AuthHandler, UsuariosHandler}` y monta `POST /auth/register`, `POST /auth/login`, `GET /users` (protegida).
 
 - [ ] **Paso 1: Ampliar `Deps` y montar las rutas**
 
-`internal/platform/http/router.go` (reemplaza el contenido del Task 1):
+`internal/httprouter/router.go` (reemplaza el contenido del Task 1):
 
 ```go
-package httpx
+package httprouter
 
 import (
 	"net/http"
@@ -2214,8 +2218,8 @@ type Deps struct {
 	UsuariosHandler  *handlers.UsuariosHandler
 }
 
-// NewRouter arma el router HTTP completo de la API.
-func NewRouter(deps Deps) http.Handler {
+// New arma el router HTTP completo de la API.
+func New(deps Deps) http.Handler {
 	r := chi.NewRouter()
 
 	r.Use(chimw.RequestID)
@@ -2260,8 +2264,8 @@ import (
 
 	"movii/api/internal/config"
 	"movii/api/internal/handlers"
+	"movii/api/internal/httprouter"
 	"movii/api/internal/platform/db"
-	httpx "movii/api/internal/platform/http"
 	"movii/api/internal/repository"
 	"movii/api/internal/services"
 )
@@ -2284,7 +2288,7 @@ func main() {
 	usuarioRepo := repository.NewUsuarioRepo(pool)
 	authService := services.NewAuthService(usuarioRepo, cfg.JWTSecret)
 
-	router := httpx.NewRouter(httpx.Deps{
+	router := httprouter.New(httprouter.Deps{
 		CORSOrigins:     cfg.CORSOrigins,
 		JWTSecret:       cfg.JWTSecret,
 		AuthHandler:     handlers.NewAuthHandler(authService),
@@ -2317,8 +2321,8 @@ import (
 
 	"movii/api/internal/domain"
 	"movii/api/internal/handlers"
+	"movii/api/internal/httprouter"
 	"movii/api/internal/platform/db"
-	httpx "movii/api/internal/platform/http"
 	"movii/api/internal/repository"
 	"movii/api/internal/services"
 )
@@ -2335,7 +2339,7 @@ func TestFlujoCompleto_RegistroLoginYListadoDeUsuarios(t *testing.T) {
 
 	usuarioRepo := repository.NewUsuarioRepo(pool)
 	authService := services.NewAuthService(usuarioRepo, "secreto-de-test")
-	router := httpx.NewRouter(httpx.Deps{
+	router := httprouter.New(httprouter.Deps{
 		CORSOrigins:     []string{"*"},
 		JWTSecret:       "secreto-de-test",
 		AuthHandler:     handlers.NewAuthHandler(authService),
