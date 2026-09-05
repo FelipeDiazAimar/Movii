@@ -14,7 +14,7 @@
 
 **Duración del Sprint:** 30 días (04/08/2026 – 02/09/2026)
 
-**Presentación del Backlog:** Miércoles 19/08/2026 · **Presentación del Sprint:** Miércoles 02/09/2026
+**Presentación del Backlog:** Miércoles 19/08/2026 · **Presentación del Sprint:** Miércoles 10/09/2026 (reprogramada; fecha original 02/09/2026)
 
 ---
 
@@ -23,6 +23,8 @@
 Implementar las funcionalidades prioritarias del sistema que conforman el **MVP**: registro de envíos, gestión de usuarios y autenticación, asignación de envíos a repartidores y rutas, y consulta del listado de envíos del día por parte del repartidor.
 
 > **Meta:** Al finalizar el sprint, un operador logístico podrá registrar un envío, asignarlo a un repartidor con una ruta, y el repartidor podrá visualizar sus envíos asignados para el día.
+
+**Reparto por interfaz:** HU-01 a HU-04 se implementan en la **aplicación web** (panel del operador logístico / supervisor). HU-05 se implementa en la **app móvil nativa** del repartidor. Ambas interfaces consumen la misma API y comparten la base de datos Supabase. El detalle del stack de cada parte está en el documento *Trabajo Integrador Sprint 0* (parte web) y en la sección de tareas transversales de este documento (parte móvil).
 
 ---
 
@@ -48,6 +50,16 @@ Implementar las funcionalidades prioritarias del sistema que conforman el **MVP*
 
 Las fichas completas de cada Historia de Usuario (descripción, criterios de aceptación y propiedades) se encuentran detalladas en el documento **Sprint Backlog 1**.
 
+### 2.1 Modificaciones al Product Backlog durante el Sprint 1
+
+*(A completar en la retrospectiva.)*
+
+Durante la ejecución del Sprint 1 **no se modificó el alcance ni la priorización del Product Backlog**: las 15 HU y su asignación a sprints se mantienen como se presentaron el 19/08. Si durante el sprint surgen cambios (HU nuevas, re-priorización, división de una HU, ajuste de criterios de aceptación), se listan aquí con fecha y motivo.
+
+| Fecha | Cambio | HU afectada(s) | Motivo |
+| ----- | ------ | -------------- | ------ |
+| —     | Sin modificaciones registradas a la fecha | — | — |
+
 ---
 
 ## 3. Estimaciones de Valor y Esfuerzo
@@ -66,13 +78,15 @@ Las fichas completas de cada Historia de Usuario (descripción, criterios de ace
 | HU-05 | Listado del repartidor              |   5   |  3 | 1.67 | Araya, Ulises        |
 |       | **Total**                           |**31** |**26**|     |                      |
 
-**Capacidad:** 3 integrantes × 30 días × ~2 hs/día = **180 horas** · **Estimado total de tareas:** 207 horas.
+**Capacidad:** 3 integrantes × 30 días × ~2 hs/día = **180 horas** · **Estimado total de tareas:** 197 horas (según el desglose tarea por tarea del Sprint Backlog 1).
 
 > Margen ajustado. Se priorizan HU-01 y HU-02 y se evalúa en dailys si es necesario renegociar alcance.
 
 ---
 
 ## 4. Sprint Backlog — Desglose de tareas
+
+> Vista resumida. El desglose canónico tarea por tarea (con fases análisis / diseño / desarrollo / prueba y columnas Estimado y Real) está en el documento **Sprint Backlog 1**. Los subtotales de ambos documentos coinciden.
 
 ### HU-01 — Registro y autenticación de usuarios (Micheloud)
 
@@ -83,11 +97,11 @@ Las fichas completas de cada Historia de Usuario (descripción, criterios de ace
 | T-01.03 | Análisis  | Definir política de contraseñas y validaciones            |     1     |           |
 | T-01.04 | Diseño    | Diseñar modelo de datos tabla usuarios                     |     2     |           |
 | T-01.05 | Diseño    | Diseñar interfaz de login y registro de usuarios           |     5     |           |
-| T-01.06 | Desarrollo | Crear migración BD + endpoints register/login/users         |    16     |           |
+| T-01.06 | Desarrollo | Crear migración BD + endpoints register/login/users         |    12     |           |
 | T-01.07 | Desarrollo | Implementar middleware de autenticación y autorización     |     4     |           |
-| T-01.08 | Desarrollo | Implementar pantallas de login y registro en frontend       |     9     |           |
+| T-01.08 | Desarrollo | Implementar pantallas de login y registro en frontend       |     7     |           |
 | T-01.09 | Prueba     | Pruebas unitarias + integración + exploratoria             |     8     |           |
-|         |            | **Subtotal HU-01**                                          |  **49**   |           |
+|         |            | **Subtotal HU-01**                                          |  **43**   |           |
 
 ### HU-02 — Registro de envíos (Díaz Aimar)
 
@@ -96,9 +110,9 @@ Las fichas completas de cada Historia de Usuario (descripción, criterios de ace
 | T-02.01 | Análisis  | Definir campos, validaciones y formato código de guía      |     5     |           |
 | T-02.02 | Diseño    | Diseñar modelo datos (envíos, remitentes, destinatarios) e interfaces |     8     |           |
 | T-02.03 | Desarrollo | Crear migraciones + endpoints POST/GET /envios              |    11     |           |
-| T-02.04 | Desarrollo | Implementar formulario y lista de envíos en frontend        |     9     |           |
+| T-02.04 | Desarrollo | Implementar formulario y lista de envíos en frontend        |     7     |           |
 | T-02.05 | Prueba     | Pruebas unitarias + integración + exploratoria             |     7     |           |
-|         |            | **Subtotal HU-02**                                          |  **40**   |           |
+|         |            | **Subtotal HU-02**                                          |  **38**   |           |
 
 ### HU-03 — Gestión de rutas diarias (Araya)
 
@@ -117,10 +131,10 @@ Las fichas completas de cada Historia de Usuario (descripción, criterios de ace
 | ------- | ---------- | ----------------------------------------------------------- | :-------: | :-------: |
 | T-04.01 | Análisis  | Definir reglas de negocio y endpoints de asignación        |     4     |           |
 | T-04.02 | Diseño    | Diseñar interfaz de asignación y flujo de selección      |     5     |           |
-| T-04.03 | Desarrollo | Implementar endpoints asignación/desasignación + validaciones |    12     |           |
+| T-04.03 | Desarrollo | Implementar endpoints asignación/desasignación + validaciones |    10     |           |
 | T-04.04 | Desarrollo | Implementar pantalla de asignación en frontend             |     7     |           |
 | T-04.05 | Prueba     | Pruebas unitarias + integración + exploratoria             |     7     |           |
-|         |            | **Subtotal HU-04**                                          |  **35**   |           |
+|         |            | **Subtotal HU-04**                                          |  **33**   |           |
 
 ### HU-05 — Listado del repartidor (Araya)
 
@@ -151,13 +165,13 @@ Las fichas completas de cada Historia de Usuario (descripción, criterios de ace
 
 | Grupo                  | Horas Est. |
 | ---------------------- | :--------: |
-| HU-01 — Autenticación |     49     |
-| HU-02 — Envíos        |     40     |
+| HU-01 — Autenticación |     43     |
+| HU-02 — Envíos        |     38     |
 | HU-03 — Rutas         |     30     |
-| HU-04 — Asignación   |     35     |
+| HU-04 — Asignación   |     33     |
 | HU-05 — Repartidor    |     25     |
 | Transversales          |     28     |
-| **Total Sprint 1**     |  **207**   |
+| **Total Sprint 1**     |  **197**   |
 
 ---
 
@@ -196,17 +210,17 @@ El modelo de datos cubre las necesidades de almacenamiento de las 5 HU del sprin
 |   —    | **19/08**      | **Presentación del Product Backlog y Sprint Backlog**                |
 |   3    | 18/08 – 24/08  | Desarrollo HU-03 y HU-04. Pruebas unitarias de HU-01 y HU-02.      |
 |   4    | 25/08 – 01/09  | Desarrollo HU-05. Pruebas integración y exploratorias. Documentación.|
-|   —    | **02/09**      | **Presentación del Sprint 1 y Retrospectiva**                       |
+|   —    | **10/09**      | **Presentación del Sprint 1 y Retrospectiva** (reprogramada desde 02/09)  |
 
 ### Burndown Chart
 
 | Fecha            | SP Ideal | SP Real | Horas Ideal | Horas Real |
 | ---------------- | :------: | :-----: | :---------: | :--------: |
-| 04/08 (inicio)   |    26    |   26    |     207     |    207     |
-| 10/08 (semana 1) |    20    |         |     159     |            |
-| 17/08 (semana 2) |    13    |         |     111     |            |
-| 24/08 (semana 3) |     7    |         |      63     |            |
-| 01/09 (semana 4) |     1    |         |      15     |            |
+| 04/08 (inicio)   |    26    |   26    |     197     |    197     |
+| 10/08 (semana 1) |    20    |         |     158     |            |
+| 17/08 (semana 2) |    13    |         |     118     |            |
+| 24/08 (semana 3) |     7    |         |      79     |            |
+| 01/09 (semana 4) |     1    |         |      39     |            |
 | 02/09 (cierre)   |     0    |         |       0     |            |
 
 *Columnas "Real" a completar durante la ejecución del sprint.*
@@ -238,28 +252,28 @@ El modelo de datos cubre las necesidades de almacenamiento de las 5 HU del sprin
 
 ## 8. Retrospectiva — Teórico vs. Real
 
-*(A completar en la reunión del 02/09/2026)*
+*(A completar en la reunión de retrospectiva del 10/09/2026, con los tiempos reales registrados por cada integrante.)*
 
 ### Resumen por grupo de tareas
 
 | Grupo                  | Estimado (hs) | Real (hs) | Diferencia | Observaciones |
 | ---------------------- | :-----------: | :-------: | :--------: | ------------- |
-| HU-01 — Autenticación |      49       |           |            |               |
-| HU-02 — Envíos        |      40       |           |            |               |
+| HU-01 — Autenticación |      43       |           |            |               |
+| HU-02 — Envíos        |      38       |           |            |               |
 | HU-03 — Rutas         |      30       |           |            |               |
-| HU-04 — Asignación   |      35       |           |            |               |
+| HU-04 — Asignación   |      33       |           |            |               |
 | HU-05 — Repartidor    |      25       |           |            |               |
 | Transversales          |      28       |           |            |               |
-| **Total Sprint**       |   **207**     |           |            |               |
+| **Total Sprint**       |   **197**     |           |            |               |
 
 ### Resumen por integrante
 
 | Integrante           | HU asignadas            | Horas estimadas | Horas reales | Diferencia |
 | -------------------- | ----------------------- | :-------------: | :----------: | :--------: |
-| Micheloud, Jeremías | HU-01 + Transversales   |       58        |              |            |
-| Díaz Aimar, Felipe  | HU-02, HU-04 + Transv.  |       81        |              |            |
+| Micheloud, Jeremías | HU-01 + Transversales   |       52        |              |            |
+| Díaz Aimar, Felipe  | HU-02, HU-04 + Transv.  |       77        |              |            |
 | Araya, Ulises        | HU-03, HU-05 + Transv.  |       68        |              |            |
-|                      | **Total**               |     **207**     |              |            |
+|                      | **Total**               |     **197**     |              |            |
 
 ### Preguntas de Retrospectiva
 

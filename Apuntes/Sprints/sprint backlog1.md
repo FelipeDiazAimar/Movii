@@ -16,11 +16,11 @@
 - Gandino, Diego
 - Saldarini, Javier Daniel
 
-**Duración del Sprint:** 30 días (12/08/2026 – 02/09/2026)
+**Duración del Sprint:** 30 días (04/08/2026 – 02/09/2026)
 
 **Fecha de presentación del Backlog:** Miércoles 19/08/2026
 
-**Fecha de presentación del Sprint:** Miércoles 02/09/2026
+**Fecha de presentación del Sprint:** Miércoles 10/09/2026 (reprogramada; fecha original 02/09/2026)
 
 ---
 
@@ -465,10 +465,11 @@ Una tarea o historia se considera terminada cuando cumple todos los criterios si
 
 | Fecha            | SP Restantes (Ideal) | SP Restantes (Real) | Observaciones     |
 | ---------------- | :------------------: | :-----------------: | ----------------- |
-| 12/08 (inicio)   |          26          |         26         | Inicio del Sprint |
-| 18/08 (semana 1) |          20          |                    |                   |
-| 25/08 (semana 2) |          13          |                    |                   |
-| 01/09 (semana 3) |          7          |                    |                   |
+| 04/08 (inicio)   |          26          |         26         | Inicio del Sprint |
+| 11/08 (semana 1) |          20          |                    |                   |
+| 18/08 (semana 2) |          13          |                    |                   |
+| 25/08 (semana 3) |          7          |                    |                   |
+| 01/09 (semana 4) |          3          |                    |                   |
 | 02/09 (cierre)   |          0          |                    |                   |
 
 ---

@@ -77,6 +77,12 @@ Contenido
 
 9.2 Estrategia de QA 21
 
+10\. Product Backlog 22
+
+10.1 Escalas de estimación 22
+
+10.2 Backlog priorizado 22
+
 # 1\. Propósito del Sistema
 
 ## 1.1 Descripción general
@@ -194,6 +200,11 @@ El sistema contempla cuatro perfiles de usuario con roles y necesidades diferenc
 
 Se adopta una arquitectura de tres capas con separación clara entre frontend, backend y base de datos. El backend expone una API REST consumida tanto por el frontend web como por la aplicación móvil del repartidor. Esta decisión facilita el desarrollo paralelo de las distintas interfaces y permite escalar cada capa de forma independiente.
 
+El sistema tiene **dos interfaces cliente** sobre una **única base de datos Supabase**:
+
+- **Aplicación web** — panel del operador logístico y del supervisor (registro de envíos, gestión de rutas, asignación, monitoreo y reportes) más el portal público de tracking del cliente final. El stack de esta parte es el que se detalla a continuación.
+- **Aplicación móvil nativa** — vista del repartidor (envíos del día, ruta, actualización de estados, confirmación de entrega, incidencias). El stack de esta parte (React Native + Expo, con API en Go sobre Supabase) se detalla en el documento *Sprint 1*.
+
 ## 6.2 Stack tecnológico
 
 | Capa | Tecnología | Justificación  
@@ -202,10 +213,10 @@ Se adopta una arquitectura de tres capas con separación clara entre frontend, b
 | Frontend Web | React.js + Tailwind CSS | Componentes reutilizables, gran ecosistema y curva de aprendizaje manejable para el equipo |
 | App Móvil | React Native | Código base compartido con el frontend web; genera versiones Android e iOS desde un mismo proyecto |
 | Backend / API | Node.js + Express | Alto rendimiento en operaciones I/O intensivas; sintaxis familiar para el equipo |
-| Base de datos | PostgreSQL | Base de datos relacional robusta, ideal para el modelo de envíos, rutas y repartidores con relaciones claras |
-| ORM | Prisma | Facilita la gestión del esquema y las migraciones; integración nativa con Node.js |
+| Base de datos | Supabase (PostgreSQL gestionado) | Base de datos relacional PostgreSQL provista como servicio, ideal para el modelo de envíos, rutas y repartidores con relaciones claras. Incluye autenticación, API y almacenamiento administrados. Es la misma base que consume la app móvil del repartidor. |
+| ORM | Prisma | Facilita la gestión del esquema y las migraciones sobre la base Supabase; integración nativa con Node.js |
 | Autenticación | JWT (JSON Web Tokens) | Estándar ampliamente adoptado para autenticación stateless en APIs REST |
-| Hosting / Despliegue | Railway (backend) + Vercel (frontend) | Despliegue rápido y gratuito para entornos de desarrollo y prueba académica |
+| Hosting / Despliegue | Supabase (base de datos y auth) + Vercel (frontend web) + Render/Railway (backend) | Despliegue rápido y gratuito para entornos de desarrollo y prueba académica |
 | Documentación API | Swagger / OpenAPI | Generación automática de documentación interactiva de los endpoints del sistema |
 
 # 7\. Implementación del Ambiente de Trabajo
@@ -237,7 +248,9 @@ cp .env.example .env
 npx prisma migrate dev --name init  
   
 // Variables de entorno requeridas en .env:  
-DATABASE\_URL="postgresql://usuario:password@localhost:5432/gestion\_envios"  
+DATABASE\_URL="postgresql://postgres:\[password\]@db.\[ref\].supabase.co:5432/postgres"  
+SUPABASE\_URL="https://\[ref\].supabase.co"  
+SUPABASE\_ANON\_KEY="\[anon-key\]"  
 JWT\_SECRET="clave\_secreta\_larga\_y\_aleatoria"  
   
 // Configuración del Frontend  
@@ -320,3 +333,35 @@ Una historia de usuario o tarea se considera terminada cuando cumple la totalida
 -   ESLint: análisis estático del código JavaScript.
 -   Prettier: formateo automático del código.
 -   GitHub Actions: pipeline de CI que ejecuta lint y tests.
+
+# 10. Product Backlog
+
+El Product Backlog completo del sistema se compone de 15 Historias de Usuario, priorizadas por valor de negocio y esfuerzo y distribuidas en tres sprints. Las fichas detalladas de cada HU (formato *Yo como… / Deseo… / Para…*, criterios de aceptación y propiedades) se encuentran en el documento **Sprint Backlog 1**.
+
+## 10.1 Escalas de estimación
+
+**Valor de negocio:** 1 (soporte) · 2 (útil, no esencial) · 3 (valor operativo claro) · 5 (habilita funcionalidad central) · 8 (imprescindible: sin esto el sistema no opera).
+
+**Esfuerzo — Story Points (Fibonacci):** 1 (trivial) · 2 (directo) · 3 (moderado) · 5 (significativo) · 8 (complejo) · 13 (muy complejo).
+
+## 10.2 Backlog priorizado
+
+| ID    | Historia de Usuario                          | Prioridad | Valor | SP | Sprint   |
+| ----- | ------------------------------------------- | --------- | :---: | :-: | -------- |
+| HU-01 | Registro y autenticación de usuarios        | Muy Alta  |   8   |  8 | Sprint 1 |
+| HU-02 | Registro de envíos                          | Muy Alta  |   8   |  5 | Sprint 1 |
+| HU-03 | Gestión de rutas diarias                    | Alta      |   5   |  5 | Sprint 1 |
+| HU-04 | Asignación de envíos a ruta y repartidor    | Alta      |   5   |  5 | Sprint 1 |
+| HU-05 | Listado de envíos del día para repartidor   | Alta      |   5   |  3 | Sprint 1 |
+| HU-06 | Actualización de estado de entrega          | Alta      |   8   |  5 | Sprint 2 |
+| HU-07 | Registro de entrega fallida con motivo      | Alta      |   5   |  5 | Sprint 2 |
+| HU-08 | Confirmación de entrega con firma y foto    | Alta      |   5   |  8 | Sprint 2 |
+| HU-09 | Reprogramación de entregas fallidas         | Media     |   5   |  5 | Sprint 2 |
+| HU-10 | Tracking público por código de guía        | Media     |   5   |  3 | Sprint 2 |
+| HU-11 | Panel de operaciones en tiempo real         | Media     |   3   |  5 | Sprint 3 |
+| HU-12 | Visualización de ruta en mapa (repartidor)  | Media     |   3   |  5 | Sprint 3 |
+| HU-13 | Reportes de envíos por período             | Baja      |   2   |  3 | Sprint 3 |
+| HU-14 | Ranking de desempeño de repartidores        | Baja      |   2   |  3 | Sprint 3 |
+| HU-15 | Clasificación de incidencias por motivo     | Baja      |   2   |  3 | Sprint 3 |
+
+**Total Sprint 1:** valor 31 · 26 SP. La priorización sigue la relación valor/esfuerzo, resolviendo primero las HU que habilitan el flujo operativo mínimo (alta → registro → asignación → reparto).
