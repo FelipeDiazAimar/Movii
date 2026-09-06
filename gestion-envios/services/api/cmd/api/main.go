@@ -38,14 +38,16 @@ func main() {
 	envioService := services.NewEnvioService(pool, envioRepo)
 	rutaService := services.NewRutaService(rutaRepo)
 	asignacionService := services.NewAsignacionService(rutaRepo, envioRepo)
+	repartidorService := services.NewRepartidorService(envioRepo)
 
 	router := httprouter.New(httprouter.Deps{
-		CORSOrigins:     cfg.CORSOrigins,
-		JWTSecret:       cfg.JWTSecret,
-		AuthHandler:     handlers.NewAuthHandler(authService),
-		UsuariosHandler: handlers.NewUsuariosHandler(usuarioRepo),
-		EnvioHandler:    handlers.NewEnvioHandler(envioService),
-		RutaHandler:     handlers.NewRutaHandler(rutaService, asignacionService),
+		CORSOrigins:       cfg.CORSOrigins,
+		JWTSecret:         cfg.JWTSecret,
+		AuthHandler:       handlers.NewAuthHandler(authService),
+		UsuariosHandler:   handlers.NewUsuariosHandler(usuarioRepo),
+		EnvioHandler:      handlers.NewEnvioHandler(envioService),
+		RutaHandler:       handlers.NewRutaHandler(rutaService, asignacionService),
+		RepartidorHandler: handlers.NewRepartidorHandler(repartidorService),
 	})
 
 	log.Printf("API escuchando en :%s (env=%s)", cfg.Port, cfg.Env)

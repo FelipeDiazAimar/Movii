@@ -14,12 +14,13 @@ import (
 
 // Deps son las dependencias que el router necesita para montar las rutas.
 type Deps struct {
-	CORSOrigins     []string
-	JWTSecret       string
-	AuthHandler     *handlers.AuthHandler
-	UsuariosHandler *handlers.UsuariosHandler
-	EnvioHandler    *handlers.EnvioHandler
-	RutaHandler     *handlers.RutaHandler
+	CORSOrigins       []string
+	JWTSecret         string
+	AuthHandler       *handlers.AuthHandler
+	UsuariosHandler   *handlers.UsuariosHandler
+	EnvioHandler      *handlers.EnvioHandler
+	RutaHandler       *handlers.RutaHandler
+	RepartidorHandler *handlers.RepartidorHandler
 }
 
 // New arma el router HTTP completo de la API.
@@ -61,6 +62,11 @@ func New(deps Deps) http.Handler {
 			operativo.Put("/rutas/{id}", deps.RutaHandler.Update)
 			operativo.Post("/rutas/{id}/envios", deps.RutaHandler.AsignarEnvios)
 			operativo.Delete("/rutas/{id}/envios/{envioId}", deps.RutaHandler.DesasignarEnvio)
+		})
+
+		protected.Group(func(repartidorOnly chi.Router) {
+			repartidorOnly.Use(middleware.RequireRole(domain.RolRepartidor))
+			repartidorOnly.Get("/repartidor/envios-del-dia", deps.RepartidorHandler.EnviosDelDia)
 		})
 	})
 
