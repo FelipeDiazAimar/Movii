@@ -2489,7 +2489,7 @@ En el repo de GitHub: Settings → Secrets and variables → Actions → New rep
 
 ## Self-Review
 
-**Cobertura del spec:** este plan cubre las secciones 3.2 (API Go), 4 (auth), 5 (contrato — endpoints de HU-01), 6 (tablas), 7 (estrategia de tests, parte Go) del spec. Quedan para los planes siguientes: 3.3/3.4 (web, móvil), el resto del contrato de la sección 5 (envíos, rutas, asignación, repartidor), y la sección 8 (despliegue).
+**Cobertura del spec:** este plan cubre las secciones 4 (auth), 5 (contrato — endpoints de HU-01), 6 (tablas), 7 (estrategia de tests, parte Go) del spec, y de la sección 3.2 (API Go) todo lo referido a la capa de aplicación (router, config, DB, capas handlers/services/repository). La documentación OpenAPI/Swagger que también menciona 3.2 (`GET /docs`) **no** está en el alcance de este plan — ninguna de sus tareas la agenda; queda pendiente para un plan posterior. Quedan para los planes siguientes: 3.3/3.4 (web, móvil), el resto del contrato de la sección 5 (envíos, rutas, asignación, repartidor), y la sección 8 (despliegue).
 
 **Placeholders:** ninguno — todos los pasos tienen código completo o comandos exactos.
 
