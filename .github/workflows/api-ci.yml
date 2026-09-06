@@ -1,0 +1,30 @@
+name: API CI
+
+on:
+  push:
+    paths:
+      - "gestion-envios/services/api/**"
+  pull_request:
+    paths:
+      - "gestion-envios/services/api/**"
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: gestion-envios/services/api
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      JWT_SECRET: ci-secret-de-pruebas
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+      - name: Vet
+        run: go vet ./...
+      - name: Aplicar migraciones
+        run: go run ./cmd/migrate up
+      - name: Test
+        run: go test ./... -v -p 1
