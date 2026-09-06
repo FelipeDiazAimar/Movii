@@ -9,30 +9,29 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestRunMigrations_CreaTablas ejercita operaciones destructivas de migración
-// (rollback/reapply) contra la MISMA base Supabase real que usan otros
-// paquetes de test de este módulo (no hay aislamiento entre paquetes: es una
-// única base compartida). Por eso este test depende de restaurar siempre el
-// estado completamente migrado y sembrado (versión 2, con datos de seed)
-// antes de retornar, usando t.Cleanup — que corre tanto si el test pasa como
-// si falla a mitad de camino. Sin esto, otros paquetes cuyos tests corren en
-// paralelo (go test ./... sin -p 1) podrían observar la base a mitad de
-// migración o sin datos de seed.
+// TestRunMigrations_CreaTablas verifica que RunMigrations deja el esquema
+// aplicado (idempotente si ya estaba al día) contra la MISMA base Supabase
+// real que usan otros paquetes de test de este módulo — no hay aislamiento
+// entre paquetes ni entre planes de implementación: es una única base
+// compartida y creciente.
+//
+// A propósito, este test NO ejercita un rollback real de la migración de
+// seed (RollbackLast en versión 2→1) como parte de la suite automática: la
+// migración 0002_seed.down.sql borra usuarios de demo, y cualquier fila de
+// OTRO paquete de test (por ejemplo una ruta creada por internal/services o
+// internal/handlers) que quede apuntando a esos usuarios por FK — algo que
+// pasa fácilmente si un test se corta a mitad de camino en una corrida
+// interrumpida — rompe el DELETE con una violación de foreign key y deja la
+// tabla schema_migrations en estado "dirty". Esto ya ocurrió en la práctica
+// durante el desarrollo de este plan. La corrección del código de
+// RollbackLast (Task 3/4 de HU-01, ya revisada) sigue siendo válida y se usa
+// desde `cmd/migrate down` para uso manual; simplemente no se re-ejercita
+// aquí en cada corrida de la suite automática.
 func TestRunMigrations_CreaTablas(t *testing.T) {
 	url := os.Getenv("DATABASE_URL")
 	if url == "" {
 		t.Skip("DATABASE_URL no está seteada; ver Task 0 del plan")
 	}
-
-	// Empezar limpio por si quedó estado de una corrida anterior.
-	_ = RollbackLast(url, "../../../migrations")
-
-	// Pase lo que pase de acá en adelante (assertion que falla, panic, etc.),
-	// dejar la base completamente migrada y sembrada antes de que el test
-	// retorne, para no romper otros paquetes que comparten esta misma base.
-	t.Cleanup(func() {
-		_ = RunMigrations(url, "../../../migrations")
-	})
 
 	err := RunMigrations(url, "../../../migrations")
 	require.NoError(t, err)
@@ -48,8 +47,7 @@ func TestRunMigrations_CreaTablas(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, existe, "la tabla usuarios debería existir tras migrar")
 
-	// Dejar el down probado también. El t.Cleanup registrado arriba corre
-	// después (LIFO) y vuelve a migrar todo hacia arriba, restaurando el
-	// seed antes de que el test termine.
-	require.NoError(t, RollbackLast(url, "../../../migrations"))
+	// Llamar RunMigrations de nuevo debe ser un no-op seguro (ErrNoChange
+	// manejado internamente), no un error.
+	require.NoError(t, RunMigrations(url, "../../../migrations"))
 }

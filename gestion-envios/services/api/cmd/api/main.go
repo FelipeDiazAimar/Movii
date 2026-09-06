@@ -31,13 +31,21 @@ func main() {
 	defer pool.Close()
 
 	usuarioRepo := repository.NewUsuarioRepo(pool)
+	envioRepo := repository.NewEnvioRepo(pool)
+	rutaRepo := repository.NewRutaRepo(pool)
+
 	authService := services.NewAuthService(usuarioRepo, cfg.JWTSecret)
+	envioService := services.NewEnvioService(pool, envioRepo)
+	rutaService := services.NewRutaService(rutaRepo)
+	asignacionService := services.NewAsignacionService(rutaRepo, envioRepo)
 
 	router := httprouter.New(httprouter.Deps{
 		CORSOrigins:     cfg.CORSOrigins,
 		JWTSecret:       cfg.JWTSecret,
 		AuthHandler:     handlers.NewAuthHandler(authService),
 		UsuariosHandler: handlers.NewUsuariosHandler(usuarioRepo),
+		EnvioHandler:    handlers.NewEnvioHandler(envioService),
+		RutaHandler:     handlers.NewRutaHandler(rutaService, asignacionService),
 	})
 
 	log.Printf("API escuchando en :%s (env=%s)", cfg.Port, cfg.Env)

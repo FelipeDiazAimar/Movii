@@ -18,6 +18,8 @@ type Deps struct {
 	JWTSecret       string
 	AuthHandler     *handlers.AuthHandler
 	UsuariosHandler *handlers.UsuariosHandler
+	EnvioHandler    *handlers.EnvioHandler
+	RutaHandler     *handlers.RutaHandler
 }
 
 // New arma el router HTTP completo de la API.
@@ -45,6 +47,20 @@ func New(deps Deps) http.Handler {
 		protected.Group(func(supervisorOnly chi.Router) {
 			supervisorOnly.Use(middleware.RequireRole(domain.RolSupervisor))
 			supervisorOnly.Get("/users", deps.UsuariosHandler.List)
+		})
+
+		protected.Get("/envios", deps.EnvioHandler.List)
+		protected.Get("/envios/{id}", deps.EnvioHandler.GetByID)
+		protected.Get("/rutas", deps.RutaHandler.List)
+		protected.Get("/rutas/{id}", deps.RutaHandler.Detail)
+
+		protected.Group(func(operativo chi.Router) {
+			operativo.Use(middleware.RequireRole(domain.RolOperador, domain.RolSupervisor))
+			operativo.Post("/envios", deps.EnvioHandler.Create)
+			operativo.Post("/rutas", deps.RutaHandler.Create)
+			operativo.Put("/rutas/{id}", deps.RutaHandler.Update)
+			operativo.Post("/rutas/{id}/envios", deps.RutaHandler.AsignarEnvios)
+			operativo.Delete("/rutas/{id}/envios/{envioId}", deps.RutaHandler.DesasignarEnvio)
 		})
 	})
 
