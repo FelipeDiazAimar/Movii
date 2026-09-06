@@ -1,7 +1,7 @@
 INSERT INTO usuarios (id, nombre, email, password_hash, rol) VALUES
-    ('11111111-1111-1111-1111-111111111111', 'Ana Supervisora', 'supervisor@movii.demo', '$2a$10$7EqJtq98hPqEX7fNZaFWoO4/nzcS8t.LrN.5s4v/tYUvV/2c6r6Vy', 'supervisor'),
-    ('22222222-2222-2222-2222-222222222222', 'Beto Operador', 'operador@movii.demo', '$2a$10$7EqJtq98hPqEX7fNZaFWoO4/nzcS8t.LrN.5s4v/tYUvV/2c6r6Vy', 'operador'),
-    ('33333333-3333-3333-3333-333333333333', 'Carla Repartidora', 'repartidor@movii.demo', '$2a$10$7EqJtq98hPqEX7fNZaFWoO4/nzcS8t.LrN.5s4v/tYUvV/2c6r6Vy', 'repartidor');
+    ('11111111-1111-1111-1111-111111111111', 'Ana Supervisora', 'supervisor@movii.demo', '$2a$10$X5OtxtXJ/IAxmM7DGNo.C.usc7NHAE9svUkLpyEzUMv4DUhXi/vja', 'supervisor'),
+    ('22222222-2222-2222-2222-222222222222', 'Beto Operador', 'operador@movii.demo', '$2a$10$X5OtxtXJ/IAxmM7DGNo.C.usc7NHAE9svUkLpyEzUMv4DUhXi/vja', 'operador'),
+    ('33333333-3333-3333-3333-333333333333', 'Carla Repartidora', 'repartidor@movii.demo', '$2a$10$X5OtxtXJ/IAxmM7DGNo.C.usc7NHAE9svUkLpyEzUMv4DUhXi/vja', 'repartidor');
 
 INSERT INTO remitentes (id, nombre, telefono, direccion) VALUES
     ('44444444-4444-4444-4444-444444444444', 'Depósito Central Movii', '3564-100100', 'Ruta 19 km 4, San Francisco');
