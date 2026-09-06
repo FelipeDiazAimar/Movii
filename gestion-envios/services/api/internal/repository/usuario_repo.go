@@ -33,7 +33,7 @@ func NewUsuarioRepo(pool *pgxpool.Pool) *UsuarioRepo {
 func (r *UsuarioRepo) Create(ctx context.Context, u domain.Usuario) (domain.Usuario, error) {
 	row := r.pool.QueryRow(ctx, `
 		INSERT INTO usuarios (nombre, email, password_hash, rol)
-		VALUES ($1, $2, $3, $4)
+		VALUES ($1, $2, $3, $4::rol_usuario)
 		RETURNING id, nombre, email, password_hash, rol, activo
 	`, u.Nombre, u.Email, u.PasswordHash, u.Rol)
 
