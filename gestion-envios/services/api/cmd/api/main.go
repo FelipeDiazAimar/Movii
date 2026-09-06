@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"log"
 	"net/http"
 
@@ -8,6 +9,7 @@ import (
 
 	"movii/api/internal/config"
 	"movii/api/internal/httprouter"
+	"movii/api/internal/platform/db"
 )
 
 func main() {
@@ -17,6 +19,13 @@ func main() {
 	if err != nil {
 		log.Fatalf("config: %v", err)
 	}
+
+	ctx := context.Background()
+	pool, err := db.New(ctx, cfg.DatabaseURL)
+	if err != nil {
+		log.Fatalf("db: %v", err)
+	}
+	defer pool.Close()
 
 	router := httprouter.New(httprouter.Deps{CORSOrigins: cfg.CORSOrigins})
 
