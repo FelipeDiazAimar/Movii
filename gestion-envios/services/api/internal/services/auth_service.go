@@ -20,6 +20,16 @@ var (
 	ErrCredencialesInvalidas = errors.New("credenciales invalidas")
 )
 
+// dummyPasswordHash es un hash bcrypt (costo 10) válido de una contraseña
+// arbitraria que nunca se usa para autenticar a nadie. Login lo compara
+// contra la contraseña recibida cuando el email no existe, únicamente para
+// que esa rama pague el mismo costo de CPU (~150-300ms) que la comparación
+// real. NO simplificar quitando esta llamada: sin ella, un email inexistente
+// responde mucho más rápido que una contraseña incorrecta, y esa diferencia
+// de tiempo es un oráculo que permite enumerar emails registrados — justo lo
+// que CA-04 de HU-01 exige no revelar.
+const dummyPasswordHash = "$2a$10$CwTycUXWue0Thq9StjUM0uJ8N5g3.YoGjRSY6HZjhV9jGYVwtY9Wm"
+
 // usuarioRepo es lo mínimo que AuthService necesita de un repositorio de
 // usuarios. UsuarioRepo (repository.UsuarioRepo) lo implementa; los tests
 // usan un fake.
@@ -77,6 +87,9 @@ func (s *AuthService) Register(ctx context.Context, nombre, email, password, rol
 func (s *AuthService) Login(ctx context.Context, email, password string) (string, error) {
 	u, err := s.repo.GetByEmail(ctx, email)
 	if errors.Is(err, repository.ErrNoEncontrado) {
+		// Comparación "dummy" para igualar el tiempo de respuesta con el
+		// caso de contraseña incorrecta (ver comentario de dummyPasswordHash).
+		_ = bcrypt.CompareHashAndPassword([]byte(dummyPasswordHash), []byte(password))
 		return "", ErrCredencialesInvalidas
 	}
 	if err != nil {

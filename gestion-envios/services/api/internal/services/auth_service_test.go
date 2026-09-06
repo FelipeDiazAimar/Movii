@@ -6,6 +6,7 @@ import (
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/crypto/bcrypt"
 
 	"movii/api/internal/domain"
 	"movii/api/internal/repository"
@@ -114,4 +115,20 @@ func TestLogin_RechazaEmailInexistente(t *testing.T) {
 	_, err := svc.Login(context.Background(), "no-existe@movii.demo", "cualquier-clave")
 
 	require.ErrorIs(t, err, ErrCredencialesInvalidas)
+}
+
+// TestLogin_DummyHashEsBcryptValido verifica que la constante dummyPasswordHash
+// usada por Login para igualar el costo de CPU entre "email inexistente" y
+// "contraseña incorrecta" (ver comentario junto a su declaración en
+// auth_service.go) sea efectivamente un hash bcrypt válido. Si dejara de
+// serlo, bcrypt.CompareHashAndPassword fallaría rápido en vez de tardar lo
+// mismo que una comparación real, reabriendo el oráculo de tiempos que evita
+// CA-04 de HU-01. No es un test de timing (eso sería frágil); solo protege
+// contra que alguien "simplifique" quitando la comparación dummy o rompa el
+// literal del hash.
+func TestLogin_DummyHashEsBcryptValido(t *testing.T) {
+	err := bcrypt.CompareHashAndPassword([]byte(dummyPasswordHash), []byte("cualquier-clave"))
+
+	require.Error(t, err) // la clave nunca coincide, pero debe ser un ErrMismatchedHashAndPassword
+	require.ErrorIs(t, err, bcrypt.ErrMismatchedHashAndPassword)
 }
