@@ -8,8 +8,11 @@ import (
 	"github.com/joho/godotenv"
 
 	"movii/api/internal/config"
+	"movii/api/internal/handlers"
 	"movii/api/internal/httprouter"
 	"movii/api/internal/platform/db"
+	"movii/api/internal/repository"
+	"movii/api/internal/services"
 )
 
 func main() {
@@ -27,7 +30,15 @@ func main() {
 	}
 	defer pool.Close()
 
-	router := httprouter.New(httprouter.Deps{CORSOrigins: cfg.CORSOrigins})
+	usuarioRepo := repository.NewUsuarioRepo(pool)
+	authService := services.NewAuthService(usuarioRepo, cfg.JWTSecret)
+
+	router := httprouter.New(httprouter.Deps{
+		CORSOrigins:     cfg.CORSOrigins,
+		JWTSecret:       cfg.JWTSecret,
+		AuthHandler:     handlers.NewAuthHandler(authService),
+		UsuariosHandler: handlers.NewUsuariosHandler(usuarioRepo),
+	})
 
 	log.Printf("API escuchando en :%s (env=%s)", cfg.Port, cfg.Env)
 	if err := http.ListenAndServe(":"+cfg.Port, router); err != nil {
