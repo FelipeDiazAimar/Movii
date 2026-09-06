@@ -86,3 +86,10 @@ func toString(v interface{}) string {
 	s, _ := v.(string)
 	return s
 }
+
+// ContextWithClaims agrega Claims al contexto manualmente. Pensada para
+// tests y para cualquier código que necesite construir un contexto con
+// claims sin pasar por RequireAuth/un JWT real.
+func ContextWithClaims(ctx context.Context, c Claims) context.Context {
+	return context.WithValue(ctx, claimsKey, c)
+}
