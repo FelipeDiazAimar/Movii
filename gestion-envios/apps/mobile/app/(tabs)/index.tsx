@@ -1,5 +1,4 @@
-import { useMemo } from "react";
-import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
+import { FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from "react-native";
 import { router } from "expo-router";
 
 import { AuroraBackground } from "@/components/aurora-background";
@@ -25,11 +24,14 @@ function StopCard({ shipment, onPress }: { shipment: Shipment; onPress: () => vo
 }
 
 export default function RouteScreen() {
-  const { shipments, activeDriverId } = useMovii();
+  const { enviosDelDia, resumenDelDia, cargandoEnviosDelDia, errorEnviosDelDia, recargarEnviosDelDia, activeDriverId } = useMovii();
   const driver = getDriver(activeDriverId);
-  const stops = useMemo(() => shipments.filter((shipment) => shipment.driverId === activeDriverId && shipment.code <= "MOV-2026-000780").sort((a, b) => a.stopOrder - b.stopOrder), [shipments, activeDriverId]);
-  const inProgress = stops.filter((shipment) => shipment.status === "en_camino").length;
-  const progress = Math.min(100, Math.round((driver.deliveriesToday / (driver.deliveriesToday + stops.length)) * 100));
+  const stops = enviosDelDia;
+  const total = resumenDelDia?.total ?? 0;
+  const entregados = resumenDelDia?.entregados ?? 0;
+  const enCamino = resumenDelDia?.en_camino ?? 0;
+  const progress = total === 0 ? 0 : Math.round((entregados / total) * 100);
+  const nombreRuta = resumenDelDia?.rutas[0]?.ruta_nombre ?? "Sin rutas asignadas hoy";
 
   return (
     <View style={styles.page}>
@@ -39,19 +41,22 @@ export default function RouteScreen() {
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
+        refreshControl={<RefreshControl refreshing={cargandoEnviosDelDia} onRefresh={recargarEnviosDelDia} />}
         ListHeaderComponent={
           <View style={styles.headerStack}>
             <View style={styles.topBar}><View><Text style={styles.greeting}>Buen día,</Text><Text style={styles.driverName}>{driver.name.split(" ")[0]}.</Text></View><View style={styles.avatar}><Text style={styles.avatarText}>{driver.initials}</Text></View></View>
+            {errorEnviosDelDia ? <Text style={styles.errorBanner}>{errorEnviosDelDia}</Text> : null}
             <GlassCard style={styles.summaryCard}>
-              <View style={styles.summaryTop}><View><Text style={styles.summaryEyebrow}>MI RUTA DE HOY</Text><Text style={styles.summaryTitle}>Ruta Norte 02</Text><Text style={styles.summarySubtitle}>Olivos · Martínez · San Isidro</Text></View><View style={styles.progressValue}><Text style={styles.progressNumber}>{progress}%</Text><Text style={styles.progressText}>listo</Text></View></View>
+              <View style={styles.summaryTop}><View><Text style={styles.summaryEyebrow}>MI RUTA DE HOY</Text><Text style={styles.summaryTitle}>{nombreRuta}</Text></View><View style={styles.progressValue}><Text style={styles.progressNumber}>{progress}%</Text><Text style={styles.progressText}>listo</Text></View></View>
               <View style={styles.progressTrack}><View style={[styles.progressFill, { width: `${progress}%` }]} /></View>
-              <View style={styles.summaryStats}><View><Text style={styles.statNumber}>{driver.deliveriesToday}</Text><Text style={styles.statLabel}>entregadas</Text></View><View style={styles.statDivider} /><View><Text style={styles.statNumber}>{stops.length}</Text><Text style={styles.statLabel}>por visitar</Text></View><View style={styles.statDivider} /><View><Text style={styles.statNumber}>{inProgress}</Text><Text style={styles.statLabel}>en camino</Text></View></View>
+              <View style={styles.summaryStats}><View><Text style={styles.statNumber}>{entregados}</Text><Text style={styles.statLabel}>entregadas</Text></View><View style={styles.statDivider} /><View><Text style={styles.statNumber}>{stops.length}</Text><Text style={styles.statLabel}>por visitar</Text></View><View style={styles.statDivider} /><View><Text style={styles.statNumber}>{enCamino}</Text><Text style={styles.statLabel}>en camino</Text></View></View>
               <View style={styles.mapAction}><IconAction label="Ver ruta en el mapa" icon="⌖" onPress={() => router.push("/route-map")} /><Text style={styles.mapActionChevron}>›</Text></View>
             </GlassCard>
             <SectionHeading eyebrow="PRÓXIMAS PARADAS" title="Tu recorrido" action="Mapa" onAction={() => router.push("/route-map")} />
           </View>
         }
         renderItem={({ item }) => <StopCard shipment={item} onPress={() => router.push({ pathname: "/stop/[id]", params: { id: item.id } })} />}
+        ListEmptyComponent={!cargandoEnviosDelDia ? <Text style={styles.emptyText}>No tenés envíos asignados para hoy.</Text> : null}
         ListFooterComponent={<View style={{ height: 16 }} />}
       />
     </View>
@@ -67,6 +72,8 @@ const styles = StyleSheet.create({
   driverName: { color: "#1C1C1E", fontSize: 30, lineHeight: 34, fontWeight: "800", letterSpacing: -1.1 },
   avatar: { width: 42, height: 42, borderRadius: 21, backgroundColor: "#1C1C1E", justifyContent: "center", alignItems: "center" },
   avatarText: { color: "#FFD60A", fontWeight: "800", fontSize: 13 },
+  errorBanner: { color: "#D70015", fontSize: 12, fontWeight: "700", textAlign: "center", paddingVertical: 6 },
+  emptyText: { color: "#6E6E73", fontSize: 13, textAlign: "center", paddingTop: 40 },
   summaryCard: { padding: 18, gap: 16 },
   summaryTop: { flexDirection: "row", justifyContent: "space-between", gap: 12 },
   summaryEyebrow: { color: "#6E6E73", fontSize: 10, fontWeight: "800", letterSpacing: 0.9 },
