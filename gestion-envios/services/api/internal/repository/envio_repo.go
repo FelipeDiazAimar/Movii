@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
@@ -155,4 +156,59 @@ func (r *EnvioRepo) DesasignarEnvio(ctx context.Context, envioID, rutaID string)
 		return ErrNoEncontrado
 	}
 	return nil
+}
+
+// currentDateUTC devuelve la fecha de hoy en UTC, formato "YYYY-MM-DD". Se
+// usa en vez de time.Now().Format en horario local para no repetir el bug
+// de huso horario ya corregido en AsignacionService (una fecha calculada en
+// el huso local de la máquina puede diferir de la fecha real en UTC cerca
+// de la medianoche).
+func currentDateUTC() string {
+	return time.Now().UTC().Format("2006-01-02")
+}
+
+// ListDelDiaPorRepartidor devuelve los envíos de las rutas de repartidorID
+// con fecha == fecha, con el nombre de la ruta para poder agruparlos.
+// estado vacío ("") no filtra por estado.
+func (r *EnvioRepo) ListDelDiaPorRepartidor(ctx context.Context, repartidorID, fecha, estado string) ([]domain.EnvioDelDia, error) {
+	rows, err := r.pool.Query(ctx, `
+		SELECT e.id, e.codigo_guia, e.estado, e.peso, e.tamano, e.tipo_contenido, e.fragil, e.urgente,
+		       e.remitente_id, e.destinatario_id, e.ruta_id,
+		       d.id, d.nombre, d.telefono, d.calle, d.numero, COALESCE(d.piso_depto, ''), d.localidad, d.codigo_postal,
+		       r.nombre
+		FROM envios e
+		JOIN rutas r ON r.id = e.ruta_id
+		JOIN destinatarios d ON d.id = e.destinatario_id
+		WHERE r.repartidor_id = $1 AND r.fecha = $2::date
+		  AND ($3 = '' OR e.estado::text = $3)
+		ORDER BY r.nombre, e.created_at
+	`, repartidorID, fecha, estado)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var lista []domain.EnvioDelDia
+	for rows.Next() {
+		var e domain.EnvioDelDia
+		var rutaID sql.NullString
+		// Orden exacto de columnas del SELECT (20 en total):
+		// 1-10: e.id, codigo_guia, estado, peso, tamano, tipo_contenido, fragil, urgente, remitente_id, destinatario_id
+		// 11: e.ruta_id
+		// 12-19: d.id, nombre, telefono, calle, numero, piso_depto, localidad, codigo_postal
+		// 20: r.nombre
+		if err := rows.Scan(&e.ID, &e.CodigoGuia, &e.Estado, &e.Peso, &e.Tamano, &e.TipoContenido, &e.Fragil, &e.Urgente,
+			&e.RemitenteID, &e.DestinatarioID, &rutaID,
+			&e.Destinatario.ID, &e.Destinatario.Nombre, &e.Destinatario.Telefono, &e.Destinatario.Calle,
+			&e.Destinatario.Numero, &e.Destinatario.PisoDepto, &e.Destinatario.Localidad, &e.Destinatario.CodigoPostal,
+			&e.RutaNombre,
+		); err != nil {
+			return nil, err
+		}
+		if rutaID.Valid {
+			e.Envio.RutaID = &rutaID.String
+		}
+		lista = append(lista, e)
+	}
+	return lista, rows.Err()
 }
