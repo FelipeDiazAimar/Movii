@@ -46,7 +46,9 @@ const config: ExpoConfig = {
   icon: "./assets/images/icon.png",
   scheme: env.scheme,
   userInterfaceStyle: "automatic",
-  newArchEnabled: true,
+  // newArchEnabled ya no es una opcion valida: desde Expo SDK 55 la New
+  // Architecture es obligatoria (no hay Old Architecture para volver), asi
+  // que el flag se elimino del tipo de config.
   ios: {
     supportsTablet: true,
     bundleIdentifier: env.iosBundleId,
@@ -61,7 +63,9 @@ const config: ExpoConfig = {
       backgroundImage: "./assets/images/android-icon-background.png",
       monochromeImage: "./assets/images/android-icon-monochrome.png",
     },
-    edgeToEdgeEnabled: true,
+    // edgeToEdgeEnabled ya no es una opcion valida desde una version reciente
+    // de Expo: el edge-to-edge en Android es obligatorio (no se puede
+    // desactivar), asi que la propiedad se elimino del tipo de config.
     predictiveBackGestureEnabled: false,
     package: env.androidPackage,
     permissions: ["POST_NOTIFICATIONS"],
@@ -86,6 +90,12 @@ const config: ExpoConfig = {
   },
   plugins: [
     "expo-router",
+    "expo-asset",
+    "expo-font",
+    "expo-image",
+    "expo-secure-store",
+    "expo-status-bar",
+    "expo-web-browser",
     [
       "expo-audio",
       {

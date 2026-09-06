@@ -12,7 +12,11 @@ type ThemeContextValue = {
 const ThemeContext = createContext<ThemeContextValue | null>(null);
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const systemScheme = useSystemColorScheme() ?? "light";
+  // useColorScheme() puede devolver "unspecified" (además de "light"/"dark"/
+  // null) en versiones nuevas de React Native; ColorScheme de la app solo
+  // admite "light"|"dark", así que cualquier otro valor cae a "light".
+  const rawSystemScheme = useSystemColorScheme();
+  const systemScheme: ColorScheme = rawSystemScheme === "dark" ? "dark" : "light";
   const [colorScheme, setColorSchemeState] = useState<ColorScheme>(systemScheme);
 
   const applyScheme = useCallback((scheme: ColorScheme) => {

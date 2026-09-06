@@ -5,7 +5,12 @@ import { SymbolWeight, SymbolViewProps } from "expo-symbols";
 import { ComponentProps } from "react";
 import { OpaqueColorValue, type StyleProp, type TextStyle } from "react-native";
 
-type IconMapping = Record<SymbolViewProps["name"], ComponentProps<typeof MaterialIcons>["name"]>;
+// SymbolViewProps["name"] pasó a ser un objeto por plataforma ({ios, android,
+// web}) en versiones nuevas de expo-symbols, en vez de un string plano — ya
+// no sirve como clave de un Record. Este componente nunca renderiza un
+// SymbolView real (siempre cae a MaterialIcons), así que el mapeo solo
+// necesita claves string; IconSymbolName sigue derivándose de MAPPING.
+type IconMapping = Record<string, ComponentProps<typeof MaterialIcons>["name"]>;
 type IconSymbolName = keyof typeof MAPPING;
 
 /**
