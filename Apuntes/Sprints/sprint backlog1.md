@@ -16,11 +16,11 @@
 - Gandino, Diego
 - Saldarini, Javier Daniel
 
-**Duración del Sprint:** 30 días (12/08/2026 – 02/09/2026)
+**Duración del Sprint:** 30 días (04/08/2026 – 02/09/2026)
 
 **Fecha de presentación del Backlog:** Miércoles 19/08/2026
 
-**Fecha de presentación del Sprint:** Miércoles 02/09/2026
+**Fecha de presentación del Sprint:** Miércoles 09/09/2026 (reprogramada; fecha original 02/09/2026)
 
 ---
 
@@ -76,7 +76,7 @@ A continuación se presentan las fichas de cada Historia de Usuario seleccionada
 | CA-06            | El sistema permite listar los usuarios registrados (solo para supervisor/admin). Se retorna la lista con nombre, email, rol y estado activo.                                                            |
 |                  | **Propiedades**                                                                                                                                                                                   |
 | Prioridad        | Muy Alta                                                                                                                                                                                                |
-| Estado           | Pendiente                                                                                                                                                                                               |
+| Estado           | Terminada                                                                                                                                                                                               |
 | Estimación      | 8 Story Points                                                                                                                                                                                          |
 | Valor de negocio | 8                                                                                                                                                                                                       |
 | Responsable      | Micheloud, Jeremías                                                                                                                                                                                    |
@@ -101,7 +101,7 @@ A continuación se presentan las fichas de cada Historia de Usuario seleccionada
 | CA-06            | Solo usuarios con rol operador o supervisor pueden registrar envíos. Un usuario con rol repartidor recibe error 403 al intentar registrar un envío.                                                                                                                                                                                                                                        |
 |                  | **Propiedades**                                                                                                                                                                                                                                                                                                                                                                        |
 | Prioridad        | Muy Alta                                                                                                                                                                                                                                                                                                                                                                                     |
-| Estado           | Pendiente                                                                                                                                                                                                                                                                                                                                                                                    |
+| Estado           | Terminada                                                                                                                                                                                                                                                                                                                                                                                    |
 | Estimación      | 5 Story Points                                                                                                                                                                                                                                                                                                                                                                               |
 | Valor de negocio | 8                                                                                                                                                                                                                                                                                                                                                                                            |
 | Responsable      | Díaz Aimar, Felipe                                                                                                                                                                                                                                                                                                                                                                          |
@@ -125,7 +125,7 @@ A continuación se presentan las fichas de cada Historia de Usuario seleccionada
 | CA-05            | Una ruta no puede crearse sin repartidor asignado ni sin fecha. Se muestra un mensaje de error si faltan estos campos obligatorios.                                                                 |
 |                  | **Propiedades**                                                                                                                                                                               |
 | Prioridad        | Alta                                                                                                                                                                                                |
-| Estado           | Pendiente                                                                                                                                                                                           |
+| Estado           | Terminada                                                                                                                                                                                           |
 | Estimación      | 5 Story Points                                                                                                                                                                                      |
 | Valor de negocio | 5                                                                                                                                                                                                   |
 | Responsable      | Araya, Ulises                                                                                                                                                                                       |
@@ -150,7 +150,7 @@ A continuación se presentan las fichas de cada Historia de Usuario seleccionada
 | CA-06            | El sistema muestra la cantidad total de envíos asignados a cada ruta y el peso total acumulado. La información se visualiza en la vista de detalle de la ruta.            |
 |                  | **Propiedades**                                                                                                                                                       |
 | Prioridad        | Alta                                                                                                                                                                        |
-| Estado           | Pendiente                                                                                                                                                                   |
+| Estado           | Terminada                                                                                                                                                                   |
 | Estimación      | 5 Story Points                                                                                                                                                              |
 | Valor de negocio | 5                                                                                                                                                                           |
 | Responsable      | Díaz Aimar, Felipe                                                                                                                                                         |
@@ -175,7 +175,7 @@ A continuación se presentan las fichas de cada Historia de Usuario seleccionada
 | CA-06            | La vista está optimizada para dispositivos móviles. La interfaz se adapta correctamente a pantallas de 390×844 px (mobile-first).                                                            |
 |                  | **Propiedades**                                                                                                                                                                           |
 | Prioridad        | Alta                                                                                                                                                                                            |
-| Estado           | Pendiente                                                                                                                                                                                       |
+| Estado           | Terminada                                                                                                                                                                                       |
 | Estimación      | 3 Story Points                                                                                                                                                                                  |
 | Valor de negocio | 5                                                                                                                                                                                               |
 | Responsable      | Araya, Ulises                                                                                                                                                                                   |
@@ -465,10 +465,11 @@ Una tarea o historia se considera terminada cuando cumple todos los criterios si
 
 | Fecha            | SP Restantes (Ideal) | SP Restantes (Real) | Observaciones     |
 | ---------------- | :------------------: | :-----------------: | ----------------- |
-| 12/08 (inicio)   |          26          |         26         | Inicio del Sprint |
-| 18/08 (semana 1) |          20          |                    |                   |
-| 25/08 (semana 2) |          13          |                    |                   |
-| 01/09 (semana 3) |          7          |                    |                   |
+| 04/08 (inicio)   |          26          |         26         | Inicio del Sprint |
+| 11/08 (semana 1) |          20          |                    |                   |
+| 18/08 (semana 2) |          13          |                    |                   |
+| 25/08 (semana 3) |          7          |                    |                   |
+| 01/09 (semana 4) |          3          |                    |                   |
 | 02/09 (cierre)   |          0          |                    |                   |
 
 ---

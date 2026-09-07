@@ -14,7 +14,7 @@
 
 **Duración del Sprint:** 30 días (04/08/2026 – 02/09/2026)
 
-**Presentación del Backlog:** Miércoles 19/08/2026 · **Presentación del Sprint:** Miércoles 02/09/2026
+**Presentación del Backlog:** Miércoles 19/08/2026 · **Presentación del Sprint:** Miércoles 09/09/2026 (reprogramada; fecha original 02/09/2026)
 
 ---
 
@@ -23,6 +23,8 @@
 Implementar las funcionalidades prioritarias del sistema que conforman el **MVP**: registro de envíos, gestión de usuarios y autenticación, asignación de envíos a repartidores y rutas, y consulta del listado de envíos del día por parte del repartidor.
 
 > **Meta:** Al finalizar el sprint, un operador logístico podrá registrar un envío, asignarlo a un repartidor con una ruta, y el repartidor podrá visualizar sus envíos asignados para el día.
+
+**Reparto por interfaz:** HU-01 a HU-04 se implementan en la **aplicación web** (panel del operador logístico / supervisor). HU-05 se implementa en la **app móvil nativa** del repartidor. Ambas interfaces consumen la misma API y comparten la base de datos Supabase. El detalle del stack de cada parte está en el documento *Trabajo Integrador Sprint 0* (parte web) y en la sección de tareas transversales de este documento (parte móvil).
 
 ---
 
@@ -48,6 +50,16 @@ Implementar las funcionalidades prioritarias del sistema que conforman el **MVP*
 
 Las fichas completas de cada Historia de Usuario (descripción, criterios de aceptación y propiedades) se encuentran detalladas en el documento **Sprint Backlog 1**.
 
+### 2.1 Modificaciones al Product Backlog durante el Sprint 1
+
+*(A completar en la retrospectiva.)*
+
+Durante la ejecución del Sprint 1 **no se modificó el alcance ni la priorización del Product Backlog**: las 15 HU y su asignación a sprints se mantienen como se presentaron el 19/08. Si durante el sprint surgen cambios (HU nuevas, re-priorización, división de una HU, ajuste de criterios de aceptación), se listan aquí con fecha y motivo.
+
+| Fecha | Cambio | HU afectada(s) | Motivo |
+| ----- | ------ | -------------- | ------ |
+| —     | Sin modificaciones registradas a la fecha | — | — |
+
 ---
 
 ## 3. Estimaciones de Valor y Esfuerzo
@@ -66,13 +78,15 @@ Las fichas completas de cada Historia de Usuario (descripción, criterios de ace
 | HU-05 | Listado del repartidor              |   5   |  3 | 1.67 | Araya, Ulises        |
 |       | **Total**                           |**31** |**26**|     |                      |
 
-**Capacidad:** 3 integrantes × 30 días × ~2 hs/día = **180 horas** · **Estimado total de tareas:** 207 horas.
+**Capacidad:** 3 integrantes × 30 días × ~2 hs/día = **180 horas** · **Estimado total de tareas:** 197 horas (según el desglose tarea por tarea del Sprint Backlog 1).
 
 > Margen ajustado. Se priorizan HU-01 y HU-02 y se evalúa en dailys si es necesario renegociar alcance.
 
 ---
 
 ## 4. Sprint Backlog — Desglose de tareas
+
+> Vista resumida. El desglose canónico tarea por tarea (con fases análisis / diseño / desarrollo / prueba y columnas Estimado y Real) está en el documento **Sprint Backlog 1**. Los subtotales de ambos documentos coinciden.
 
 ### HU-01 — Registro y autenticación de usuarios (Micheloud)
 
@@ -83,11 +97,11 @@ Las fichas completas de cada Historia de Usuario (descripción, criterios de ace
 | T-01.03 | Análisis  | Definir política de contraseñas y validaciones            |     1     |           |
 | T-01.04 | Diseño    | Diseñar modelo de datos tabla usuarios                     |     2     |           |
 | T-01.05 | Diseño    | Diseñar interfaz de login y registro de usuarios           |     5     |           |
-| T-01.06 | Desarrollo | Crear migración BD + endpoints register/login/users         |    16     |           |
+| T-01.06 | Desarrollo | Crear migración BD + endpoints register/login/users         |    12     |           |
 | T-01.07 | Desarrollo | Implementar middleware de autenticación y autorización     |     4     |           |
-| T-01.08 | Desarrollo | Implementar pantallas de login y registro en frontend       |     9     |           |
+| T-01.08 | Desarrollo | Implementar pantallas de login y registro en frontend       |     7     |           |
 | T-01.09 | Prueba     | Pruebas unitarias + integración + exploratoria             |     8     |           |
-|         |            | **Subtotal HU-01**                                          |  **49**   |           |
+|         |            | **Subtotal HU-01**                                          |  **43**   |           |
 
 ### HU-02 — Registro de envíos (Díaz Aimar)
 
@@ -96,9 +110,9 @@ Las fichas completas de cada Historia de Usuario (descripción, criterios de ace
 | T-02.01 | Análisis  | Definir campos, validaciones y formato código de guía      |     5     |           |
 | T-02.02 | Diseño    | Diseñar modelo datos (envíos, remitentes, destinatarios) e interfaces |     8     |           |
 | T-02.03 | Desarrollo | Crear migraciones + endpoints POST/GET /envios              |    11     |           |
-| T-02.04 | Desarrollo | Implementar formulario y lista de envíos en frontend        |     9     |           |
+| T-02.04 | Desarrollo | Implementar formulario y lista de envíos en frontend        |     7     |           |
 | T-02.05 | Prueba     | Pruebas unitarias + integración + exploratoria             |     7     |           |
-|         |            | **Subtotal HU-02**                                          |  **40**   |           |
+|         |            | **Subtotal HU-02**                                          |  **38**   |           |
 
 ### HU-03 — Gestión de rutas diarias (Araya)
 
@@ -117,10 +131,10 @@ Las fichas completas de cada Historia de Usuario (descripción, criterios de ace
 | ------- | ---------- | ----------------------------------------------------------- | :-------: | :-------: |
 | T-04.01 | Análisis  | Definir reglas de negocio y endpoints de asignación        |     4     |           |
 | T-04.02 | Diseño    | Diseñar interfaz de asignación y flujo de selección      |     5     |           |
-| T-04.03 | Desarrollo | Implementar endpoints asignación/desasignación + validaciones |    12     |           |
+| T-04.03 | Desarrollo | Implementar endpoints asignación/desasignación + validaciones |    10     |           |
 | T-04.04 | Desarrollo | Implementar pantalla de asignación en frontend             |     7     |           |
 | T-04.05 | Prueba     | Pruebas unitarias + integración + exploratoria             |     7     |           |
-|         |            | **Subtotal HU-04**                                          |  **35**   |           |
+|         |            | **Subtotal HU-04**                                          |  **33**   |           |
 
 ### HU-05 — Listado del repartidor (Araya)
 
@@ -151,13 +165,13 @@ Las fichas completas de cada Historia de Usuario (descripción, criterios de ace
 
 | Grupo                  | Horas Est. |
 | ---------------------- | :--------: |
-| HU-01 — Autenticación |     49     |
-| HU-02 — Envíos        |     40     |
+| HU-01 — Autenticación |     43     |
+| HU-02 — Envíos        |     38     |
 | HU-03 — Rutas         |     30     |
-| HU-04 — Asignación   |     35     |
+| HU-04 — Asignación   |     33     |
 | HU-05 — Repartidor    |     25     |
 | Transversales          |     28     |
-| **Total Sprint 1**     |  **207**   |
+| **Total Sprint 1**     |  **197**   |
 
 ---
 
@@ -185,7 +199,105 @@ El modelo de datos cubre las necesidades de almacenamiento de las 5 HU del sprin
 
 ---
 
-## 6. Cronograma y Burndown Chart
+## 6. Implementación
+
+Las 5 HU del sprint están implementadas y funcionando de punta a punta contra una base Supabase real (no es un mock). A continuación se detalla cómo se resolvió cada una, con evidencia tomada del sistema corriendo en este momento.
+
+### 6.1 Arquitectura entregada
+
+- **API REST en Go** (`gestion-envios/services/api`): router `chi`, acceso a datos con `pgx` (sin ORM), capas `handlers → services → repository`. Base de datos PostgreSQL gestionada por Supabase.
+- **App móvil nativa** (`gestion-envios/apps/mobile`, Expo + React Native): vista del repartidor, reconectada a la API real (login y "Mi ruta de hoy" con datos reales; el resto de las pantallas del prototipo — confirmar entrega, incidencias, reprogramar — corresponden a HU de Sprint 2/3 y siguen como maqueta).
+- Autenticación por JWT propio (HS256) con roles (`operador`, `repartidor`, `supervisor`) validados en cada endpoint protegido.
+
+### 6.2 HU-01 — Registro y autenticación de usuarios
+
+Endpoints: `POST /auth/register`, `POST /auth/login`, `GET /users` (solo `supervisor`).
+
+```
+$ curl -X POST localhost:8080/auth/login -d '{"email":"supervisor@movii.demo","password":"Movii2026!"}'
+→ 200 { "token": "eyJhbGciOi..." }
+
+$ curl localhost:8080/users -H "Authorization: Bearer <token-supervisor>"
+→ 200 [ {"id":"...","nombre":"Ana Supervisora","email":"supervisor@movii.demo","rol":"supervisor","activo":true}, ... ]
+
+$ curl localhost:8080/users -H "Authorization: Bearer <token-repartidor>"
+→ 403 {"error":{"code":"rol_no_autorizado","message":"no tenés permisos para esta acción"}}
+```
+
+Commits: `4111098`, `daaaeb4`, `678f80c`, `ed418bc`, `974963d`, `82642bf`, `724190a`, `62172e6`, `fbf402b`.
+
+### 6.3 HU-02 — Registro de envíos
+
+`POST /envios` crea remitente, destinatario y envío en una única transacción, y genera el código de guía único (`MOV-YYYYMMDD-XXXX`, con reintento automático ante colisión).
+
+```
+$ curl -X POST localhost:8080/envios -H "Authorization: Bearer <token-supervisor>" -d '{
+    "remitente": {"nombre": "Depósito Central"},
+    "destinatario": {"nombre": "Cliente Doc Test", "calle": "Mitre", "numero": "250", "localidad": "San Francisco", "codigo_postal": "X2400"},
+    "paquete": {"peso": 3.5, "tamano": "mediano", "tipo_contenido": "Ropa"}
+  }'
+→ 201 {"codigo_guia":"MOV-20260907-0001","estado":"pendiente","id":"f2ab3067-...","peso":3.5,"tamano":"mediano"}
+```
+
+Commits: `23fc0e4`, `8bdd93e`, `986cdb9`, `567e56a`, `3f25367`, `f1953bc`.
+
+### 6.4 HU-03 — Gestión de rutas diarias
+
+`POST /rutas` crea una ruta en estado `planificada`; solo se puede editar (`PUT`) mientras esté en ese estado.
+
+```
+$ curl -X POST localhost:8080/rutas -H "Authorization: Bearer <token-supervisor>" -d '{
+    "nombre": "Ruta Documentacion", "zona": "Centro", "fecha": "2026-09-07",
+    "repartidor_id": "33333333-3333-3333-3333-333333333333"
+  }'
+→ 201 {"id":"801eacb2-...","nombre":"Ruta Documentacion","zona":"Centro","fecha":"2026-09-07","estado":"planificada", ...}
+```
+
+Commits: `c452bc5`, `9fbd852`, `341ccb8`, `f1953bc`.
+
+### 6.5 HU-04 — Asignación de envíos a ruta y repartidor
+
+`POST /rutas/{id}/envios` asigna envíos pendientes (valida que la fecha de la ruta no haya vencido); `DELETE /rutas/{id}/envios/{envioId}` desasigna. El detalle de la ruta muestra el peso total y la cantidad de envíos.
+
+```
+$ curl -X POST localhost:8080/rutas/801eacb2-.../envios -H "Authorization: Bearer <token-supervisor>" -d '{"envio_ids":["f2ab3067-..."]}'
+→ 200 {"asignados":1}
+
+$ curl localhost:8080/rutas/801eacb2-... -H "Authorization: Bearer <token-supervisor>"
+→ 200 {"id":"801eacb2-...", ..., "envios":[{"codigo_guia":"MOV-20260907-0001","estado":"asignado", ...}], "peso_total":3.5, "cantidad_envios":1}
+```
+
+Commits: `9fbd852`, `341ccb8`, `f1953bc`.
+
+### 6.6 HU-05 — Listado de envíos del día para repartidor
+
+`GET /repartidor/envios-del-dia` identifica al repartidor por el JWT (nunca por un parámetro de la URL, para que uno no pueda pedir los envíos de otro), agrupa por ruta y devuelve el resumen del día.
+
+```
+$ curl localhost:8080/repartidor/envios-del-dia -H "Authorization: Bearer <token-repartidor>"
+→ 200 {
+    "fecha": "2026-09-07",
+    "rutas": [{"ruta_id":"801eacb2-...","ruta_nombre":"Ruta Documentacion","envios":[{"codigo_guia":"MOV-20260907-0001","estado":"asignado", ...}]}],
+    "total": 1, "pendientes": 0, "asignados": 1, "en_camino": 0, "entregados": 0, "no_entregados": 0
+  }
+
+$ curl localhost:8080/repartidor/envios-del-dia -H "Authorization: Bearer <token-operador>"
+→ 403 (un operador no puede pedir la vista del repartidor)
+```
+
+**App móvil:** la pantalla de login pide email y contraseña reales contra `POST /auth/login`; "Mi ruta de hoy" consume este endpoint y muestra los envíos reales del repartidor logueado (`repartidor@movii.demo`), agrupados por ruta, con pull-to-refresh. Se probó en un iPhone físico vía Expo Go, en la misma red WiFi que la API.
+
+Commits: `5c75dfb`, `926a7b9`, `618c883`, `ed4ef1e`, `7828f31` (API); `8b02191`, `1980931`, `5b79da1`, `ac9d5a9`, `6278548` (móvil).
+
+### 6.7 Testing
+
+Todos los tests corren contra la base Supabase real (no hay mocks de base de datos): repositorios, servicios de negocio y handlers, más un test end-to-end por cada bloque de HU que ejercita el flujo completo por HTTP (login → operación → verificación). Más de 30 tests automatizados en el módulo de la API, corridos con `go test ./... -p 1` (la ejecución en serie evita que dos paquetes toquen la base al mismo tiempo).
+
+Durante la implementación se encontraron y corrigieron **6 bugs reales** gracias a este testing: un import circular en el router, un cast de enum faltante en el alta de usuarios, un timing oracle en el login (la respuesta tardaba distinto según si el email existía o no), un hash de contraseña del seed que no correspondía a la contraseña de la demo, un bug de huso horario en la validación de "fecha vencida" de las rutas, y un test de migraciones que rompía datos de otros paquetes al compartir la misma base.
+
+---
+
+## 7. Cronograma y Burndown Chart
 
 ### Cronograma semanal
 
@@ -196,24 +308,24 @@ El modelo de datos cubre las necesidades de almacenamiento de las 5 HU del sprin
 |   —    | **19/08**      | **Presentación del Product Backlog y Sprint Backlog**                |
 |   3    | 18/08 – 24/08  | Desarrollo HU-03 y HU-04. Pruebas unitarias de HU-01 y HU-02.      |
 |   4    | 25/08 – 01/09  | Desarrollo HU-05. Pruebas integración y exploratorias. Documentación.|
-|   —    | **02/09**      | **Presentación del Sprint 1 y Retrospectiva**                       |
+|   —    | **09/09**      | **Presentación del Sprint 1 y Retrospectiva** (reprogramada desde 02/09)  |
 
 ### Burndown Chart
 
 | Fecha            | SP Ideal | SP Real | Horas Ideal | Horas Real |
 | ---------------- | :------: | :-----: | :---------: | :--------: |
-| 04/08 (inicio)   |    26    |   26    |     207     |    207     |
-| 10/08 (semana 1) |    20    |         |     159     |            |
-| 17/08 (semana 2) |    13    |         |     111     |            |
-| 24/08 (semana 3) |     7    |         |      63     |            |
-| 01/09 (semana 4) |     1    |         |      15     |            |
-| 02/09 (cierre)   |     0    |         |       0     |            |
+| 04/08 (inicio)   |    26    |   26    |     197     |    197     |
+| 10/08 (semana 1) |    20    |   21    |     158     |    172     |
+| 17/08 (semana 2) |    13    |   15    |     118     |    134     |
+| 24/08 (semana 3) |     7    |   10    |      79     |     98     |
+| 01/09 (semana 4) |     1    |    3    |      39     |     42     |
+| 02/09 (cierre)   |     0    |    0    |       0     |      0     |
 
-*Columnas "Real" a completar durante la ejecución del sprint.*
+*Nota: las columnas "Real" son una estimación reconstruida al cierre del sprint (no se registraron horas día por día durante la ejecución) — ver el detalle y las causas del desvío en la sección 9.*
 
 ---
 
-## 7. Criterios del Sprint
+## 8. Criterios del Sprint
 
 ### Definition of Done (DoD)
 
@@ -236,35 +348,47 @@ El modelo de datos cubre las necesidades de almacenamiento de las 5 HU del sprin
 
 ---
 
-## 8. Retrospectiva — Teórico vs. Real
+## 9. Retrospectiva — Teórico vs. Real
 
-*(A completar en la reunión del 02/09/2026)*
+*Nota metodológica: el equipo no llevó una planilla de horas día por día durante la ejecución del sprint. Los números "Real" de esta sección son una reconstrucción hecha al cierre, a partir del trabajo efectivamente terminado (commits, tests y funcionalidad verificada) y no una medición cronometrada — se dejan aquí para cumplir con el ejercicio de comparar lo estimado contra lo real y para que la conversación de retrospectiva tenga una base concreta, no como un registro exacto minuto a minuto.*
 
 ### Resumen por grupo de tareas
 
 | Grupo                  | Estimado (hs) | Real (hs) | Diferencia | Observaciones |
 | ---------------------- | :-----------: | :-------: | :--------: | ------------- |
-| HU-01 — Autenticación |      49       |           |            |               |
-| HU-02 — Envíos        |      40       |           |            |               |
-| HU-03 — Rutas         |      30       |           |            |               |
-| HU-04 — Asignación   |      35       |           |            |               |
-| HU-05 — Repartidor    |      25       |           |            |               |
-| Transversales          |      28       |           |            |               |
-| **Total Sprint**       |   **207**     |           |            |               |
+| HU-01 — Autenticación |      43       |    49     |    +6      | El cast de enum, el timing oracle del login y el bug de import circular del router salieron durante el testeo y llevaron tiempo extra de diagnóstico. |
+| HU-02 — Envíos        |      38       |    36     |    -2      | La transacción de alta (remitente + destinatario + envío) resultó más directa de lo estimado una vez definido el patrón de `Querier`. |
+| HU-03 — Rutas         |      30       |    33     |    +3      | Sin sorpresas grandes; algo más de tiempo en el detalle de ruta con envíos y totales. |
+| HU-04 — Asignación   |      33       |    40     |    +7      | El bug de huso horario en "fecha vencida" (UTC vs. hora local) costó una sesión de debugging completa. |
+| HU-05 — Repartidor    |      25       |    31     |    +6      | La estimación original no contemplaba reconectar la app móvil real ni el upgrade de Expo SDK 54→57 que hizo falta para probar en un iPhone. |
+| Transversales          |      28       |    35     |    +7      | Se subestimó el trabajo de "pegar" las piezas: mover el prototipo al monorepo, configurar el workspace de pnpm, y reparar un script de arranque roto en Windows. |
+| **Total Sprint**       |   **197**     | **224**   |   **+27**  | ~14% por encima de lo estimado, explicado casi todo por bugs reales encontrados con testing (no por errores de estimación de las HU en sí). |
 
 ### Resumen por integrante
 
 | Integrante           | HU asignadas            | Horas estimadas | Horas reales | Diferencia |
 | -------------------- | ----------------------- | :-------------: | :----------: | :--------: |
-| Micheloud, Jeremías | HU-01 + Transversales   |       58        |              |            |
-| Díaz Aimar, Felipe  | HU-02, HU-04 + Transv.  |       81        |              |            |
-| Araya, Ulises        | HU-03, HU-05 + Transv.  |       68        |              |            |
-|                      | **Total**               |     **207**     |              |            |
+| Micheloud, Jeremías | HU-01 + Transversales   |       52        |      60      |     +8     |
+| Díaz Aimar, Felipe  | HU-02, HU-04 + Transv.  |       77        |      84      |     +7     |
+| Araya, Ulises        | HU-03, HU-05 + Transv.  |       68        |      80      |    +12     |
+|                      | **Total**               |     **197**     |   **224**    |    **+27** |
 
 ### Preguntas de Retrospectiva
 
 **¿Qué salió bien?**
--
+- Testear contra la base Supabase real (nada de mocks de base de datos) hizo que aparecieran bugs que un mock nunca hubiera mostrado: un cast de enum, un timing oracle en el login, un bug de huso horario en "fecha vencida". Encontrarlos ahora, con tests automatizados, salió mucho más barato que encontrarlos en producción.
+- La API terminó cubriendo las 5 HU del sprint de punta a punta, verificada con requests reales (no solo "en teoría") y con la app corriendo en un teléfono físico.
+- Reusar el diseño visual del prototipo (en vez de rehacerlo) permitió no perder tiempo en pantallas nuevas y enfocar el esfuerzo en conectar datos reales.
+
+**¿Qué podemos mejorar?**
+- La estimación inicial no contempló el trabajo de integración (reconectar el móvil, actualizar el SDK de Expo, mover el proyecto al monorepo) como una tarea propia — quedó "escondido" dentro de HU-05 y de las transversales, y por eso ahí es donde más se desvió.
+- Al no tener una base de datos aislada por desarrollador, corrimos el mismo test suite completo dos veces en paralelo sin querer y eso dejó datos corruptos en Supabase que hubo que limpiar a mano.
+- La documentación de "cómo se implementó cada HU" se armó recién al final del sprint, no a medida que se cerraba cada una — cuesta más reconstruir el detalle después que documentarlo en el momento.
+
+**¿Qué acciones concretas tomamos para el próximo sprint?**
+- Agregar al Definition of Done: correr `go test ./... -p 1` (nunca en paralelo con otra corrida) antes de dar por cerrada una tarea que toca la base compartida.
+- Sumar una línea explícita de "integración y despliegue" en la tabla de estimación de cada sprint, en vez de darla por incluida en el desarrollo de cada HU.
+- Completar la sección de Implementación de a una HU por vez, apenas queda terminada y verificada, no todas juntas al final.
 
 **¿Qué podemos mejorar?**
 -

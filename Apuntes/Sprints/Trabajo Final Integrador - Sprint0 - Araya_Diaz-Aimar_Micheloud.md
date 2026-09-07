@@ -77,6 +77,12 @@ Contenido
 
 9.2 Estrategia de QA 21
 
+10\. Product Backlog 22
+
+10.1 Escalas de estimación 22
+
+10.2 Backlog priorizado 22
+
 # 1\. Propósito del Sistema
 
 ## 1.1 Descripción general
@@ -192,27 +198,33 @@ El sistema contempla cuatro perfiles de usuario con roles y necesidades diferenc
 
 ## 6.1 Decisión de arquitectura
 
-Se adopta una arquitectura de tres capas con separación clara entre frontend, backend y base de datos. El backend expone una API REST consumida tanto por el frontend web como por la aplicación móvil del repartidor. Esta decisión facilita el desarrollo paralelo de las distintas interfaces y permite escalar cada capa de forma independiente.
+Se adopta una arquitectura de tres capas con separación clara entre frontend, backend y base de datos. El backend expone una única API REST, consumida tanto por el frontend web como por la aplicación móvil del repartidor. Esta decisión facilita el desarrollo paralelo de las distintas interfaces y permite escalar cada capa de forma independiente.
+
+El sistema tiene **dos interfaces cliente** sobre **una misma API y una única base de datos Supabase**:
+
+- **Aplicación web** — panel del operador logístico y del supervisor (registro de envíos, gestión de rutas, asignación, monitoreo y reportes) más el portal público de tracking del cliente final. Todavía no se implementó (queda para un sprint posterior); consumirá la misma API ya construida.
+- **Aplicación móvil nativa** — vista del repartidor (envíos del día, ruta, actualización de estados, confirmación de entrega, incidencias). Ya implementada y reconectada a la API real (ver documento *Sprint 1*, sección Implementación).
+
+*Nota: durante el Sprint 1 se decidió una sola API en Go para ambas interfaces (en vez de un backend Node/Express separado para la web), para no duplicar la lógica de negocio entre dos servidores. El stack de abajo refleja esa decisión, ya en funcionamiento.*
 
 ## 6.2 Stack tecnológico
 
 | Capa | Tecnología | Justificación  
  |
 | --- | --- | --- |
-| Frontend Web | React.js + Tailwind CSS | Componentes reutilizables, gran ecosistema y curva de aprendizaje manejable para el equipo |
-| App Móvil | React Native | Código base compartido con el frontend web; genera versiones Android e iOS desde un mismo proyecto |
-| Backend / API | Node.js + Express | Alto rendimiento en operaciones I/O intensivas; sintaxis familiar para el equipo |
-| Base de datos | PostgreSQL | Base de datos relacional robusta, ideal para el modelo de envíos, rutas y repartidores con relaciones claras |
-| ORM | Prisma | Facilita la gestión del esquema y las migraciones; integración nativa con Node.js |
-| Autenticación | JWT (JSON Web Tokens) | Estándar ampliamente adoptado para autenticación stateless en APIs REST |
-| Hosting / Despliegue | Railway (backend) + Vercel (frontend) | Despliegue rápido y gratuito para entornos de desarrollo y prueba académica |
-| Documentación API | Swagger / OpenAPI | Generación automática de documentación interactiva de los endpoints del sistema |
+| Frontend Web | React.js + Tailwind CSS | Componentes reutilizables, gran ecosistema y curva de aprendizaje manejable para el equipo. Pendiente de implementación. |
+| App Móvil | React Native + Expo | Código base compartido con el frontend web a nivel de lenguaje (TypeScript); genera versiones Android e iOS desde un mismo proyecto. **Implementado.** |
+| Backend / API | Go (chi + pgx) | Tipado fuerte y rendimiento nativo para una API que sirve tanto a la web como al móvil; sin ORM, acceso a datos con SQL explícito vía pgx para mantener control total sobre las queries. **Implementado** (HU-01 a HU-05 completas). |
+| Base de datos | Supabase (PostgreSQL gestionado) | Base de datos relacional PostgreSQL provista como servicio, ideal para el modelo de envíos, rutas y repartidores con relaciones claras. Se usa únicamente como Postgres (no se usa la Auth ni la API REST propias de Supabase). **En uso**, con las 5 tablas del modelo migradas y datos de demo cargados. |
+| Autenticación | JWT (JSON Web Tokens) propio | Estándar ampliamente adoptado para autenticación stateless en APIs REST; emitido y validado por la propia API (HS256), no por un proveedor externo. **Implementado.** |
+| Hosting / Despliegue | Supabase (base de datos) + Vercel (frontend web, a futuro) + Render/Railway (API) | Despliegue rápido y gratuito para entornos de desarrollo y prueba académica. **Pendiente** — hoy la API corre localmente y se prueba en el teléfono por la red local. |
+| Documentación API | Swagger / OpenAPI | Generación automática de documentación interactiva de los endpoints del sistema. **Pendiente.** |
 
 # 7\. Implementación del Ambiente de Trabajo
 
 ## 7.1 Estado del ambiente
 
-Cumpliendo con los objetivos del sprint, el ambiente de desarrollo ha sido instalado, configurado y se encuentra funcionando correctamente de manera local en los equipos de los integrantes del grupo.
+El ambiente de desarrollo está instalado, configurado y funcionando: la API corre localmente contra una base Supabase real (no local ni en Docker), y la app móvil se probó en dispositivos físicos (Android e iPhone) conectados a la API por la red local. No se usa Docker en este proyecto — la base de datos es un servicio gestionado (Supabase), no hace falta contenedores para levantarla.
 
 ## 7.2 Instructivo de Instalación
 
@@ -220,32 +232,42 @@ A continuación, se describen los pasos necesarios para replicar el ambiente de 
 
 #### Prerrequisitos
 
--   Node.js v20 LTS
--   npm v10 o superior
--   PostgreSQL v16
+-   Go 1.22 o superior (API)
+-   Node.js v20 LTS + pnpm 9 (app móvil)
+-   Cuenta de Supabase (proyecto propio o compartido por el equipo)
 -   Git v2.40 o superior
--   Visual Studio Code con extensiones: ESLint, Prettier, Prisma, GitLens
--   Docker Desktop (opcional, para levantar la base de datos en contenedor)
+-   Visual Studio Code con extensiones: Go, ESLint, Prettier, GitLens
+-   Expo Go instalado en el teléfono (para probar la app móvil)
 
-// Clonar el repositorio  
-git clone https://github.com/\[organizacion\]/gestion-envios.git  
-cd gestion-envios  
-  
-// Configuración del Backend  
-cd backend && npm install  
-cp .env.example .env  
-npx prisma migrate dev --name init  
-  
-// Variables de entorno requeridas en .env:  
-DATABASE\_URL="postgresql://usuario:password@localhost:5432/gestion\_envios"  
-JWT\_SECRET="clave\_secreta\_larga\_y\_aleatoria"  
-  
-// Configuración del Frontend  
-cd ../frontend && npm install && npm run dev  
-  
-// Levantar el ambiente con Docker  
-docker-compose up -d  
-// Esto levanta: PostgreSQL en el puerto 5432, el backend en el 3001 y el frontend en el 5173.  
+```
+// Clonar el repositorio
+git clone https://github.com/FelipeDiazAimar/Movii.git
+cd Movii
+
+// Configuración de la API (Go)
+cd gestion-envios/services/api
+cp .env.example .env
+// Completar en .env: DATABASE_URL (connection string de Supabase), JWT_SECRET, PORT, CORS_ORIGINS
+go run ./cmd/migrate up   // aplica el esquema de las 5 tablas + datos de demo
+go run ./cmd/api          // levanta la API en :8080
+
+// Configuración de la app móvil (Expo)
+cd ../../apps/mobile
+pnpm install
+cp .env.example .env
+// Completar EXPO_PUBLIC_API_URL con la IP de red local de la PC que corre la API
+npx expo start --port 8081
+// Escanear el QR con la cámara del teléfono (Expo Go) para abrir la app
+```
+
+Variables de entorno requeridas en `gestion-envios/services/api/.env`:
+
+```
+DATABASE_URL=postgresql://postgres:[password]@[host].supabase.co:5432/postgres
+JWT_SECRET=clave_secreta_larga_y_aleatoria
+PORT=8080
+CORS_ORIGINS=http://localhost:5173
+```
 
 # 8\. Prototipo de Interfaz de Usuario
 
@@ -263,7 +285,9 @@ Accesible desde la pestaña Admin del prototipo. Cuenta con cinco sub-vistas nav
 
 ## 8.2 Módulo Repartidor (App Móvil)
 
-Accesible desde la pestaña Repartidor del prototipo. Diseñado íntegramente para uso móvil:
+Accesible desde la pestaña Repartidor del prototipo. Diseñado íntegramente para uso móvil.
+
+*Actualización Sprint 1: la vista "Mi ruta" de este módulo dejó de ser una maqueta — está implementada y conectada a la API real (login y listado de envíos del día reales, ver documento Sprint 1). El resto de las pantallas de este módulo (confirmar entrega, incidencia, reprogramar) siguen como maqueta; corresponden a HU de Sprint 2.*
 
 -   **Mi ruta:** Vista principal con mapa, progreso del día y lista de próximas entregas.
 -   **Reportar incidencia:** Selección de motivo de no entrega y captura de evidencia fotográfica.
@@ -294,7 +318,7 @@ Accesible desde la pestaña Tracking. Es la vista pública del sistema para cons
 Una historia de usuario o tarea se considera terminada cuando cumple la totalidad de los siguientes criterios:
 
 1.  El código fue revisado por al menos un compañero de equipo mediante pull request en GitHub.
-2.  El código sigue los lineamientos de estilo definidos (ESLint + Prettier configurados en el repositorio).
+2.  El código sigue los lineamientos de estilo definidos (`gofmt` + `go vet` en la API; ESLint + Prettier en la app móvil).
 3.  La funcionalidad fue probada manualmente sobre el ambiente de desarrollo con casos positivos y negativos.
 4.  Se escribieron pruebas unitarias para la lógica de negocio del backend (cobertura mínima del 70%).
 5.  La funcionalidad fue integrada en la rama develop sin conflictos y el pipeline de CI pasa sin errores.
@@ -304,10 +328,10 @@ Una historia de usuario o tarea se considera terminada cuando cumple la totalida
 
 ## 9.2 Estrategia de QA
 
--   **Pruebas unitarias:** validación de la lógica de negocio en el backend. Framework: Jest.
--   **Pruebas de integración:** verificación de los endpoints de la API REST. Herramienta: Supertest + Jest.
--   **Pruebas funcionales (end-to-end):** flujos completos del usuario desde la interfaz. Herramienta: Cypress (web) y Detox (móvil).
--   **Pruebas exploratorias:** sesiones manuales del equipo sobre las funciones críticas antes de cada entrega de sprint.
+-   **Pruebas unitarias:** validación de la lógica de negocio en el backend. Framework: `testing` + `testify` (Go). En la app móvil, `vitest` para las funciones puras (adaptadores de datos, decodificación de JWT).
+-   **Pruebas de integración:** verificación de los endpoints de la API REST contra la base Supabase real (no se usan mocks de base de datos). Herramienta: `net/http/httptest` (Go).
+-   **Pruebas funcionales (end-to-end):** un test por cada bloque de HU que ejercita el flujo completo por HTTP (login → operación → verificación) contra el router real de la API.
+-   **Pruebas exploratorias:** sesiones manuales del equipo sobre las funciones críticas antes de cada entrega de sprint (verificado además con la app corriendo en un teléfono físico).
 
 **Gestión de defectos**
 
@@ -320,3 +344,35 @@ Una historia de usuario o tarea se considera terminada cuando cumple la totalida
 -   ESLint: análisis estático del código JavaScript.
 -   Prettier: formateo automático del código.
 -   GitHub Actions: pipeline de CI que ejecuta lint y tests.
+
+# 10. Product Backlog
+
+El Product Backlog completo del sistema se compone de 15 Historias de Usuario, priorizadas por valor de negocio y esfuerzo y distribuidas en tres sprints. Las fichas detalladas de cada HU (formato *Yo como… / Deseo… / Para…*, criterios de aceptación y propiedades) se encuentran en el documento **Sprint Backlog 1**.
+
+## 10.1 Escalas de estimación
+
+**Valor de negocio:** 1 (soporte) · 2 (útil, no esencial) · 3 (valor operativo claro) · 5 (habilita funcionalidad central) · 8 (imprescindible: sin esto el sistema no opera).
+
+**Esfuerzo — Story Points (Fibonacci):** 1 (trivial) · 2 (directo) · 3 (moderado) · 5 (significativo) · 8 (complejo) · 13 (muy complejo).
+
+## 10.2 Backlog priorizado
+
+| ID    | Historia de Usuario                          | Prioridad | Valor | SP | Sprint   |
+| ----- | ------------------------------------------- | --------- | :---: | :-: | -------- |
+| HU-01 | Registro y autenticación de usuarios        | Muy Alta  |   8   |  8 | Sprint 1 |
+| HU-02 | Registro de envíos                          | Muy Alta  |   8   |  5 | Sprint 1 |
+| HU-03 | Gestión de rutas diarias                    | Alta      |   5   |  5 | Sprint 1 |
+| HU-04 | Asignación de envíos a ruta y repartidor    | Alta      |   5   |  5 | Sprint 1 |
+| HU-05 | Listado de envíos del día para repartidor   | Alta      |   5   |  3 | Sprint 1 |
+| HU-06 | Actualización de estado de entrega          | Alta      |   8   |  5 | Sprint 2 |
+| HU-07 | Registro de entrega fallida con motivo      | Alta      |   5   |  5 | Sprint 2 |
+| HU-08 | Confirmación de entrega con firma y foto    | Alta      |   5   |  8 | Sprint 2 |
+| HU-09 | Reprogramación de entregas fallidas         | Media     |   5   |  5 | Sprint 2 |
+| HU-10 | Tracking público por código de guía        | Media     |   5   |  3 | Sprint 2 |
+| HU-11 | Panel de operaciones en tiempo real         | Media     |   3   |  5 | Sprint 3 |
+| HU-12 | Visualización de ruta en mapa (repartidor)  | Media     |   3   |  5 | Sprint 3 |
+| HU-13 | Reportes de envíos por período             | Baja      |   2   |  3 | Sprint 3 |
+| HU-14 | Ranking de desempeño de repartidores        | Baja      |   2   |  3 | Sprint 3 |
+| HU-15 | Clasificación de incidencias por motivo     | Baja      |   2   |  3 | Sprint 3 |
+
+**Total Sprint 1:** valor 31 · 26 SP. La priorización sigue la relación valor/esfuerzo, resolviendo primero las HU que habilitan el flujo operativo mínimo (alta → registro → asignación → reparto).

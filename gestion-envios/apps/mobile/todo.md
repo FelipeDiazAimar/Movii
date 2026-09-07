@@ -1,0 +1,30 @@
+# Project TODO
+
+- [x] Configurar el sistema de color Movii, modo claro y oscuro, y superficies glass.
+- [x] Definir modelos TypeScript y datos mock realistas de repartidores, rutas y envíos.
+- [x] Crear el contexto local para sesión de prototipo y actualización de estados.
+- [x] Implementar pantalla de inicio de sesión con selector de rol y acceso a tracking.
+- [x] Configurar navegación Expo Router con tabs para Ruta, Historial, Perfil y Diseño.
+- [x] Implementar pantalla Mi ruta de hoy con resumen, progreso y lista de paradas.
+- [x] Implementar mapa de ruta placeholder y detalle de parada con timeline.
+- [x] Implementar confirmación de entrega con firma digital, evidencia simulada y receptor.
+- [x] Implementar registro de entrega fallida con motivo y nota.
+- [x] Implementar reprogramación con fecha y franja horaria.
+- [x] Implementar historial de entregas y perfil de repartidor.
+- [x] Implementar acceso público Seguir mi envío y vista de estado para MOV-2026-000777.
+- [x] Implementar pantalla Sistema de diseño.
+- [x] Crear PROTOTYPE.md y README con navegación e instrucciones de ejecución.
+- [x] Generar icono Movii y actualizar la configuración de branding.
+- [x] Ejecutar comprobaciones de TypeScript y pruebas del prototipo.
+- [x] Optimizar las copias locales del icono para permitir el checkpoint de entrega.
+- [x] Reemplazar el fondo aurora estático por una aurora animada, liviana y compatible con Expo.
+- [x] Aumentar la presencia visual de la aurora sin afectar la legibilidad de las pantallas.
+- [x] Crear una pantalla funcional de recuperación de contraseña y conectar el enlace de acceso.
+- [x] Centrar la pantalla de acceso y eliminar el selector de rol demostrativo.
+- [x] Mantener un botón Atrás visible en las pantallas navegables relevantes.
+- [x] Convertir el mapa de ruta en una vista ampliable en primer plano.
+- [x] Restaurar la alineación izquierda del bloque de bienvenida de Movii.
+- [x] Mejorar el indicador visual de una parada que ya está en camino.
+- [x] Aumentar la escala visual del símbolo y la marca Movii en el acceso.
+- [x] Añadir una casilla para mantener la sesión iniciada y reubicar la recuperación de contraseña.
+- [x] Hacer ampliable en primer plano el mapa de la pantalla de seguimiento de envío.

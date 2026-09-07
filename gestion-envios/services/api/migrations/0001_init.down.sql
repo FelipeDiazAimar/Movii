@@ -1,0 +1,12 @@
+DROP TABLE IF EXISTS envios;
+DROP TABLE IF EXISTS rutas;
+DROP TABLE IF EXISTS destinatarios;
+DROP TABLE IF EXISTS remitentes;
+DROP TABLE IF EXISTS usuarios;
+
+DROP FUNCTION IF EXISTS set_updated_at();
+
+DROP TYPE IF EXISTS estado_ruta;
+DROP TYPE IF EXISTS tamano_paquete;
+DROP TYPE IF EXISTS estado_envio;
+DROP TYPE IF EXISTS rol_usuario;
