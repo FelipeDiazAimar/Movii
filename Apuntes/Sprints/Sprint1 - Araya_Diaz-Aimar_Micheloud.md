@@ -14,7 +14,7 @@
 
 **Duración del Sprint:** 30 días (04/08/2026 – 02/09/2026)
 
-**Presentación del Backlog:** Miércoles 19/08/2026 · **Presentación del Sprint:** Miércoles 10/09/2026 (reprogramada; fecha original 02/09/2026)
+**Presentación del Backlog:** Miércoles 19/08/2026 · **Presentación del Sprint:** Miércoles 09/09/2026 (reprogramada; fecha original 02/09/2026)
 
 ---
 
@@ -199,7 +199,105 @@ El modelo de datos cubre las necesidades de almacenamiento de las 5 HU del sprin
 
 ---
 
-## 6. Cronograma y Burndown Chart
+## 6. Implementación
+
+Las 5 HU del sprint están implementadas y funcionando de punta a punta contra una base Supabase real (no es un mock). A continuación se detalla cómo se resolvió cada una, con evidencia tomada del sistema corriendo en este momento.
+
+### 6.1 Arquitectura entregada
+
+- **API REST en Go** (`gestion-envios/services/api`): router `chi`, acceso a datos con `pgx` (sin ORM), capas `handlers → services → repository`. Base de datos PostgreSQL gestionada por Supabase.
+- **App móvil nativa** (`gestion-envios/apps/mobile`, Expo + React Native): vista del repartidor, reconectada a la API real (login y "Mi ruta de hoy" con datos reales; el resto de las pantallas del prototipo — confirmar entrega, incidencias, reprogramar — corresponden a HU de Sprint 2/3 y siguen como maqueta).
+- Autenticación por JWT propio (HS256) con roles (`operador`, `repartidor`, `supervisor`) validados en cada endpoint protegido.
+
+### 6.2 HU-01 — Registro y autenticación de usuarios
+
+Endpoints: `POST /auth/register`, `POST /auth/login`, `GET /users` (solo `supervisor`).
+
+```
+$ curl -X POST localhost:8080/auth/login -d '{"email":"supervisor@movii.demo","password":"Movii2026!"}'
+→ 200 { "token": "eyJhbGciOi..." }
+
+$ curl localhost:8080/users -H "Authorization: Bearer <token-supervisor>"
+→ 200 [ {"id":"...","nombre":"Ana Supervisora","email":"supervisor@movii.demo","rol":"supervisor","activo":true}, ... ]
+
+$ curl localhost:8080/users -H "Authorization: Bearer <token-repartidor>"
+→ 403 {"error":{"code":"rol_no_autorizado","message":"no tenés permisos para esta acción"}}
+```
+
+Commits: `4111098`, `daaaeb4`, `678f80c`, `ed418bc`, `974963d`, `82642bf`, `724190a`, `62172e6`, `fbf402b`.
+
+### 6.3 HU-02 — Registro de envíos
+
+`POST /envios` crea remitente, destinatario y envío en una única transacción, y genera el código de guía único (`MOV-YYYYMMDD-XXXX`, con reintento automático ante colisión).
+
+```
+$ curl -X POST localhost:8080/envios -H "Authorization: Bearer <token-supervisor>" -d '{
+    "remitente": {"nombre": "Depósito Central"},
+    "destinatario": {"nombre": "Cliente Doc Test", "calle": "Mitre", "numero": "250", "localidad": "San Francisco", "codigo_postal": "X2400"},
+    "paquete": {"peso": 3.5, "tamano": "mediano", "tipo_contenido": "Ropa"}
+  }'
+→ 201 {"codigo_guia":"MOV-20260907-0001","estado":"pendiente","id":"f2ab3067-...","peso":3.5,"tamano":"mediano"}
+```
+
+Commits: `23fc0e4`, `8bdd93e`, `986cdb9`, `567e56a`, `3f25367`, `f1953bc`.
+
+### 6.4 HU-03 — Gestión de rutas diarias
+
+`POST /rutas` crea una ruta en estado `planificada`; solo se puede editar (`PUT`) mientras esté en ese estado.
+
+```
+$ curl -X POST localhost:8080/rutas -H "Authorization: Bearer <token-supervisor>" -d '{
+    "nombre": "Ruta Documentacion", "zona": "Centro", "fecha": "2026-09-07",
+    "repartidor_id": "33333333-3333-3333-3333-333333333333"
+  }'
+→ 201 {"id":"801eacb2-...","nombre":"Ruta Documentacion","zona":"Centro","fecha":"2026-09-07","estado":"planificada", ...}
+```
+
+Commits: `c452bc5`, `9fbd852`, `341ccb8`, `f1953bc`.
+
+### 6.5 HU-04 — Asignación de envíos a ruta y repartidor
+
+`POST /rutas/{id}/envios` asigna envíos pendientes (valida que la fecha de la ruta no haya vencido); `DELETE /rutas/{id}/envios/{envioId}` desasigna. El detalle de la ruta muestra el peso total y la cantidad de envíos.
+
+```
+$ curl -X POST localhost:8080/rutas/801eacb2-.../envios -H "Authorization: Bearer <token-supervisor>" -d '{"envio_ids":["f2ab3067-..."]}'
+→ 200 {"asignados":1}
+
+$ curl localhost:8080/rutas/801eacb2-... -H "Authorization: Bearer <token-supervisor>"
+→ 200 {"id":"801eacb2-...", ..., "envios":[{"codigo_guia":"MOV-20260907-0001","estado":"asignado", ...}], "peso_total":3.5, "cantidad_envios":1}
+```
+
+Commits: `9fbd852`, `341ccb8`, `f1953bc`.
+
+### 6.6 HU-05 — Listado de envíos del día para repartidor
+
+`GET /repartidor/envios-del-dia` identifica al repartidor por el JWT (nunca por un parámetro de la URL, para que uno no pueda pedir los envíos de otro), agrupa por ruta y devuelve el resumen del día.
+
+```
+$ curl localhost:8080/repartidor/envios-del-dia -H "Authorization: Bearer <token-repartidor>"
+→ 200 {
+    "fecha": "2026-09-07",
+    "rutas": [{"ruta_id":"801eacb2-...","ruta_nombre":"Ruta Documentacion","envios":[{"codigo_guia":"MOV-20260907-0001","estado":"asignado", ...}]}],
+    "total": 1, "pendientes": 0, "asignados": 1, "en_camino": 0, "entregados": 0, "no_entregados": 0
+  }
+
+$ curl localhost:8080/repartidor/envios-del-dia -H "Authorization: Bearer <token-operador>"
+→ 403 (un operador no puede pedir la vista del repartidor)
+```
+
+**App móvil:** la pantalla de login pide email y contraseña reales contra `POST /auth/login`; "Mi ruta de hoy" consume este endpoint y muestra los envíos reales del repartidor logueado (`repartidor@movii.demo`), agrupados por ruta, con pull-to-refresh. Se probó en un iPhone físico vía Expo Go, en la misma red WiFi que la API.
+
+Commits: `5c75dfb`, `926a7b9`, `618c883`, `ed4ef1e`, `7828f31` (API); `8b02191`, `1980931`, `5b79da1`, `ac9d5a9`, `6278548` (móvil).
+
+### 6.7 Testing
+
+Todos los tests corren contra la base Supabase real (no hay mocks de base de datos): repositorios, servicios de negocio y handlers, más un test end-to-end por cada bloque de HU que ejercita el flujo completo por HTTP (login → operación → verificación). Más de 30 tests automatizados en el módulo de la API, corridos con `go test ./... -p 1` (la ejecución en serie evita que dos paquetes toquen la base al mismo tiempo).
+
+Durante la implementación se encontraron y corrigieron **6 bugs reales** gracias a este testing: un import circular en el router, un cast de enum faltante en el alta de usuarios, un timing oracle en el login (la respuesta tardaba distinto según si el email existía o no), un hash de contraseña del seed que no correspondía a la contraseña de la demo, un bug de huso horario en la validación de "fecha vencida" de las rutas, y un test de migraciones que rompía datos de otros paquetes al compartir la misma base.
+
+---
+
+## 7. Cronograma y Burndown Chart
 
 ### Cronograma semanal
 
@@ -210,7 +308,7 @@ El modelo de datos cubre las necesidades de almacenamiento de las 5 HU del sprin
 |   —    | **19/08**      | **Presentación del Product Backlog y Sprint Backlog**                |
 |   3    | 18/08 – 24/08  | Desarrollo HU-03 y HU-04. Pruebas unitarias de HU-01 y HU-02.      |
 |   4    | 25/08 – 01/09  | Desarrollo HU-05. Pruebas integración y exploratorias. Documentación.|
-|   —    | **10/09**      | **Presentación del Sprint 1 y Retrospectiva** (reprogramada desde 02/09)  |
+|   —    | **09/09**      | **Presentación del Sprint 1 y Retrospectiva** (reprogramada desde 02/09)  |
 
 ### Burndown Chart
 
@@ -227,7 +325,7 @@ El modelo de datos cubre las necesidades de almacenamiento de las 5 HU del sprin
 
 ---
 
-## 7. Criterios del Sprint
+## 8. Criterios del Sprint
 
 ### Definition of Done (DoD)
 
@@ -250,9 +348,9 @@ El modelo de datos cubre las necesidades de almacenamiento de las 5 HU del sprin
 
 ---
 
-## 8. Retrospectiva — Teórico vs. Real
+## 9. Retrospectiva — Teórico vs. Real
 
-*(A completar en la reunión de retrospectiva del 10/09/2026, con los tiempos reales registrados por cada integrante.)*
+*(A completar en la reunión de retrospectiva del 09/09/2026, con los tiempos reales registrados por cada integrante.)*
 
 ### Resumen por grupo de tareas
 
