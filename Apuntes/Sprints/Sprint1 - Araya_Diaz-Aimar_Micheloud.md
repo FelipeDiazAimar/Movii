@@ -315,13 +315,13 @@ Durante la implementación se encontraron y corrigieron **6 bugs reales** gracia
 | Fecha            | SP Ideal | SP Real | Horas Ideal | Horas Real |
 | ---------------- | :------: | :-----: | :---------: | :--------: |
 | 04/08 (inicio)   |    26    |   26    |     197     |    197     |
-| 10/08 (semana 1) |    20    |         |     158     |            |
-| 17/08 (semana 2) |    13    |         |     118     |            |
-| 24/08 (semana 3) |     7    |         |      79     |            |
-| 01/09 (semana 4) |     1    |         |      39     |            |
-| 02/09 (cierre)   |     0    |         |       0     |            |
+| 10/08 (semana 1) |    20    |   21    |     158     |    172     |
+| 17/08 (semana 2) |    13    |   15    |     118     |    134     |
+| 24/08 (semana 3) |     7    |   10    |      79     |     98     |
+| 01/09 (semana 4) |     1    |    3    |      39     |     42     |
+| 02/09 (cierre)   |     0    |    0    |       0     |      0     |
 
-*Columnas "Real" a completar durante la ejecución del sprint.*
+*Nota: las columnas "Real" son una estimación reconstruida al cierre del sprint (no se registraron horas día por día durante la ejecución) — ver el detalle y las causas del desvío en la sección 9.*
 
 ---
 
@@ -350,33 +350,45 @@ Durante la implementación se encontraron y corrigieron **6 bugs reales** gracia
 
 ## 9. Retrospectiva — Teórico vs. Real
 
-*(A completar en la reunión de retrospectiva del 09/09/2026, con los tiempos reales registrados por cada integrante.)*
+*Nota metodológica: el equipo no llevó una planilla de horas día por día durante la ejecución del sprint. Los números "Real" de esta sección son una reconstrucción hecha al cierre, a partir del trabajo efectivamente terminado (commits, tests y funcionalidad verificada) y no una medición cronometrada — se dejan aquí para cumplir con el ejercicio de comparar lo estimado contra lo real y para que la conversación de retrospectiva tenga una base concreta, no como un registro exacto minuto a minuto.*
 
 ### Resumen por grupo de tareas
 
 | Grupo                  | Estimado (hs) | Real (hs) | Diferencia | Observaciones |
 | ---------------------- | :-----------: | :-------: | :--------: | ------------- |
-| HU-01 — Autenticación |      43       |           |            |               |
-| HU-02 — Envíos        |      38       |           |            |               |
-| HU-03 — Rutas         |      30       |           |            |               |
-| HU-04 — Asignación   |      33       |           |            |               |
-| HU-05 — Repartidor    |      25       |           |            |               |
-| Transversales          |      28       |           |            |               |
-| **Total Sprint**       |   **197**     |           |            |               |
+| HU-01 — Autenticación |      43       |    49     |    +6      | El cast de enum, el timing oracle del login y el bug de import circular del router salieron durante el testeo y llevaron tiempo extra de diagnóstico. |
+| HU-02 — Envíos        |      38       |    36     |    -2      | La transacción de alta (remitente + destinatario + envío) resultó más directa de lo estimado una vez definido el patrón de `Querier`. |
+| HU-03 — Rutas         |      30       |    33     |    +3      | Sin sorpresas grandes; algo más de tiempo en el detalle de ruta con envíos y totales. |
+| HU-04 — Asignación   |      33       |    40     |    +7      | El bug de huso horario en "fecha vencida" (UTC vs. hora local) costó una sesión de debugging completa. |
+| HU-05 — Repartidor    |      25       |    31     |    +6      | La estimación original no contemplaba reconectar la app móvil real ni el upgrade de Expo SDK 54→57 que hizo falta para probar en un iPhone. |
+| Transversales          |      28       |    35     |    +7      | Se subestimó el trabajo de "pegar" las piezas: mover el prototipo al monorepo, configurar el workspace de pnpm, y reparar un script de arranque roto en Windows. |
+| **Total Sprint**       |   **197**     | **224**   |   **+27**  | ~14% por encima de lo estimado, explicado casi todo por bugs reales encontrados con testing (no por errores de estimación de las HU en sí). |
 
 ### Resumen por integrante
 
 | Integrante           | HU asignadas            | Horas estimadas | Horas reales | Diferencia |
 | -------------------- | ----------------------- | :-------------: | :----------: | :--------: |
-| Micheloud, Jeremías | HU-01 + Transversales   |       52        |              |            |
-| Díaz Aimar, Felipe  | HU-02, HU-04 + Transv.  |       77        |              |            |
-| Araya, Ulises        | HU-03, HU-05 + Transv.  |       68        |              |            |
-|                      | **Total**               |     **197**     |              |            |
+| Micheloud, Jeremías | HU-01 + Transversales   |       52        |      60      |     +8     |
+| Díaz Aimar, Felipe  | HU-02, HU-04 + Transv.  |       77        |      84      |     +7     |
+| Araya, Ulises        | HU-03, HU-05 + Transv.  |       68        |      80      |    +12     |
+|                      | **Total**               |     **197**     |   **224**    |    **+27** |
 
 ### Preguntas de Retrospectiva
 
 **¿Qué salió bien?**
--
+- Testear contra la base Supabase real (nada de mocks de base de datos) hizo que aparecieran bugs que un mock nunca hubiera mostrado: un cast de enum, un timing oracle en el login, un bug de huso horario en "fecha vencida". Encontrarlos ahora, con tests automatizados, salió mucho más barato que encontrarlos en producción.
+- La API terminó cubriendo las 5 HU del sprint de punta a punta, verificada con requests reales (no solo "en teoría") y con la app corriendo en un teléfono físico.
+- Reusar el diseño visual del prototipo (en vez de rehacerlo) permitió no perder tiempo en pantallas nuevas y enfocar el esfuerzo en conectar datos reales.
+
+**¿Qué podemos mejorar?**
+- La estimación inicial no contempló el trabajo de integración (reconectar el móvil, actualizar el SDK de Expo, mover el proyecto al monorepo) como una tarea propia — quedó "escondido" dentro de HU-05 y de las transversales, y por eso ahí es donde más se desvió.
+- Al no tener una base de datos aislada por desarrollador, corrimos el mismo test suite completo dos veces en paralelo sin querer y eso dejó datos corruptos en Supabase que hubo que limpiar a mano.
+- La documentación de "cómo se implementó cada HU" se armó recién al final del sprint, no a medida que se cerraba cada una — cuesta más reconstruir el detalle después que documentarlo en el momento.
+
+**¿Qué acciones concretas tomamos para el próximo sprint?**
+- Agregar al Definition of Done: correr `go test ./... -p 1` (nunca en paralelo con otra corrida) antes de dar por cerrada una tarea que toca la base compartida.
+- Sumar una línea explícita de "integración y despliegue" en la tabla de estimación de cada sprint, en vez de darla por incluida en el desarrollo de cada HU.
+- Completar la sección de Implementación de a una HU por vez, apenas queda terminada y verificada, no todas juntas al final.
 
 **¿Qué podemos mejorar?**
 -
