@@ -35,10 +35,13 @@ type Envio struct {
 	RutaID         *string `json:"ruta_id"` // nil si el envío todavía no fue asignado a una ruta
 }
 
-// EnvioConDetalle agrega los datos del destinatario, usados en listados y detalle.
+// EnvioConDetalle agrega los datos del destinatario y la fecha de alta,
+// usados en listados y detalle (CA-05 de HU-02 pide mostrar la fecha de
+// creación junto al código de guía, destinatario, dirección y estado).
 type EnvioConDetalle struct {
 	Envio
-	Destinatario Destinatario `json:"destinatario"`
+	Destinatario  Destinatario `json:"destinatario"`
+	FechaCreacion string       `json:"fecha_creacion"`
 }
 
 const (

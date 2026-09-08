@@ -55,7 +55,9 @@ func (r *RutaRepo) List(ctx context.Context, fecha string) ([]domain.RutaConCont
 	}
 	defer rows.Close()
 
-	var lista []domain.RutaConConteo
+	// make(...,0) y no `var`: un resultado vacío debe serializarse como [] y
+	// no como null, para que el cliente pueda recorrerlo sin chequear nil.
+	lista := make([]domain.RutaConConteo, 0)
 	for rows.Next() {
 		var rc domain.RutaConConteo
 		if err := rows.Scan(&rc.ID, &rc.Nombre, &rc.Zona, &rc.Fecha, &rc.Estado, &rc.RepartidorID, &rc.CantidadEnvios); err != nil {
@@ -121,7 +123,7 @@ func (r *RutaRepo) EnviosDeRuta(ctx context.Context, rutaID string) ([]domain.En
 	}
 	defer rows.Close()
 
-	var lista []domain.Envio
+	lista := make([]domain.Envio, 0)
 	for rows.Next() {
 		var e domain.Envio
 		if err := rows.Scan(&e.ID, &e.CodigoGuia, &e.Estado, &e.Peso, &e.Tamano, &e.TipoContenido, &e.Fragil, &e.Urgente, &e.RemitenteID, &e.DestinatarioID); err != nil {

@@ -34,7 +34,9 @@ func TestEnvioRepo_ListDelDiaPorRepartidor(t *testing.T) {
 	})
 	require.NoError(t, err)
 	t.Cleanup(func() { _, _ = pool.Exec(ctx, "DELETE FROM envios WHERE id = $1", envio.ID) })
-	require.NoError(t, repo.AsignarEnvios(ctx, []string{envio.ID}, rutaID))
+	asignados, err := repo.AsignarEnvios(ctx, []string{envio.ID}, rutaID)
+	require.NoError(t, err)
+	require.Equal(t, 1, asignados)
 
 	hoy := currentDateUTC()
 	lista, err := repo.ListDelDiaPorRepartidor(ctx, repartidorID, hoy, "")

@@ -63,7 +63,8 @@ func (r *EnvioRepo) List(ctx context.Context, estado, fecha string) ([]domain.En
 	rows, err := r.pool.Query(ctx, `
 		SELECT e.id, e.codigo_guia, e.estado, e.peso, e.tamano, e.tipo_contenido, e.fragil, e.urgente,
 		       e.remitente_id, e.destinatario_id, e.ruta_id,
-		       d.id, d.nombre, d.telefono, d.calle, d.numero, COALESCE(d.piso_depto, ''), d.localidad, d.codigo_postal
+		       d.id, d.nombre, d.telefono, d.calle, d.numero, COALESCE(d.piso_depto, ''), d.localidad, d.codigo_postal,
+		       to_char(e.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"')
 		FROM envios e
 		JOIN destinatarios d ON d.id = e.destinatario_id
 		WHERE ($1 = '' OR e.estado::text = $1)
@@ -75,7 +76,7 @@ func (r *EnvioRepo) List(ctx context.Context, estado, fecha string) ([]domain.En
 	}
 	defer rows.Close()
 
-	var lista []domain.EnvioConDetalle
+	lista := make([]domain.EnvioConDetalle, 0)
 	for rows.Next() {
 		var e domain.EnvioConDetalle
 		var rutaID sql.NullString
@@ -83,6 +84,7 @@ func (r *EnvioRepo) List(ctx context.Context, estado, fecha string) ([]domain.En
 			&e.RemitenteID, &e.DestinatarioID, &rutaID,
 			&e.Destinatario.ID, &e.Destinatario.Nombre, &e.Destinatario.Telefono, &e.Destinatario.Calle,
 			&e.Destinatario.Numero, &e.Destinatario.PisoDepto, &e.Destinatario.Localidad, &e.Destinatario.CodigoPostal,
+			&e.FechaCreacion,
 		); err != nil {
 			return nil, err
 		}
@@ -100,7 +102,8 @@ func (r *EnvioRepo) GetByID(ctx context.Context, id string) (domain.EnvioConDeta
 	row := r.pool.QueryRow(ctx, `
 		SELECT e.id, e.codigo_guia, e.estado, e.peso, e.tamano, e.tipo_contenido, e.fragil, e.urgente,
 		       e.remitente_id, e.destinatario_id, e.ruta_id,
-		       d.id, d.nombre, d.telefono, d.calle, d.numero, COALESCE(d.piso_depto, ''), d.localidad, d.codigo_postal
+		       d.id, d.nombre, d.telefono, d.calle, d.numero, COALESCE(d.piso_depto, ''), d.localidad, d.codigo_postal,
+		       to_char(e.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"')
 		FROM envios e
 		JOIN destinatarios d ON d.id = e.destinatario_id
 		WHERE e.id = $1
@@ -112,6 +115,7 @@ func (r *EnvioRepo) GetByID(ctx context.Context, id string) (domain.EnvioConDeta
 		&e.RemitenteID, &e.DestinatarioID, &rutaID,
 		&e.Destinatario.ID, &e.Destinatario.Nombre, &e.Destinatario.Telefono, &e.Destinatario.Calle,
 		&e.Destinatario.Numero, &e.Destinatario.PisoDepto, &e.Destinatario.Localidad, &e.Destinatario.CodigoPostal,
+		&e.FechaCreacion,
 	)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return domain.EnvioConDetalle{}, ErrNoEncontrado
@@ -128,18 +132,53 @@ func (r *EnvioRepo) GetByID(ctx context.Context, id string) (domain.EnvioConDeta
 // AsignarEnvios asigna los envíos dados (deben estar "pendiente" y sin ruta)
 // a rutaID, y los pasa a estado "asignado". Devuelve ErrEnvioNoDisponible si
 // alguno no estaba pendiente (o no existe).
-func (r *EnvioRepo) AsignarEnvios(ctx context.Context, envioIDs []string, rutaID string) error {
-	tag, err := r.pool.Exec(ctx, `
+//
+// La asignación es todo-o-nada: corre dentro de una transacción y, si algún
+// envío del lote no estaba disponible, se hace rollback. Sin la transacción,
+// un lote mixto (uno pendiente + uno ya asignado) devolvía el error pero
+// dejaba el envío pendiente ya asignado en la base — el operador veía "no se
+// asignó ninguno" mientras la base decía lo contrario (CA-01 de HU-04).
+func (r *EnvioRepo) AsignarEnvios(ctx context.Context, envioIDs []string, rutaID string) (int, error) {
+	unicos := idsUnicos(envioIDs)
+	if len(unicos) == 0 {
+		return 0, nil
+	}
+
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return 0, err
+	}
+	defer tx.Rollback(ctx) // no-op si ya se hizo commit
+
+	tag, err := tx.Exec(ctx, `
 		UPDATE envios SET ruta_id = $1, estado = 'asignado'
 		WHERE id = ANY($2) AND estado = 'pendiente'
-	`, rutaID, envioIDs)
+	`, rutaID, unicos)
 	if err != nil {
-		return err
+		return 0, err
 	}
-	if int(tag.RowsAffected()) != len(envioIDs) {
-		return ErrEnvioNoDisponible
+	// Se compara contra los ids únicos: un mismo envío repetido en el body
+	// se actualiza una sola vez y no debe contar como "faltante".
+	if int(tag.RowsAffected()) != len(unicos) {
+		return 0, ErrEnvioNoDisponible
 	}
-	return nil
+	if err := tx.Commit(ctx); err != nil {
+		return 0, err
+	}
+	return len(unicos), nil
+}
+
+// idsUnicos devuelve los ids sin repetir, preservando el orden de aparición.
+func idsUnicos(ids []string) []string {
+	vistos := make(map[string]bool, len(ids))
+	unicos := make([]string, 0, len(ids))
+	for _, id := range ids {
+		if !vistos[id] {
+			vistos[id] = true
+			unicos = append(unicos, id)
+		}
+	}
+	return unicos
 }
 
 // DesasignarEnvio quita un envío de una ruta y lo vuelve a "pendiente".
@@ -188,7 +227,7 @@ func (r *EnvioRepo) ListDelDiaPorRepartidor(ctx context.Context, repartidorID, f
 	}
 	defer rows.Close()
 
-	var lista []domain.EnvioDelDia
+	lista := make([]domain.EnvioDelDia, 0)
 	for rows.Next() {
 		var e domain.EnvioDelDia
 		var rutaID sql.NullString

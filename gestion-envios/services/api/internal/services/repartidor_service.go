@@ -43,9 +43,13 @@ func (s *RepartidorService) EnviosDelDia(ctx context.Context, repartidorID, esta
 }
 
 // agruparPorRuta agrupa los envíos por ruta, preservando el orden de
-// aparición de cada ruta en la lista de entrada.
+// aparición de cada ruta en la lista de entrada. Devuelve siempre un slice
+// no nulo: un repartidor sin envíos asignados hoy debe serializarse como
+// "rutas": [] y no como "rutas": null, porque el cliente móvil recorre esa
+// lista directamente y con null rompe (mostraría un error de conexión en vez
+// del estado vacío "no tenés envíos asignados para hoy").
 func agruparPorRuta(envios []domain.EnvioDelDia) []domain.RutaConEnviosDelDia {
-	var grupos []domain.RutaConEnviosDelDia
+	grupos := make([]domain.RutaConEnviosDelDia, 0, len(envios))
 	indicePorRuta := make(map[string]int)
 
 	for _, e := range envios {

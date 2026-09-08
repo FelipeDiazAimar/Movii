@@ -79,10 +79,18 @@ export async function logout(): Promise<void> {
   await clearToken();
 }
 
+/**
+ * Estados de un envio tal como los nombra la API (internal/domain/envio.go).
+ * "asignado" es el estado con el que un envio entra en la ruta del dia del
+ * repartidor; el prototipo lo muestra como "pendiente" (ver
+ * mapEnvioDelDiaToShipment) porque no tiene un badge visual propio.
+ */
+export type EstadoEnvioAPI = "pendiente" | "asignado" | "en_camino" | "entregado" | "no_entregado";
+
 export type EnvioDelDiaAPI = {
   id: string;
   codigo_guia: string;
-  estado: string;
+  estado: EstadoEnvioAPI;
   peso: number;
   tamano: string;
   tipo_contenido: string;
@@ -110,6 +118,7 @@ export type RutaConEnviosAPI = {
 
 export type ResumenDelDiaAPI = {
   fecha: string;
+  /** Vacio cuando el repartidor no tiene nada asignado hoy. */
   rutas: RutaConEnviosAPI[];
   total: number;
   pendientes: number;
@@ -132,6 +141,7 @@ export function mapEnvioDelDiaToShipment(envio: EnvioDelDiaAPI, driverId: string
 
   return {
     id: envio.id,
+    estadoApi: envio.estado,
     code: envio.codigo_guia,
     recipient: {
       name: envio.destinatario.nombre,
@@ -156,9 +166,12 @@ export function mapEnvioDelDiaToShipment(envio: EnvioDelDiaAPI, driverId: string
 }
 
 /** getEnviosDelDia llama a GET /repartidor/envios-del-dia?estado=. */
-export async function getEnviosDelDia(estado?: string): Promise<ResumenDelDiaAPI> {
+export async function getEnviosDelDia(estado?: EstadoEnvioAPI): Promise<ResumenDelDiaAPI> {
   const { data } = await api.get<ResumenDelDiaAPI>("/repartidor/envios-del-dia", {
     params: estado ? { estado } : undefined,
   });
-  return data;
+  // La API ya devuelve [] cuando el repartidor no tiene envios hoy, pero se
+  // normaliza igual por si responde una version anterior que mandaba null:
+  // con null la pantalla rompia y mostraba un error de conexion enganoso.
+  return { ...data, rutas: data.rutas ?? [] };
 }

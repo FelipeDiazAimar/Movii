@@ -38,9 +38,13 @@ func RequireAuth(jwtSecret string) func(http.Handler) http.Handler {
 				return
 			}
 
+			// WithValidMethods fija el algoritmo esperado (HS256, el que firma
+			// AuthService). Sin esa restricción el parser acepta cualquier alg
+			// que el propio token declare, que es la puerta de entrada a los
+			// ataques de confusión de algoritmo (CA-05 de HU-01).
 			token, err := jwt.Parse(tokenStr, func(t *jwt.Token) (interface{}, error) {
 				return []byte(jwtSecret), nil
-			})
+			}, jwt.WithValidMethods([]string{jwt.SigningMethodHS256.Alg()}))
 			if err != nil || !token.Valid {
 				httpx.WriteError(w, http.StatusUnauthorized, "token_invalido", "el token es inválido o expiró")
 				return

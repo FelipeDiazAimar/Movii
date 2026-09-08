@@ -68,7 +68,7 @@ func TestAsignacionService_AsignarYDesasignar(t *testing.T) {
 
 	envioID := crearEnvioPendienteDeTest(t, pool)
 
-	err = svc.Asignar(ctx, ruta.ID, []string{envioID})
+	_, err = svc.Asignar(ctx, ruta.ID, []string{envioID})
 	require.NoError(t, err)
 
 	err = svc.Desasignar(ctx, ruta.ID, envioID)
@@ -89,7 +89,7 @@ func TestAsignacionService_AsignarRechazaFechaVencida(t *testing.T) {
 
 	envioID := crearEnvioPendienteDeTest(t, pool)
 
-	err = svc.Asignar(ctx, ruta.ID, []string{envioID})
+	_, err = svc.Asignar(ctx, ruta.ID, []string{envioID})
 	require.ErrorIs(t, err, ErrFechaVencida)
 }
 
@@ -105,7 +105,8 @@ func TestAsignacionService_DesasignarRechazaRutaNoPlanificada(t *testing.T) {
 	t.Cleanup(func() { _, _ = pool.Exec(ctx, "DELETE FROM rutas WHERE id = $1", ruta.ID) })
 
 	envioID := crearEnvioPendienteDeTest(t, pool)
-	require.NoError(t, svc.Asignar(ctx, ruta.ID, []string{envioID}))
+	_, err = svc.Asignar(ctx, ruta.ID, []string{envioID})
+	require.NoError(t, err)
 
 	_, err = pool.Exec(ctx, "UPDATE rutas SET estado = 'en_curso' WHERE id = $1", ruta.ID)
 	require.NoError(t, err)

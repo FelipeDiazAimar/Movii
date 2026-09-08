@@ -2,22 +2,22 @@ import { createContext, useContext, useMemo, useState, type ReactNode } from "re
 
 import { allSeedShipments, drivers } from "@/mock/shipments";
 import type { Shipment, ShipmentStatus } from "@/types/logistics";
-import {
-  login as apiLogin,
-  logout as apiLogout,
-  getEnviosDelDia,
-  mapEnvioDelDiaToShipment,
-  type ResumenDelDiaAPI,
-} from "@/lib/api-client";
+import { login as apiLogin, logout as apiLogout, getEnviosDelDia, type EstadoEnvioAPI, type ResumenDelDiaAPI } from "@/lib/api-client";
+import { agruparEnviosPorRuta, type RutaDelDia } from "@/lib/envios-del-dia";
 
 type PrototypeRole = "repartidor" | "operador" | null;
+
+export type { RutaDelDia };
 
 type MoviiContextValue = {
   role: PrototypeRole;
   driverName: string;
   shipments: Shipment[];
   enviosDelDia: Shipment[];
+  rutasDelDia: RutaDelDia[];
   resumenDelDia: ResumenDelDiaAPI | null;
+  filtroEstado: EstadoEnvioAPI | null;
+  setFiltroEstado: (estado: EstadoEnvioAPI | null) => void;
   cargandoEnviosDelDia: boolean;
   errorEnviosDelDia: string | null;
   activeDriverId: string;
@@ -31,29 +31,32 @@ type MoviiContextValue = {
 
 const MoviiContext = createContext<MoviiContextValue | undefined>(undefined);
 
-const DRIVER_ID_REAL = "drv-real";
-
 export function MoviiProvider({ children }: { children: ReactNode }) {
   const [role, setRole] = useState<PrototypeRole>(null);
   const [driverName, setDriverName] = useState("");
   const [shipments, setShipments] = useState<Shipment[]>(allSeedShipments);
-  const [enviosDelDia, setEnviosDelDia] = useState<Shipment[]>([]);
+  const [rutasDelDia, setRutasDelDia] = useState<RutaDelDia[]>([]);
   const [resumenDelDia, setResumenDelDia] = useState<ResumenDelDiaAPI | null>(null);
+  const [filtroEstado, setFiltroEstado] = useState<EstadoEnvioAPI | null>(null);
   const [cargandoEnviosDelDia, setCargandoEnviosDelDia] = useState(false);
   const [errorEnviosDelDia, setErrorEnviosDelDia] = useState<string | null>(null);
   const activeDriverId = drivers[0].id;
 
+  /**
+   * Trae el día completo, sin filtrar por estado en el servidor. El filtro de
+   * CA-04 se aplica acá abajo sobre lo ya descargado porque el resumen del día
+   * de CA-05 (total / entregados / pendientes / no entregados) tiene que seguir
+   * contando TODOS los envíos: si filtráramos en la API, los contadores se
+   * moverían junto con el filtro y dejarían de ser el resumen del día.
+   */
   const recargarEnviosDelDia = async () => {
     setCargandoEnviosDelDia(true);
     setErrorEnviosDelDia(null);
     try {
       const resumen = await getEnviosDelDia();
       setResumenDelDia(resumen);
-      const mapeados = resumen.rutas.flatMap((ruta) =>
-        ruta.envios.map((envio, indice) => mapEnvioDelDiaToShipment(envio, DRIVER_ID_REAL, indice + 1)),
-      );
-      setEnviosDelDia(mapeados);
-    } catch (err) {
+      setRutasDelDia(agruparEnviosPorRuta(resumen));
+    } catch {
       setErrorEnviosDelDia("No se pudo cargar la ruta del día. Revisá tu conexión e intentá de nuevo.");
     } finally {
       setCargandoEnviosDelDia(false);
@@ -75,8 +78,9 @@ export function MoviiProvider({ children }: { children: ReactNode }) {
     await apiLogout();
     setRole(null);
     setDriverName("");
-    setEnviosDelDia([]);
+    setRutasDelDia([]);
     setResumenDelDia(null);
+    setFiltroEstado(null);
   };
 
   const updateShipment = (id: string, patch: Partial<Shipment>) => {
@@ -98,13 +102,20 @@ export function MoviiProvider({ children }: { children: ReactNode }) {
     );
   };
 
+  // Lista plana de todos los envíos del día, sin filtrar. La usan las pantallas
+  // que necesitan buscar un envío por id (detalle de parada).
+  const enviosDelDia = useMemo(() => rutasDelDia.flatMap((ruta) => ruta.envios), [rutasDelDia]);
+
   const value = useMemo<MoviiContextValue>(
     () => ({
       role,
       driverName,
       shipments,
       enviosDelDia,
+      rutasDelDia,
       resumenDelDia,
+      filtroEstado,
+      setFiltroEstado,
       cargandoEnviosDelDia,
       errorEnviosDelDia,
       activeDriverId,
@@ -117,7 +128,7 @@ export function MoviiProvider({ children }: { children: ReactNode }) {
       updateShipment,
       setShipmentStatus,
     }),
-    [role, driverName, shipments, enviosDelDia, resumenDelDia, cargandoEnviosDelDia, errorEnviosDelDia],
+    [role, driverName, shipments, enviosDelDia, rutasDelDia, resumenDelDia, filtroEstado, cargandoEnviosDelDia, errorEnviosDelDia],
   );
 
   return <MoviiContext.Provider value={value}>{children}</MoviiContext.Provider>;

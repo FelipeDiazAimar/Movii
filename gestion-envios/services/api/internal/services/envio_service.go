@@ -96,7 +96,11 @@ func (s *EnvioService) Create(ctx context.Context, in CrearEnvioInput) (domain.E
 // crearConCodigoUnico genera un código de guía MOV-YYYYMMDD-XXXX y reintenta
 // con el siguiente número si otro envío tomó ese código en simultáneo.
 func (s *EnvioService) crearConCodigoUnico(ctx context.Context, q repository.Querier, in CrearEnvioInput, remitenteID, destinatarioID string) (domain.Envio, error) {
-	fecha := time.Now().Format("20060102")
+	// UTC igual que el resto del sistema ("hoy" del repartidor y la validación
+	// de fecha vencida de las rutas). Con la hora local de la máquina, cerca de
+	// medianoche el código de guía quedaba fechado un día distinto al que el
+	// resto de la API considera "hoy".
+	fecha := time.Now().UTC().Format("20060102")
 	prefijo := "MOV-" + fecha + "-"
 
 	var ultimoErr error

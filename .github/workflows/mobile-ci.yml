@@ -1,0 +1,30 @@
+name: Mobile CI
+
+on:
+  push:
+    paths:
+      - "gestion-envios/apps/mobile/**"
+  pull_request:
+    paths:
+      - "gestion-envios/apps/mobile/**"
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: gestion-envios/apps/mobile
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Instalar dependencias
+        run: pnpm install --frozen-lockfile
+      - name: Chequeo de tipos
+        run: pnpm check
+      - name: Test
+        run: pnpm test

@@ -136,10 +136,10 @@ func (h *RutaHandler) AsignarEnvios(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err := h.asigSvc.Asignar(r.Context(), rutaID, req.EnvioIDs)
+	asignados, err := h.asigSvc.Asignar(r.Context(), rutaID, req.EnvioIDs)
 	switch {
 	case err == nil:
-		httpx.WriteJSON(w, http.StatusOK, map[string]any{"asignados": len(req.EnvioIDs)})
+		httpx.WriteJSON(w, http.StatusOK, map[string]any{"asignados": asignados})
 	case errors.Is(err, repository.ErrNoEncontrado):
 		httpx.WriteError(w, http.StatusNotFound, "no_encontrado", "la ruta no existe")
 	case errors.Is(err, services.ErrFechaVencida):

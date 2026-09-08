@@ -17,6 +17,13 @@ export type Recipient = {
 
 export type Shipment = {
   id: string;
+  /**
+   * Estado tal cual lo devuelve la API. El prototipo colapsa "asignado" en
+   * "pendiente" para el badge visual (campo status), asi que este campo es el
+   * que hay que usar para filtrar por estado (HU-05, CA-04). Solo lo traen los
+   * envios que vienen de la API; los del mock quedan sin definir.
+   */
+  estadoApi?: "pendiente" | "asignado" | "en_camino" | "entregado" | "no_entregado";
   code: string;
   recipient: Recipient;
   sender: string;

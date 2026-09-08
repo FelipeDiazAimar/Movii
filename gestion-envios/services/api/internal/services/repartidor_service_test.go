@@ -82,11 +82,6 @@ func TestRepartidorService_EnviosDelDia(t *testing.T) {
 		RemitenteID: rem.ID, DestinatarioID: dest.ID,
 	})
 	require.NoError(t, err)
-	t.Cleanup(func() {
-		_, _ = pool.Exec(ctx, "DELETE FROM envios WHERE id = $1", envio.ID)
-		_, _ = pool.Exec(ctx, "DELETE FROM remitentes WHERE id = $1", rem.ID)
-		_, _ = pool.Exec(ctx, "DELETE FROM destinatarios WHERE id = $1", dest.ID)
-	})
 
 	var rutaID string
 	err = pool.QueryRow(ctx, `
@@ -94,8 +89,21 @@ func TestRepartidorService_EnviosDelDia(t *testing.T) {
 		RETURNING id
 	`, repartidorID).Scan(&rutaID)
 	require.NoError(t, err)
-	t.Cleanup(func() { _, _ = pool.Exec(ctx, "DELETE FROM rutas WHERE id = $1", rutaID) })
-	require.NoError(t, envioRepo.AsignarEnvios(ctx, []string{envio.ID}, rutaID))
+
+	// Un solo Cleanup con el orden correcto de borrado. Antes había dos
+	// Cleanup separados y, como t.Cleanup corre en orden inverso al de
+	// registro (LIFO), la ruta se intentaba borrar ANTES que el envío que
+	// todavía la referenciaba: el DELETE fallaba por la foreign key, el
+	// error se descartaba con "_, _ =" y la fila de rutas quedaba huérfana
+	// en la base compartida en cada corrida del test.
+	t.Cleanup(func() {
+		_, _ = pool.Exec(ctx, "DELETE FROM envios WHERE id = $1", envio.ID)
+		_, _ = pool.Exec(ctx, "DELETE FROM rutas WHERE id = $1", rutaID)
+		_, _ = pool.Exec(ctx, "DELETE FROM remitentes WHERE id = $1", rem.ID)
+		_, _ = pool.Exec(ctx, "DELETE FROM destinatarios WHERE id = $1", dest.ID)
+	})
+	_, err = envioRepo.AsignarEnvios(ctx, []string{envio.ID}, rutaID)
+	require.NoError(t, err)
 
 	resumen, err := svc.EnviosDelDia(ctx, repartidorID, "")
 	require.NoError(t, err)

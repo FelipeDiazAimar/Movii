@@ -285,15 +285,51 @@ $ curl localhost:8080/repartidor/envios-del-dia -H "Authorization: Bearer <token
 → 403 (un operador no puede pedir la vista del repartidor)
 ```
 
-**App móvil:** la pantalla de login pide email y contraseña reales contra `POST /auth/login`; "Mi ruta de hoy" consume este endpoint y muestra los envíos reales del repartidor logueado (`repartidor@movii.demo`), agrupados por ruta, con pull-to-refresh. Se probó en un iPhone físico vía Expo Go, en la misma red WiFi que la API.
+**App móvil:** la pantalla de login pide email y contraseña reales contra `POST /auth/login`; "Mi ruta de hoy" consume este endpoint y muestra los envíos reales del repartidor logueado (`repartidor@movii.demo`) con pull-to-refresh. Se probó en un iPhone físico vía Expo Go, en la misma red WiFi que la API. La pantalla cubre los criterios de aceptación de la HU así:
+
+| CA | Cómo se resuelve en la app |
+| -- | -------------------------- |
+| CA-01 | El listado sale del JWT del repartidor logueado: la pantalla nunca manda un id de repartidor. |
+| CA-02 | Cada tarjeta muestra destinatario, dirección + localidad, código de guía completo, peso y el badge de estado. |
+| CA-03 | Una sección por ruta (`SectionList`), con encabezado y cantidad de envíos cuando el repartidor tiene más de una ruta en el día. |
+| CA-04 | Chips de filtro por estado (Todos / Asignados / En camino / Entregados / No entregados) que filtran la lista al instante. |
+| CA-05 | Tarjeta de resumen con total, entregados, pendientes y no entregados, más el porcentaje de avance del día. Los contadores describen el día completo y no cambian al aplicar un filtro. |
+| CA-06 | Layout mobile-first heredado del prototipo (probado en iPhone, 390×844). |
 
 Commits: `5c75dfb`, `926a7b9`, `618c883`, `ed4ef1e`, `7828f31` (API); `8b02191`, `1980931`, `5b79da1`, `ac9d5a9`, `6278548` (móvil).
 
 ### 6.7 Testing
 
-Todos los tests corren contra la base Supabase real (no hay mocks de base de datos): repositorios, servicios de negocio y handlers, más un test end-to-end por cada bloque de HU que ejercita el flujo completo por HTTP (login → operación → verificación). Más de 30 tests automatizados en el módulo de la API, corridos con `go test ./... -p 1` (la ejecución en serie evita que dos paquetes toquen la base al mismo tiempo).
+Los tests de la API corren contra una base PostgreSQL (Supabase) real (no hay mocks de base de datos): repositorios, servicios de negocio y handlers, más un test end-to-end por cada bloque de HU que ejercita el flujo completo por HTTP (login → operación → verificación). Se ejecutan con `go test ./... -p 1` (la ejecución en serie evita que dos paquetes toquen la base al mismo tiempo).
+
+| Suite | Tests | Resultado |
+| ----- | :---: | --------- |
+| API (Go, `services/api`) | 82 | 82 pasan · 0 fallan · 0 se saltean |
+| App móvil (vitest, `apps/mobile`) | 19 | 19 pasan (queda 1 salteado: un test de la plantilla del prototipo que no aplica al proyecto) |
+| **Total** | **101** | |
+
+Además de los tests automatizados se corrió una batería de pruebas manuales por HTTP sobre la API en funcionamiento, criterio de aceptación por criterio de aceptación (ver 6.8).
 
 Durante la implementación se encontraron y corrigieron **6 bugs reales** gracias a este testing: un import circular en el router, un cast de enum faltante en el alta de usuarios, un timing oracle en el login (la respuesta tardaba distinto según si el email existía o no), un hash de contraseña del seed que no correspondía a la contraseña de la demo, un bug de huso horario en la validación de "fecha vencida" de las rutas, y un test de migraciones que rompía datos de otros paquetes al compartir la misma base.
+
+Ambas suites corren en CI (GitHub Actions): `api-ci.yml` para la API y `mobile-ci.yml` (chequeo de tipos + tests) para la app móvil.
+
+### 6.8 Revisión de cierre del sprint
+
+Antes de dar el sprint por cerrado se volvieron a probar las cinco HU de punta a punta —las cuatro que ya estaban testeadas (HU-01 a HU-04) y la última en terminarse (HU-05)—: se corrieron las dos suites completas y se ejercitó cada criterio de aceptación por HTTP contra la API levantada. La revisión encontró **8 defectos** que no habían aparecido antes. Todos quedaron corregidos y cubiertos con tests de regresión.
+
+| # | HU | Defecto | Corrección |
+| - | -- | ------- | ---------- |
+| 1 | HU-05 | `GET /repartidor/envios-del-dia` devolvía `"rutas": null` cuando el repartidor no tenía envíos asignados para el día. La app móvil recorre esa lista directamente y rompía: en lugar del estado vacío mostraba "No se pudo cargar la ruta del día", como si fuera un problema de conexión. Es el caso de un repartidor que arranca el día sin asignaciones, o sea el más común a primera hora. | El agrupador devuelve siempre un slice inicializado, así el JSON dice `"rutas": []`. Se aplicó lo mismo a los listados de envíos y de rutas, y el cliente móvil normaliza `null` por las dudas. |
+| 2 | HU-04 | La asignación de envíos a una ruta no era atómica: al mandar un lote que mezclaba un envío pendiente con otro ya asignado, la API respondía 409 "uno o más envíos no están pendientes" pero el envío pendiente **quedaba asignado igual**. El operador leía que no se había asignado nada mientras la base decía lo contrario. | El `UPDATE` pasó a correr dentro de una transacción con rollback: la asignación es todo o nada. Además se descartan los ids repetidos y la respuesta informa cuántos envíos se asignaron realmente, en vez de cuántos se pidieron. |
+| 3 | HU-05 | La app móvil no agrupaba visualmente por ruta (CA-03): mostraba una lista plana y en el encabezado solo el nombre de la primera ruta. Un repartidor con dos rutas no podía ver dónde terminaba una y empezaba la otra. | La pantalla pasó a `SectionList` con un encabezado por ruta (nombre + cantidad de envíos) cuando hay más de una. |
+| 4 | HU-05 | La app móvil no tenía el filtro por estado (CA-04). El endpoint ya aceptaba `?estado=`, pero la interfaz no lo ofrecía. | Se agregaron chips de filtro por estado sobre la lista. El filtro usa el estado real de la API (`asignado`) y no el estado visual del prototipo, que colapsa `asignado` en `pendiente`. |
+| 5 | HU-05 | El resumen del día (CA-05) estaba incompleto: no mostraba los no entregados, y el contador rotulado "por visitar" en realidad mostraba el total de envíos. | El resumen muestra total, entregados, pendientes y no entregados. Se calcula sobre el día completo, así que no se mueve al aplicar un filtro. |
+| 6 | HU-02 | CA-05 pide que el listado de envíos muestre la fecha de creación, y la respuesta de `GET /envios` no la incluía. | Se agregó `fecha_creacion` al listado y al detalle del envío. |
+| 7 | HU-05 | El test `TestRepartidorService_EnviosDelDia` dejaba una fila huérfana en `rutas` en cada corrida: registraba dos `t.Cleanup` separados y, como corren en orden inverso al de registro, intentaba borrar la ruta antes que el envío que la referenciaba; el `DELETE` fallaba por la foreign key y el error se descartaba. Es la fuente de los "datos que hubo que limpiar a mano" que menciona la retrospectiva. | Un único `Cleanup` con el orden de borrado correcto. Verificado: dos corridas completas de la suite ya no dejan filas nuevas. |
+| 8 | HU-01 | Dos huecos en la validación del token: el parser aceptaba cualquier algoritmo que el propio token declarara, en vez de exigir HS256 (el único con el que la API firma); y `Login` no miraba el campo `activo`, así que un usuario dado de baja podía seguir entrando. | Se fija HS256 en la validación y se rechaza el login de usuarios inactivos, con el mismo error genérico de siempre para no revelar qué cuentas existen. |
+
+También se unificó el huso horario del código de guía: se calculaba con la hora local de la máquina mientras el resto del sistema usa UTC, así que cerca de la medianoche un envío podía quedar fechado un día distinto al que la API considera "hoy".
 
 ---
 
@@ -379,22 +415,23 @@ Durante la implementación se encontraron y corrigieron **6 bugs reales** gracia
 - Testear contra la base Supabase real (nada de mocks de base de datos) hizo que aparecieran bugs que un mock nunca hubiera mostrado: un cast de enum, un timing oracle en el login, un bug de huso horario en "fecha vencida". Encontrarlos ahora, con tests automatizados, salió mucho más barato que encontrarlos en producción.
 - La API terminó cubriendo las 5 HU del sprint de punta a punta, verificada con requests reales (no solo "en teoría") y con la app corriendo en un teléfono físico.
 - Reusar el diseño visual del prototipo (en vez de rehacerlo) permitió no perder tiempo en pantallas nuevas y enfocar el esfuerzo en conectar datos reales.
+- Volver a testear las cinco HU al cierre, en vez de confiar en que las ya cerradas seguían bien, sacó a la luz 8 defectos más (ver 6.8), entre ellos dos serios: la app se rompía con un repartidor sin envíos asignados, y una asignación fallida podía dejar envíos asignados igual.
 
 **¿Qué podemos mejorar?**
 - La estimación inicial no contempló el trabajo de integración (reconectar el móvil, actualizar el SDK de Expo, mover el proyecto al monorepo) como una tarea propia — quedó "escondido" dentro de HU-05 y de las transversales, y por eso ahí es donde más se desvió.
 - Al no tener una base de datos aislada por desarrollador, corrimos el mismo test suite completo dos veces en paralelo sin querer y eso dejó datos corruptos en Supabase que hubo que limpiar a mano.
 - La documentación de "cómo se implementó cada HU" se armó recién al final del sprint, no a medida que se cerraba cada una — cuesta más reconstruir el detalle después que documentarlo en el momento.
+- Los tests cubrían bien el camino feliz y muy poco los casos vacíos. El bug más grave del sprint (la pantalla del repartidor rompiéndose cuando no hay envíos) vivía justo ahí: en el día sin datos, que nadie había probado.
+- Se dio por cumplida una HU sin recorrer sus criterios de aceptación uno por uno. En HU-05, tres de los seis criterios (agrupar por ruta, filtrar por estado y el resumen del día) estaban resueltos en la API pero no en la pantalla, que es donde el criterio los pide.
+- La documentación del sprint describía la app con más funcionalidad de la que tenía ("agrupados por ruta" cuando la lista era plana). Describir a partir del código y no de la intención.
 
 **¿Qué acciones concretas tomamos para el próximo sprint?**
 - Agregar al Definition of Done: correr `go test ./... -p 1` (nunca en paralelo con otra corrida) antes de dar por cerrada una tarea que toca la base compartida.
 - Sumar una línea explícita de "integración y despliegue" en la tabla de estimación de cada sprint, en vez de darla por incluida en el desarrollo de cada HU.
 - Completar la sección de Implementación de a una HU por vez, apenas queda terminada y verificada, no todas juntas al final.
-
-**¿Qué podemos mejorar?**
--
-
-**¿Qué acciones concretas tomamos para el próximo sprint?**
--
+- Sumar al Definition of Done un repaso explícito de los criterios de aceptación de la HU sobre la interfaz que el criterio nombra (si el CA dice "la vista muestra", no alcanza con que el endpoint lo devuelva).
+- Escribir, para cada endpoint que devuelve una lista, un test con la lista vacía además del test con datos.
+- Correr las dos suites completas (API y móvil) antes de cerrar el sprint, no solo la de la parte que se tocó al final.
 
 ---
 

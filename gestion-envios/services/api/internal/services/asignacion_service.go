@@ -25,11 +25,12 @@ func NewAsignacionService(rutaRepo *repository.RutaRepo, envioRepo *repository.E
 }
 
 // Asignar valida que la ruta exista y su fecha no haya vencido, y asigna los
-// envíos dados (deben estar pendientes).
-func (s *AsignacionService) Asignar(ctx context.Context, rutaID string, envioIDs []string) error {
+// envíos dados (deben estar pendientes). Devuelve cuántos envíos quedaron
+// asignados; si alguno no estaba disponible no asigna ninguno.
+func (s *AsignacionService) Asignar(ctx context.Context, rutaID string, envioIDs []string) (int, error) {
 	ruta, err := s.rutaRepo.GetByID(ctx, rutaID)
 	if err != nil {
-		return err
+		return 0, err
 	}
 
 	// time.Parse sin zona da un time.Time en UTC a medianoche; "hoy" se
@@ -38,12 +39,12 @@ func (s *AsignacionService) Asignar(ctx context.Context, rutaID string, envioIDs
 	// no debe leerse como vencida solo porque la máquina está en UTC-3).
 	fechaRuta, err := time.Parse("2006-01-02", ruta.Fecha)
 	if err != nil {
-		return err
+		return 0, err
 	}
 	hoy := time.Now().UTC()
 	hoySinHora := time.Date(hoy.Year(), hoy.Month(), hoy.Day(), 0, 0, 0, 0, time.UTC)
 	if fechaRuta.Before(hoySinHora) {
-		return ErrFechaVencida
+		return 0, ErrFechaVencida
 	}
 
 	return s.envioRepo.AsignarEnvios(ctx, envioIDs, rutaID)

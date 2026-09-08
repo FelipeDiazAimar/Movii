@@ -100,6 +100,13 @@ func (s *AuthService) Login(ctx context.Context, email, password string) (string
 		return "", ErrCredencialesInvalidas
 	}
 
+	// Un usuario dado de baja no puede iniciar sesión. Se chequea DESPUÉS de
+	// validar la contraseña y con el mismo error genérico, para no convertir
+	// la respuesta en un oráculo que revele qué cuentas existen (CA-04).
+	if !u.Activo {
+		return "", ErrCredencialesInvalidas
+	}
+
 	claims := jwt.MapClaims{
 		"sub": u.ID,
 		"rol": u.Rol,

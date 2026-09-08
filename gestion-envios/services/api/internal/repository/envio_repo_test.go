@@ -136,7 +136,7 @@ func TestEnvioRepo_AsignarYDesasignar(t *testing.T) {
 	require.NoError(t, err)
 	t.Cleanup(func() { _, _ = pool.Exec(ctx, "DELETE FROM rutas WHERE id = $1", rutaID) })
 
-	err = repo.AsignarEnvios(ctx, []string{envio.ID}, rutaID)
+	_, err = repo.AsignarEnvios(ctx, []string{envio.ID}, rutaID)
 	require.NoError(t, err)
 
 	asignado, err := repo.GetByID(ctx, envio.ID)
@@ -159,6 +159,6 @@ func TestEnvioRepo_AsignarEnvioNoDisponibleDevuelveError(t *testing.T) {
 	repo := NewEnvioRepo(pool)
 	ctx := context.Background()
 
-	err := repo.AsignarEnvios(ctx, []string{"00000000-0000-0000-0000-000000000000"}, "11111111-1111-1111-1111-111111111111")
+	_, err := repo.AsignarEnvios(ctx, []string{"00000000-0000-0000-0000-000000000000"}, "11111111-1111-1111-1111-111111111111")
 	require.ErrorIs(t, err, ErrEnvioNoDisponible)
 }
