@@ -1,0 +1,1268 @@
+openapi: 3.0.3
+info:
+  title: Movii API
+  version: "1.0.0"
+  description: |
+    API REST del sistema de gestión de envíos Movii. Expone autenticación,
+    gestión de usuarios/repartidores, alta y consulta de envíos, gestión de
+    rutas de reparto, asignación de envíos a rutas y el listado de envíos
+    del día para repartidores.
+
+    Esta especificación fue generada leyendo directamente el código fuente
+    de los handlers, structs de dominio y middleware en
+    `services/api/internal/`, así que refleja el contrato real de la API
+    (campos, roles requeridos y códigos de error) y no un diseño aspiracional.
+
+    ### Autenticación
+    Todos los endpoints salvo `POST /auth/register`, `POST /auth/login` y
+    `GET /health` requieren un JWT (HS256) en el header
+    `Authorization: Bearer <token>`. El token se obtiene en `POST /auth/login`.
+
+    ### Roles
+    Algunos endpoints además exigen que el rol del usuario autenticado
+    (`operador`, `repartidor` o `supervisor`) esté entre los permitidos. El
+    rol requerido de cada endpoint protegido está documentado en su
+    `description` y en la extensión `x-required-role`.
+servers:
+  - url: http://localhost:8080
+    description: Desarrollo local
+
+tags:
+  - name: auth
+    description: Registro y login
+  - name: usuarios
+    description: Listado de usuarios y repartidores
+  - name: envios
+    description: Alta y consulta de envíos
+  - name: rutas
+    description: Gestión de rutas y asignación de envíos
+  - name: repartidor
+    description: Vista del repartidor autenticado
+  - name: health
+    description: Chequeo de disponibilidad
+
+paths:
+  /health:
+    get:
+      tags: [health]
+      summary: Chequeo de disponibilidad
+      description: Endpoint público, sin autenticación.
+      operationId: health
+      security: []
+      responses:
+        "200":
+          description: El servicio está disponible.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+                required: [status]
+
+  /auth/register:
+    post:
+      tags: [auth]
+      summary: Registrar un usuario nuevo
+      description: Endpoint público, sin autenticación.
+      operationId: registerUsuario
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterRequest"
+            example:
+              nombre: Lucía Fernández
+              email: lucia.fernandez@movii.com.ar
+              password: "ContraseñaSegura123"
+              rol: operador
+      responses:
+        "201":
+          description: Usuario creado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UsuarioCreado"
+              example:
+                id: 3f2b1a10-9e4e-4c2a-8f0a-1a2b3c4d5e6f
+                nombre: Lucía Fernández
+                email: lucia.fernandez@movii.com.ar
+                rol: operador
+        "400":
+          description: >
+            Body no es JSON válido (`body_invalido`), el email no tiene
+            formato válido (`email_invalido`), o el rol no es
+            operador/repartidor/supervisor (`rol_invalido`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+              examples:
+                email_invalido:
+                  value:
+                    error:
+                      code: email_invalido
+                      message: el email no tiene un formato válido
+                rol_invalido:
+                  value:
+                    error:
+                      code: rol_invalido
+                      message: el rol debe ser operador, repartidor o supervisor
+        "409":
+          description: Ya existe un usuario con ese email (`email_en_uso`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+              example:
+                error:
+                  code: email_en_uso
+                  message: ya existe un usuario con ese email
+        "500":
+          $ref: "#/components/responses/ErrorInterno"
+
+  /auth/login:
+    post:
+      tags: [auth]
+      summary: Iniciar sesión
+      description: Endpoint público, sin autenticación. Devuelve un JWT válido por 24 horas.
+      operationId: loginUsuario
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+            example:
+              email: lucia.fernandez@movii.com.ar
+              password: "ContraseñaSegura123"
+      responses:
+        "200":
+          description: Login correcto.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LoginResponse"
+              example:
+                token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIzZjJiMWExMCJ9.abc123
+        "400":
+          description: Body no es JSON válido (`body_invalido`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "401":
+          description: >
+            Email o contraseña incorrectos, o el usuario está dado de baja
+            (`credenciales_invalidas`). La API no distingue entre estos casos
+            a propósito, para no revelar qué emails están registrados.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+              example:
+                error:
+                  code: credenciales_invalidas
+                  message: email o contraseña incorrectos
+        "500":
+          $ref: "#/components/responses/ErrorInterno"
+
+  /users:
+    get:
+      tags: [usuarios]
+      summary: Listar usuarios
+      description: |
+        Requiere autenticación. **Rol requerido: supervisor.**
+      operationId: listUsuarios
+      x-required-role: [supervisor]
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Lista de usuarios.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Usuario"
+              example:
+                - id: 3f2b1a10-9e4e-4c2a-8f0a-1a2b3c4d5e6f
+                  nombre: Lucía Fernández
+                  email: lucia.fernandez@movii.com.ar
+                  rol: operador
+                  activo: true
+                - id: 7a1c9d20-1b3e-4f5a-9c0d-2e3f4a5b6c7d
+                  nombre: Martín Gómez
+                  email: martin.gomez@movii.com.ar
+                  rol: repartidor
+                  activo: true
+        "401":
+          $ref: "#/components/responses/NoAutenticado"
+        "403":
+          $ref: "#/components/responses/RolNoAutorizado"
+        "500":
+          $ref: "#/components/responses/ErrorInterno"
+
+  /repartidores:
+    get:
+      tags: [usuarios]
+      summary: Listar repartidores (opción mínima)
+      description: |
+        Lista mínima (solo `id` y `nombre`) que un operador usa para elegir
+        repartidor al crear o editar una ruta. A diferencia de `GET /users`
+        no expone email, rol ni estado.
+
+        Requiere autenticación. **Rol requerido: operador, supervisor.**
+      operationId: listRepartidores
+      x-required-role: [operador, supervisor]
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Lista de repartidores (id + nombre).
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/RepartidorOption"
+              example:
+                - id: 7a1c9d20-1b3e-4f5a-9c0d-2e3f4a5b6c7d
+                  nombre: Martín Gómez
+                - id: 9b2d0e31-2c4f-5a6b-0d1e-3f4a5b6c7d8e
+                  nombre: Sofía Ledesma
+        "401":
+          $ref: "#/components/responses/NoAutenticado"
+        "403":
+          $ref: "#/components/responses/RolNoAutorizado"
+        "500":
+          $ref: "#/components/responses/ErrorInterno"
+
+  /envios:
+    get:
+      tags: [envios]
+      summary: Listar envíos
+      description: |
+        Requiere autenticación, cualquier rol.
+      operationId: listEnvios
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: estado
+          in: query
+          required: false
+          description: Filtra por estado del envío.
+          schema:
+            $ref: "#/components/schemas/EstadoEnvio"
+        - name: fecha
+          in: query
+          required: false
+          description: Filtra por fecha de creación (formato YYYY-MM-DD).
+          schema:
+            type: string
+            example: "2026-09-09"
+      responses:
+        "200":
+          description: Lista de envíos.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/EnvioListItem"
+              example:
+                - id: 1a2b3c4d-5e6f-7a8b-9c0d-1e2f3a4b5c6d
+                  codigo_guia: MOV-20260909-0001
+                  estado: pendiente
+                  peso: 3.5
+                  tamano: mediano
+                  destinatario: Carla Rodríguez
+                  direccion: "San Martín 452, San Francisco"
+                  fecha_creacion: "2026-09-09T13:20:00Z"
+                  ruta_id: null
+        "401":
+          $ref: "#/components/responses/NoAutenticado"
+        "500":
+          $ref: "#/components/responses/ErrorInterno"
+    post:
+      tags: [envios]
+      summary: Registrar un envío nuevo
+      description: |
+        Crea remitente, destinatario y envío. Requiere autenticación.
+        **Rol requerido: operador, supervisor.**
+      operationId: createEnvio
+      x-required-role: [operador, supervisor]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CrearEnvioRequest"
+            example:
+              remitente:
+                nombre: Depósito Central Movii
+                telefono: "3564123456"
+                direccion: "Ruta 19 km 3, San Francisco"
+              destinatario:
+                nombre: Carla Rodríguez
+                telefono: "3564654321"
+                calle: San Martín
+                numero: "452"
+                piso_depto: ""
+                localidad: San Francisco
+                codigo_postal: X2400
+              paquete:
+                peso: 3.5
+                tamano: mediano
+                tipo_contenido: ropa
+                fragil: false
+                urgente: false
+      responses:
+        "201":
+          description: Envío creado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvioCreado"
+              example:
+                id: 1a2b3c4d-5e6f-7a8b-9c0d-1e2f3a4b5c6d
+                codigo_guia: MOV-20260909-0001
+                estado: pendiente
+                peso: 3.5
+                tamano: mediano
+        "400":
+          description: >
+            Body no es JSON válido (`body_invalido`), o faltan datos
+            obligatorios: nombre del destinatario, calle, localidad o peso
+            (`campos_obligatorios`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+              example:
+                error:
+                  code: campos_obligatorios
+                  message: faltan datos obligatorios del envío
+        "401":
+          $ref: "#/components/responses/NoAutenticado"
+        "403":
+          $ref: "#/components/responses/RolNoAutorizado"
+        "500":
+          $ref: "#/components/responses/ErrorInterno"
+
+  /envios/{id}:
+    get:
+      tags: [envios]
+      summary: Obtener el detalle de un envío
+      description: |
+        Requiere autenticación, cualquier rol.
+      operationId: getEnvioById
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Detalle del envío.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvioConDetalle"
+        "401":
+          $ref: "#/components/responses/NoAutenticado"
+        "404":
+          description: El envío no existe (`no_encontrado`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+              example:
+                error:
+                  code: no_encontrado
+                  message: el envío no existe
+        "500":
+          $ref: "#/components/responses/ErrorInterno"
+
+  /rutas:
+    get:
+      tags: [rutas]
+      summary: Listar rutas
+      description: |
+        Requiere autenticación, cualquier rol.
+      operationId: listRutas
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: fecha
+          in: query
+          required: false
+          description: Filtra por fecha de la ruta (formato YYYY-MM-DD).
+          schema:
+            type: string
+            example: "2026-09-09"
+      responses:
+        "200":
+          description: Lista de rutas, con la cantidad de envíos asignados a cada una.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/RutaConConteo"
+              example:
+                - id: c1d2e3f4-a5b6-7c8d-9e0f-1a2b3c4d5e6f
+                  nombre: Zona Centro AM
+                  zona: Centro
+                  fecha: "2026-09-09"
+                  estado: planificada
+                  repartidor_id: 7a1c9d20-1b3e-4f5a-9c0d-2e3f4a5b6c7d
+                  cantidad_envios: 4
+        "401":
+          $ref: "#/components/responses/NoAutenticado"
+        "500":
+          $ref: "#/components/responses/ErrorInterno"
+    post:
+      tags: [rutas]
+      summary: Crear una ruta
+      description: |
+        Requiere autenticación. **Rol requerido: operador, supervisor.**
+      operationId: createRuta
+      x-required-role: [operador, supervisor]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RutaRequest"
+            example:
+              nombre: Zona Centro AM
+              zona: Centro
+              fecha: "2026-09-09"
+              repartidor_id: 7a1c9d20-1b3e-4f5a-9c0d-2e3f4a5b6c7d
+      responses:
+        "201":
+          description: Ruta creada.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Ruta"
+              example:
+                id: c1d2e3f4-a5b6-7c8d-9e0f-1a2b3c4d5e6f
+                nombre: Zona Centro AM
+                zona: Centro
+                fecha: "2026-09-09"
+                estado: planificada
+                repartidor_id: 7a1c9d20-1b3e-4f5a-9c0d-2e3f4a5b6c7d
+        "400":
+          description: >
+            Body no es JSON válido (`body_invalido`), o falta el repartidor
+            o la fecha (`campos_obligatorios`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+              example:
+                error:
+                  code: campos_obligatorios
+                  message: faltan el repartidor o la fecha de la ruta
+        "401":
+          $ref: "#/components/responses/NoAutenticado"
+        "403":
+          $ref: "#/components/responses/RolNoAutorizado"
+        "500":
+          $ref: "#/components/responses/ErrorInterno"
+
+  /rutas/{id}:
+    get:
+      tags: [rutas]
+      summary: Obtener el detalle de una ruta
+      description: |
+        Requiere autenticación, cualquier rol.
+      operationId: getRutaById
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Detalle de la ruta con sus envíos y totales.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RutaDetalle"
+        "401":
+          $ref: "#/components/responses/NoAutenticado"
+        "404":
+          description: La ruta no existe (`no_encontrado`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+              example:
+                error:
+                  code: no_encontrado
+                  message: la ruta no existe
+        "500":
+          $ref: "#/components/responses/ErrorInterno"
+    put:
+      tags: [rutas]
+      summary: Editar una ruta
+      description: |
+        Solo se puede editar una ruta en estado `planificada`. Requiere
+        autenticación. **Rol requerido: operador, supervisor.**
+      operationId: updateRuta
+      x-required-role: [operador, supervisor]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RutaRequest"
+            example:
+              nombre: Zona Centro AM (actualizada)
+              zona: Centro
+              fecha: "2026-09-10"
+              repartidor_id: 7a1c9d20-1b3e-4f5a-9c0d-2e3f4a5b6c7d
+      responses:
+        "200":
+          description: Ruta editada.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Ruta"
+        "400":
+          description: >
+            Body no es JSON válido (`body_invalido`), o falta el repartidor
+            o la fecha (`campos_obligatorios`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "401":
+          $ref: "#/components/responses/NoAutenticado"
+        "403":
+          $ref: "#/components/responses/RolNoAutorizado"
+        "404":
+          description: La ruta no existe (`no_encontrado`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "409":
+          description: >
+            La ruta no se puede editar en su estado actual
+            (`ruta_no_editable`) — solo se editan rutas planificadas.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+              example:
+                error:
+                  code: ruta_no_editable
+                  message: la ruta no se puede editar en su estado actual
+        "500":
+          $ref: "#/components/responses/ErrorInterno"
+
+  /rutas/{id}/envios:
+    post:
+      tags: [rutas]
+      summary: Asignar envíos a una ruta
+      description: |
+        Asigna los envíos dados a la ruta (deben estar en estado
+        `pendiente`, y la fecha de la ruta no debe haber vencido). Si algún
+        envío no está disponible no se asigna ninguno. Requiere
+        autenticación. **Rol requerido: operador, supervisor.**
+      operationId: asignarEnviosARuta
+      x-required-role: [operador, supervisor]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID de la ruta.
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AsignarEnviosRequest"
+            example:
+              envio_ids:
+                - 1a2b3c4d-5e6f-7a8b-9c0d-1e2f3a4b5c6d
+                - 2b3c4d5e-6f7a-8b9c-0d1e-2f3a4b5c6d7e
+      responses:
+        "200":
+          description: Cantidad de envíos que quedaron asignados.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AsignarEnviosResponse"
+              example:
+                asignados: 2
+        "400":
+          description: >
+            Body no es JSON válido (`body_invalido`), o la fecha de la ruta
+            ya pasó (`fecha_vencida`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+              examples:
+                fecha_vencida:
+                  value:
+                    error:
+                      code: fecha_vencida
+                      message: la fecha de la ruta ya pasó
+        "401":
+          $ref: "#/components/responses/NoAutenticado"
+        "403":
+          $ref: "#/components/responses/RolNoAutorizado"
+        "404":
+          description: La ruta no existe (`no_encontrado`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "409":
+          description: >
+            Uno o más envíos no están pendientes
+            (`envio_no_disponible`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+              example:
+                error:
+                  code: envio_no_disponible
+                  message: uno o más envíos no están pendientes
+        "500":
+          $ref: "#/components/responses/ErrorInterno"
+
+  /rutas/{id}/envios/{envioId}:
+    delete:
+      tags: [rutas]
+      summary: Desasignar un envío de una ruta
+      description: |
+        Solo se puede desasignar un envío de una ruta en estado
+        `planificada`. El envío vuelve al estado `pendiente`. Requiere
+        autenticación. **Rol requerido: operador, supervisor.**
+      operationId: desasignarEnvioDeRuta
+      x-required-role: [operador, supervisor]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID de la ruta.
+          schema:
+            type: string
+        - name: envioId
+          in: path
+          required: true
+          description: ID del envío.
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Envío desasignado; queda en estado pendiente.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  estado:
+                    type: string
+                    example: pendiente
+                required: [estado]
+        "401":
+          $ref: "#/components/responses/NoAutenticado"
+        "403":
+          $ref: "#/components/responses/RolNoAutorizado"
+        "404":
+          description: La ruta o el envío no existen (`no_encontrado`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+              example:
+                error:
+                  code: no_encontrado
+                  message: la ruta o el envío no existen
+        "409":
+          description: >
+            La ruta no se puede editar en su estado actual
+            (`ruta_no_editable`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "500":
+          $ref: "#/components/responses/ErrorInterno"
+
+  /repartidor/envios-del-dia:
+    get:
+      tags: [repartidor]
+      summary: Envíos del día del repartidor autenticado
+      description: |
+        Devuelve los envíos de hoy (fecha del servidor, UTC) del repartidor
+        que hizo la request, agrupados por ruta, con contadores por estado.
+        El repartidor se identifica por el JWT, nunca por un parámetro de la
+        request. Requiere autenticación. **Rol requerido: repartidor.**
+      operationId: enviosDelDiaRepartidor
+      x-required-role: [repartidor]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: estado
+          in: query
+          required: false
+          description: Filtra por estado del envío.
+          schema:
+            $ref: "#/components/schemas/EstadoEnvio"
+      responses:
+        "200":
+          description: Resumen del día del repartidor.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ResumenDelDia"
+        "401":
+          $ref: "#/components/responses/NoAutenticado"
+        "403":
+          $ref: "#/components/responses/RolNoAutorizado"
+        "500":
+          $ref: "#/components/responses/ErrorInterno"
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: >
+        JWT firmado con HS256, obtenido en `POST /auth/login`. Se envía como
+        `Authorization: Bearer <token>`. El middleware exige explícitamente
+        el algoritmo HS256 (rechaza tokens firmados con otro algoritmo).
+
+  responses:
+    NoAutenticado:
+      description: >
+        Falta el header `Authorization` (`sin_token`) o el token es
+        inválido/expiró (`token_invalido`).
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiError"
+          examples:
+            sin_token:
+              value:
+                error:
+                  code: sin_token
+                  message: falta el header Authorization
+            token_invalido:
+              value:
+                error:
+                  code: token_invalido
+                  message: el token es inválido o expiró
+    RolNoAutorizado:
+      description: El rol del usuario autenticado no tiene permisos para esta acción (`rol_no_autorizado`).
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiError"
+          example:
+            error:
+              code: rol_no_autorizado
+              message: no tenés permisos para esta acción
+    ErrorInterno:
+      description: Error inesperado del servidor (`error_interno`).
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiError"
+          example:
+            error:
+              code: error_interno
+              message: no se pudo completar la operación
+
+  schemas:
+    ApiError:
+      type: object
+      description: Formato estándar de error de la API.
+      properties:
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+              description: Código corto y estable del error.
+              example: no_encontrado
+            message:
+              type: string
+              description: Mensaje legible para mostrar o loguear.
+              example: el recurso no existe
+          required: [code, message]
+      required: [error]
+
+    Rol:
+      type: string
+      description: Rol del usuario.
+      enum: [operador, repartidor, supervisor]
+
+    EstadoEnvio:
+      type: string
+      description: Estado del ciclo de vida de un envío.
+      enum: [pendiente, asignado, en_camino, entregado, no_entregado]
+
+    EstadoRuta:
+      type: string
+      description: Estado del ciclo de vida de una ruta.
+      enum: [planificada, en_curso, completada]
+
+    Tamano:
+      type: string
+      description: Tamaño del paquete.
+      enum: [chico, mediano, grande]
+
+    # ---- Auth ----
+    RegisterRequest:
+      type: object
+      properties:
+        nombre:
+          type: string
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          format: password
+        rol:
+          $ref: "#/components/schemas/Rol"
+      required: [nombre, email, password, rol]
+
+    UsuarioCreado:
+      type: object
+      description: Usuario recién registrado. No incluye la contraseña ni su hash.
+      properties:
+        id:
+          type: string
+        nombre:
+          type: string
+        email:
+          type: string
+          format: email
+        rol:
+          $ref: "#/components/schemas/Rol"
+      required: [id, nombre, email, rol]
+
+    LoginRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          format: password
+      required: [email, password]
+
+    LoginResponse:
+      type: object
+      properties:
+        token:
+          type: string
+          description: JWT firmado con HS256, válido por 24 horas.
+      required: [token]
+
+    # ---- Usuarios ----
+    Usuario:
+      type: object
+      description: Usuario del sistema, tal como lo devuelve GET /users.
+      properties:
+        id:
+          type: string
+        nombre:
+          type: string
+        email:
+          type: string
+          format: email
+        rol:
+          $ref: "#/components/schemas/Rol"
+        activo:
+          type: boolean
+      required: [id, nombre, email, rol, activo]
+
+    RepartidorOption:
+      type: object
+      description: Versión mínima de un repartidor, usada para selección en formularios.
+      properties:
+        id:
+          type: string
+        nombre:
+          type: string
+      required: [id, nombre]
+
+    # ---- Envíos ----
+    Remitente:
+      type: object
+      properties:
+        nombre:
+          type: string
+        telefono:
+          type: string
+        direccion:
+          type: string
+      required: [nombre, telefono, direccion]
+
+    Destinatario:
+      type: object
+      properties:
+        nombre:
+          type: string
+        telefono:
+          type: string
+        calle:
+          type: string
+        numero:
+          type: string
+        piso_depto:
+          type: string
+        localidad:
+          type: string
+        codigo_postal:
+          type: string
+      required: [nombre, telefono, calle, numero, piso_depto, localidad, codigo_postal]
+
+    DestinatarioConId:
+      description: Destinatario tal como se devuelve embebido en un envío (incluye id).
+      allOf:
+        - type: object
+          properties:
+            id:
+              type: string
+        - $ref: "#/components/schemas/Destinatario"
+
+    Paquete:
+      type: object
+      properties:
+        peso:
+          type: number
+          format: double
+          description: Peso en kilogramos.
+        tamano:
+          $ref: "#/components/schemas/Tamano"
+        tipo_contenido:
+          type: string
+        fragil:
+          type: boolean
+        urgente:
+          type: boolean
+      required: [peso, tamano, tipo_contenido, fragil, urgente]
+
+    CrearEnvioRequest:
+      type: object
+      properties:
+        remitente:
+          $ref: "#/components/schemas/Remitente"
+        destinatario:
+          $ref: "#/components/schemas/Destinatario"
+        paquete:
+          $ref: "#/components/schemas/Paquete"
+      required: [remitente, destinatario, paquete]
+
+    EnvioCreado:
+      type: object
+      description: Respuesta de POST /envios (no es el Envio completo).
+      properties:
+        id:
+          type: string
+        codigo_guia:
+          type: string
+          example: MOV-20260909-0001
+        estado:
+          $ref: "#/components/schemas/EstadoEnvio"
+        peso:
+          type: number
+          format: double
+        tamano:
+          $ref: "#/components/schemas/Tamano"
+      required: [id, codigo_guia, estado, peso, tamano]
+
+    Envio:
+      type: object
+      description: Envío completo, tal como aparece embebido en el detalle de una ruta.
+      properties:
+        id:
+          type: string
+        codigo_guia:
+          type: string
+        estado:
+          $ref: "#/components/schemas/EstadoEnvio"
+        peso:
+          type: number
+          format: double
+        tamano:
+          $ref: "#/components/schemas/Tamano"
+        tipo_contenido:
+          type: string
+        fragil:
+          type: boolean
+        urgente:
+          type: boolean
+        remitente_id:
+          type: string
+        destinatario_id:
+          type: string
+        ruta_id:
+          type: string
+          nullable: true
+          description: null si el envío todavía no fue asignado a una ruta.
+      required:
+        - id
+        - codigo_guia
+        - estado
+        - peso
+        - tamano
+        - tipo_contenido
+        - fragil
+        - urgente
+        - remitente_id
+        - destinatario_id
+        - ruta_id
+
+    EnvioConDetalle:
+      description: Respuesta de GET /envios/{id}. Agrega el destinatario y la fecha de creación al envío.
+      allOf:
+        - $ref: "#/components/schemas/Envio"
+        - type: object
+          properties:
+            destinatario:
+              $ref: "#/components/schemas/DestinatarioConId"
+            fecha_creacion:
+              type: string
+          required: [destinatario, fecha_creacion]
+
+    EnvioListItem:
+      type: object
+      description: Item de la respuesta de GET /envios (forma reducida, no el Envio completo).
+      properties:
+        id:
+          type: string
+        codigo_guia:
+          type: string
+        estado:
+          $ref: "#/components/schemas/EstadoEnvio"
+        peso:
+          type: number
+          format: double
+        tamano:
+          $ref: "#/components/schemas/Tamano"
+        destinatario:
+          type: string
+          description: Nombre del destinatario.
+        direccion:
+          type: string
+          description: "Dirección armada como \"calle numero, localidad\"."
+        fecha_creacion:
+          type: string
+        ruta_id:
+          type: string
+          nullable: true
+          description: null si el envío todavía no fue asignado a una ruta.
+      required:
+        - id
+        - codigo_guia
+        - estado
+        - peso
+        - tamano
+        - destinatario
+        - direccion
+        - fecha_creacion
+        - ruta_id
+
+    # ---- Rutas ----
+    RutaRequest:
+      type: object
+      properties:
+        nombre:
+          type: string
+        zona:
+          type: string
+        fecha:
+          type: string
+          description: Formato YYYY-MM-DD.
+          example: "2026-09-09"
+        repartidor_id:
+          type: string
+      required: [nombre, zona, fecha, repartidor_id]
+
+    Ruta:
+      type: object
+      properties:
+        id:
+          type: string
+        nombre:
+          type: string
+        zona:
+          type: string
+        fecha:
+          type: string
+          description: Formato YYYY-MM-DD.
+        estado:
+          $ref: "#/components/schemas/EstadoRuta"
+        repartidor_id:
+          type: string
+      required: [id, nombre, zona, fecha, estado, repartidor_id]
+
+    RutaConConteo:
+      description: Ruta con la cantidad de envíos asignados, tal como aparece en GET /rutas.
+      allOf:
+        - $ref: "#/components/schemas/Ruta"
+        - type: object
+          properties:
+            cantidad_envios:
+              type: integer
+          required: [cantidad_envios]
+
+    RutaDetalle:
+      type: object
+      description: Respuesta de GET /rutas/{id}.
+      properties:
+        id:
+          type: string
+        nombre:
+          type: string
+        zona:
+          type: string
+        fecha:
+          type: string
+        estado:
+          $ref: "#/components/schemas/EstadoRuta"
+        repartidor_id:
+          type: string
+        envios:
+          type: array
+          items:
+            $ref: "#/components/schemas/Envio"
+        peso_total:
+          type: number
+          format: double
+        cantidad_envios:
+          type: integer
+      required:
+        - id
+        - nombre
+        - zona
+        - fecha
+        - estado
+        - repartidor_id
+        - envios
+        - peso_total
+        - cantidad_envios
+
+    AsignarEnviosRequest:
+      type: object
+      properties:
+        envio_ids:
+          type: array
+          items:
+            type: string
+      required: [envio_ids]
+
+    AsignarEnviosResponse:
+      type: object
+      properties:
+        asignados:
+          type: integer
+          description: Cantidad de envíos que quedaron efectivamente asignados.
+      required: [asignados]
+
+    # ---- Repartidor ----
+    EnvioDelDia:
+      description: Envío en el contexto del listado del repartidor (incluye destinatario y nombre de ruta).
+      allOf:
+        - $ref: "#/components/schemas/Envio"
+        - type: object
+          properties:
+            destinatario:
+              $ref: "#/components/schemas/DestinatarioConId"
+            ruta_nombre:
+              type: string
+          required: [destinatario, ruta_nombre]
+
+    RutaConEnviosDelDia:
+      type: object
+      properties:
+        ruta_id:
+          type: string
+          description: Cadena vacía si el envío está en la lista sin ruta asignada.
+        ruta_nombre:
+          type: string
+        envios:
+          type: array
+          items:
+            $ref: "#/components/schemas/EnvioDelDia"
+      required: [ruta_id, ruta_nombre, envios]
+
+    ResumenDelDia:
+      type: object
+      description: Respuesta de GET /repartidor/envios-del-dia.
+      properties:
+        fecha:
+          type: string
+          description: Fecha de hoy en UTC, formato YYYY-MM-DD.
+        rutas:
+          type: array
+          items:
+            $ref: "#/components/schemas/RutaConEnviosDelDia"
+        total:
+          type: integer
+        pendientes:
+          type: integer
+        asignados:
+          type: integer
+        en_camino:
+          type: integer
+        entregados:
+          type: integer
+        no_entregados:
+          type: integer
+      required:
+        - fecha
+        - rutas
+        - total
+        - pendientes
+        - asignados
+        - en_camino
+        - entregados
+        - no_entregados

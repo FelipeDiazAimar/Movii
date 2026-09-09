@@ -1,0 +1,8 @@
+{
+  "name": "gestion-envios",
+  "private": true,
+  "scripts": {
+    "setup": "node scripts/setup.mjs",
+    "dev": "node scripts/dev.mjs"
+  }
+}
