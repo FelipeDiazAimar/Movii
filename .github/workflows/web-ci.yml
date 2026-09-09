@@ -1,0 +1,31 @@
+name: Web CI
+
+on:
+  push:
+    paths:
+      - "gestion-envios/apps/web/**"
+  pull_request:
+    paths:
+      - "gestion-envios/apps/web/**"
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: gestion-envios/apps/web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: gestion-envios/apps/web/package-lock.json
+      - name: Instalar dependencias
+        run: npm ci
+      - name: Lint
+        run: npm run lint
+      - name: Chequeo de tipos + build
+        run: npm run build
+      - name: Test
+        run: npm run test

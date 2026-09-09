@@ -1,6 +1,6 @@
 import { createContext, useContext, useMemo, useState, type ReactNode } from "react";
 
-import { allSeedShipments, drivers } from "@/mock/shipments";
+import { allSeedShipments, drivers, seedShipments } from "@/mock/shipments";
 import type { Shipment, ShipmentStatus } from "@/types/logistics";
 import { login as apiLogin, logout as apiLogout, getEnviosDelDia, type EstadoEnvioAPI, type ResumenDelDiaAPI } from "@/lib/api-client";
 import { agruparEnviosPorRuta, type RutaDelDia } from "@/lib/envios-del-dia";
@@ -64,14 +64,39 @@ export function MoviiProvider({ children }: { children: ReactNode }) {
   };
 
   const login = async (email: string, password: string) => {
-    const claims = await apiLogin(email, password);
-    const rolValido: PrototypeRole = claims.rol === "repartidor" || claims.rol === "operador" ? claims.rol : null;
-    setRole(rolValido);
-    setDriverName(email.split("@")[0]);
+    try {
+      const claims = await apiLogin(email, password);
+      const rolValido: PrototypeRole = claims.rol === "repartidor" || claims.rol === "operador" ? claims.rol : null;
+      setRole(rolValido);
+      setDriverName(email.split("@")[0]);
 
-    if (rolValido === "repartidor") {
-      await recargarEnviosDelDia();
+      if (rolValido === "repartidor") {
+        await recargarEnviosDelDia();
+      }
+      return;
+    } catch (err) {
+      // BYPASS TEMPORAL (sin backend): si la API no responde, se entra con
+      // datos mock locales en vez de mostrar el error de login. Sacar este
+      // catch (y volver a solo `const claims = await apiLogin(...)`) cuando
+      // la API + base de datos estén levantadas.
+      if (!(email === "repartidor@movii.demo" && password === "Movii2026!")) {
+        throw err;
+      }
     }
+
+    setRole("repartidor");
+    setDriverName(email.split("@")[0]);
+    setRutasDelDia([{ rutaId: "ruta-demo-local", rutaNombre: "Ruta Norte 02", envios: seedShipments }]);
+    setResumenDelDia({
+      fecha: new Date().toISOString().slice(0, 10),
+      rutas: [],
+      total: seedShipments.length,
+      pendientes: seedShipments.filter((s) => s.status === "pendiente").length,
+      asignados: 0,
+      en_camino: seedShipments.filter((s) => s.status === "en_camino").length,
+      entregados: seedShipments.filter((s) => s.status === "entregado").length,
+      no_entregados: seedShipments.filter((s) => s.status === "no_entregado").length,
+    });
   };
 
   const logout = async () => {
