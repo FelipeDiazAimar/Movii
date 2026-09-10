@@ -21,14 +21,15 @@ func NewEventoRepo(pool *pgxpool.Pool) *EventoRepo {
 
 // Registrar inserta un evento del historial de un envío. Los parámetros
 // nil se guardan como NULL (evento raíz con anterior NULL, sistema o
-// backfill con actor NULL, transición sin motivo/comentario). q puede ser
-// el pool o una transacción (las operaciones de HU-06/HU-07 registran el
-// evento dentro de la misma tx que el UPDATE de estado).
-func (r *EventoRepo) Registrar(ctx context.Context, q Querier, envioID string, anterior *string, nuevo string, motivo *string, comentario *string, actorID *string) error {
+// backfill con actor NULL, transición sin motivo/comentario/foto). q puede
+// ser el pool o una transacción (las operaciones de HU-06/HU-07 registran
+// el evento dentro de la misma tx que el UPDATE de estado). La foto (BYTEA,
+// migración 0005, HU-07) solo se usa en incidencias: nil → NULL = sin foto.
+func (r *EventoRepo) Registrar(ctx context.Context, q Querier, envioID string, anterior *string, nuevo string, motivo *string, comentario *string, actorID *string, foto []byte) error {
 	_, err := q.Exec(ctx, `
-		INSERT INTO eventos_envio (envio_id, estado_anterior, estado_nuevo, motivo, comentario, actor_id)
-		VALUES ($1, $2::estado_envio, $3::estado_envio, $4::motivo_fallo, $5, $6::uuid)
-	`, envioID, anterior, nuevo, motivo, comentario, actorID)
+		INSERT INTO eventos_envio (envio_id, estado_anterior, estado_nuevo, motivo, comentario, actor_id, foto)
+		VALUES ($1, $2::estado_envio, $3::estado_envio, $4::motivo_fallo, $5, $6::uuid, $7)
+	`, envioID, anterior, nuevo, motivo, comentario, actorID, foto)
 	return err
 }
 

@@ -28,7 +28,7 @@ func nuevoEnvioHandlerDeTest(t *testing.T) (*EnvioHandler, *pgxpool.Pool) {
 	t.Cleanup(pool.Close)
 	envioRepo := repository.NewEnvioRepo(pool)
 	eventoRepo := repository.NewEventoRepo(pool)
-	svc := services.NewEnvioService(pool, envioRepo, eventoRepo)
+	svc := services.NewEnvioService(pool, envioRepo, eventoRepo, repository.NewConfirmacionRepo(pool))
 	return NewEnvioHandler(svc), pool
 }
 
@@ -164,7 +164,7 @@ func TestEnvioHandler_GetByIDIncluyeHistorialConEventos(t *testing.T) {
 	})
 
 	anterior := "asignado"
-	require.NoError(t, eventos.Registrar(ctx, pool, id, &anterior, "en_camino", nil, nil, nil))
+	require.NoError(t, eventos.Registrar(ctx, pool, id, &anterior, "en_camino", nil, nil, nil, nil))
 
 	req := httptest.NewRequest(http.MethodGet, "/envios/"+id, nil)
 	rctx := chi.NewRouteContext()

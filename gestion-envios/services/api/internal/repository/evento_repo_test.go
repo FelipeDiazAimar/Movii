@@ -29,12 +29,12 @@ func TestEventoRepo_RegistrarYListar(t *testing.T) {
 	t.Cleanup(func() { _, _ = pool.Exec(ctx, "DELETE FROM envios WHERE id = $1", envio.ID) })
 
 	// Evento raíz sin actor (anterior NULL, actor NULL), como el backfill.
-	require.NoError(t, eventos.Registrar(ctx, pool, envio.ID, nil, domain.EstadoEnvioAsignado, nil, nil, nil))
+	require.NoError(t, eventos.Registrar(ctx, pool, envio.ID, nil, domain.EstadoEnvioAsignado, nil, nil, nil, nil))
 
 	anterior := domain.EstadoEnvioAsignado
 	motivo := domain.MotivoClienteAusente
 	comentario := "nadie atendió la puerta"
-	require.NoError(t, eventos.Registrar(ctx, pool, envio.ID, &anterior, domain.EstadoEnvioNoEntregado, &motivo, &comentario, &repartidorID))
+	require.NoError(t, eventos.Registrar(ctx, pool, envio.ID, &anterior, domain.EstadoEnvioNoEntregado, &motivo, &comentario, &repartidorID, nil))
 
 	historial, err := eventos.ListarPorEnvio(ctx, envio.ID)
 	require.NoError(t, err)

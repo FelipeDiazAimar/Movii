@@ -36,11 +36,12 @@ func main() {
 
 	authService := services.NewAuthService(usuarioRepo, cfg.JWTSecret)
 	eventoRepo := repository.NewEventoRepo(pool)
-	envioService := services.NewEnvioService(pool, envioRepo, eventoRepo)
+	confirmacionRepo := repository.NewConfirmacionRepo(pool)
+	envioService := services.NewEnvioService(pool, envioRepo, eventoRepo, confirmacionRepo)
 	rutaService := services.NewRutaService(rutaRepo)
 	asignacionService := services.NewAsignacionService(rutaRepo, envioRepo)
 	repartidorService := services.NewRepartidorService(envioRepo)
-	estadoService := services.NewEstadoService(pool, envioRepo, eventoRepo)
+	estadoService := services.NewEstadoService(pool, envioRepo, eventoRepo, confirmacionRepo)
 
 	router := httprouter.New(httprouter.Deps{
 		CORSOrigins:       cfg.CORSOrigins,

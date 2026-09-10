@@ -41,7 +41,8 @@ func nuevoEstadoHandlerDeTest(t *testing.T) (*EstadoHandler, *pgxpool.Pool, stri
 
 	envioRepo := repository.NewEnvioRepo(pool)
 	eventoRepo := repository.NewEventoRepo(pool)
-	return NewEstadoHandler(services.NewEstadoService(pool, envioRepo, eventoRepo)), pool, repartidorID, operadorID
+	confirmacionRepo := repository.NewConfirmacionRepo(pool)
+	return NewEstadoHandler(services.NewEstadoService(pool, envioRepo, eventoRepo, confirmacionRepo)), pool, repartidorID, operadorID
 }
 
 // crearEnvioAsignadoHandlerDeTest crea un envío en estado asignado en una
@@ -260,7 +261,22 @@ func TestEstadoHandler_RegistrarIncidencia400(t *testing.T) {
 		require.Equal(t, "comentario_obligatorio", codigoErrorDeTest(t, rec))
 	})
 
-	t.Run("con foto se rechaza", func(t *testing.T) {
+	t.Run("con foto JPEG válida se acepta", func(t *testing.T) {
+		envioID := crearEnvioAsignadoHandlerDeTest(t, pool, repartidorID)
+		// JPEG mínimo (FF D8 FF + 2 bytes) en base64.
+		body, _ := json.Marshal(map[string]string{"motivo": domain.MotivoZonaInsegura, "foto_base64": "/9j/AAE="})
+		req := estadoRequestDeTest(t, http.MethodPost, "/envios/"+envioID+"/incidencia", body, envioID, repartidorID, domain.RolRepartidor)
+		rec := httptest.NewRecorder()
+
+		h.RegistrarIncidencia(rec, req)
+
+		require.Equal(t, http.StatusOK, rec.Code)
+		var resp map[string]any
+		require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
+		require.Equal(t, domain.EstadoEnvioNoEntregado, resp["estado"])
+	})
+
+	t.Run("con foto no-JPEG se rechaza", func(t *testing.T) {
 		envioID := crearEnvioAsignadoHandlerDeTest(t, pool, repartidorID)
 		body, _ := json.Marshal(map[string]string{"motivo": domain.MotivoZonaInsegura, "foto_base64": "aG9sYQ=="})
 		req := estadoRequestDeTest(t, http.MethodPost, "/envios/"+envioID+"/incidencia", body, envioID, repartidorID, domain.RolRepartidor)
@@ -269,7 +285,7 @@ func TestEstadoHandler_RegistrarIncidencia400(t *testing.T) {
 		h.RegistrarIncidencia(rec, req)
 
 		require.Equal(t, http.StatusBadRequest, rec.Code)
-		require.Equal(t, "imagen_no_soportada", codigoErrorDeTest(t, rec))
+		require.Equal(t, "imagen_invalida", codigoErrorDeTest(t, rec))
 	})
 
 	t.Run("foto con base64 malformado", func(t *testing.T) {

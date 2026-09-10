@@ -6,10 +6,11 @@ import (
 	"movii/api/internal/domain"
 )
 
-// TestTransicionValida cubre la matriz de HU-06 + HU-09 sin DB: los pares
-// válidos (asignado ⇄ en_camino, no_entregado → pendiente por reprogramación)
-// y todo lo demás inválido, incluyendo los estados finales como destino
-// (los gobiernan HU-07/HU-08 en sus planes).
+// TestTransicionValida cubre la matriz de HU-06 + HU-08 + HU-09 sin DB: los
+// pares válidos (asignado ⇄ en_camino, confirmación → entregado desde
+// asignado/en_camino por HU-08, no_entregado → pendiente por reprogramación
+// HU-09) y todo lo demás inválido, incluyendo no_entregado como destino
+// (lo gobierna HU-07 en su endpoint propio).
 func TestTransicionValida(t *testing.T) {
 	casos := []struct {
 		nombre  string
@@ -26,8 +27,8 @@ func TestTransicionValida(t *testing.T) {
 		{"pendiente a asignado", domain.EstadoEnvioPendiente, domain.EstadoEnvioAsignado, false},
 		{"asignado a pendiente", domain.EstadoEnvioAsignado, domain.EstadoEnvioPendiente, false},
 		{"en_camino a pendiente", domain.EstadoEnvioEnCamino, domain.EstadoEnvioPendiente, false},
-		{"asignado a entregado", domain.EstadoEnvioAsignado, domain.EstadoEnvioEntregado, false},
-		{"en_camino a entregado", domain.EstadoEnvioEnCamino, domain.EstadoEnvioEntregado, false},
+		{"asignado a entregado (confirmación HU-08)", domain.EstadoEnvioAsignado, domain.EstadoEnvioEntregado, true},
+		{"en_camino a entregado (confirmación HU-08)", domain.EstadoEnvioEnCamino, domain.EstadoEnvioEntregado, true},
 		{"asignado a no_entregado", domain.EstadoEnvioAsignado, domain.EstadoEnvioNoEntregado, false},
 		{"en_camino a no_entregado", domain.EstadoEnvioEnCamino, domain.EstadoEnvioNoEntregado, false},
 		{"entregado a en_camino", domain.EstadoEnvioEntregado, domain.EstadoEnvioEnCamino, false},

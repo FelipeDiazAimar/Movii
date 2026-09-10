@@ -1,6 +1,7 @@
 package services
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -22,26 +23,36 @@ var (
 	ErrTransicionInvalida    = errors.New("transición de estado inválida")
 	ErrMotivoInvalido        = errors.New("motivo de fallo inválido")
 	ErrComentarioObligatorio = errors.New("el motivo 'otro' requiere un comentario")
-	// ErrImagenNoSoportada indica que se adjuntó una foto a la incidencia.
-	// La foto de incidencia (CA-03 HU-07, opcional) queda pendiente del
-	// mecanismo de imágenes de HU-08/09; este plan la rechaza con
-	// imagen_no_soportada (400) en vez de aceptarla en silencio.
-	ErrImagenNoSoportada = errors.New("la incidencia con foto aún no está soportada")
 	// ErrFechaInvalida indica que la nueva fecha de reprogramación (HU-09)
 	// tiene mal formato o es pasada (solo valen hoy o futuras).
 	ErrFechaInvalida = errors.New("fecha de reprogramación inválida")
 	// ErrFranjaInvalida indica que la franja no está en {manana, tarde, noche}.
 	ErrFranjaInvalida = errors.New("franja horaria inválida")
+	// ErrEvidenciaIncompleta indica que falta el nombre del receptor o alguna
+	// de las imágenes (firma/foto) en la confirmación de entrega (HU-08).
+	ErrEvidenciaIncompleta = errors.New("evidencia de entrega incompleta")
+	// ErrRelacionInvalida indica que la relación del receptor no está en la
+	// lista cerrada {destinatario, familiar, vecino, encargado} (HU-08).
+	ErrRelacionInvalida = errors.New("relación del receptor inválida")
+	// ErrImagenInvalida indica que una imagen no decodifica o sus magic bytes
+	// no corresponden (firma PNG, foto JPEG). La reutiliza la foto de
+	// incidencia de HU-07 (Task 5 del plan de HU-08).
+	ErrImagenInvalida = errors.New("imagen inválida")
+	// ErrImagenMuyGrande indica que una imagen decodificada supera
+	// MaxImagenBytes (5 MB). La reutiliza la foto de incidencia (Task 5).
+	ErrImagenMuyGrande = errors.New("imagen demasiado grande")
 )
 
-// transicionesValidas es la matriz de transiciones de HU-06: el repartidor
-// alterna entre asignado y en_camino. HU-09 agrega la salida de
+// transicionesValidas es la matriz de transiciones de HU-06 (+ HU-08/HU-09):
+// el repartidor alterna entre asignado y en_camino, y desde cualquiera de
+// esos dos estados puede confirmar la entrega (→ entregado, endpoint propio
+// POST /envios/{id}/confirmacion, HU-08). HU-09 agrega la salida de
 // no_entregado a pendiente (reprogramación, endpoint propio
 // POST /envios/{id}/reprogramacion: PUT /envios/{id}/estado la rechaza
 // por su vocabulario con estado_invalido antes de llegar a la matriz).
 var transicionesValidas = map[string][]string{
-	domain.EstadoEnvioAsignado:    {domain.EstadoEnvioEnCamino},
-	domain.EstadoEnvioEnCamino:    {domain.EstadoEnvioAsignado},
+	domain.EstadoEnvioAsignado:    {domain.EstadoEnvioEnCamino, domain.EstadoEnvioEntregado},
+	domain.EstadoEnvioEnCamino:    {domain.EstadoEnvioAsignado, domain.EstadoEnvioEntregado},
 	domain.EstadoEnvioNoEntregado: {domain.EstadoEnvioPendiente},
 }
 
@@ -56,19 +67,22 @@ func transicionValida(origen, destino string) bool {
 	return false
 }
 
-// EstadoService contiene la lógica de negocio de HU-06/HU-07: cambios de
-// estado (asignado ⇄ en_camino) e incidencias (→ no_entregado con motivo).
+// EstadoService contiene la lógica de negocio de HU-06/HU-07/HU-08:
+// cambios de estado (asignado ⇄ en_camino), incidencias (→ no_entregado
+// con motivo) y confirmaciones de entrega (→ entregado con evidencia).
 // Cada operación actualiza el estado y registra el evento en una misma
 // transacción (todo o nada, como la asignación de HU-04).
 type EstadoService struct {
-	pool    *pgxpool.Pool
-	envios  *repository.EnvioRepo
-	eventos *repository.EventoRepo
+	pool           *pgxpool.Pool
+	envios         *repository.EnvioRepo
+	eventos        *repository.EventoRepo
+	confirmaciones *repository.ConfirmacionRepo
 }
 
-// NewEstadoService crea un EstadoService.
-func NewEstadoService(pool *pgxpool.Pool, envios *repository.EnvioRepo, eventos *repository.EventoRepo) *EstadoService {
-	return &EstadoService{pool: pool, envios: envios, eventos: eventos}
+// NewEstadoService crea un EstadoService. confirmaciones es obligatorio
+// (evidencia de entrega, HU-08); se inyecta por constructor.
+func NewEstadoService(pool *pgxpool.Pool, envios *repository.EnvioRepo, eventos *repository.EventoRepo, confirmaciones *repository.ConfirmacionRepo) *EstadoService {
+	return &EstadoService{pool: pool, envios: envios, eventos: eventos, confirmaciones: confirmaciones}
 }
 
 // actorIDPtr convierte el actorID (string con UUID del usuario) al *string
@@ -127,7 +141,7 @@ func (s *EstadoService) CambiarEstado(ctx context.Context, envioID, nuevo, actor
 		return domain.Envio{}, err
 	}
 	anterior := detalle.Estado
-	if err := s.eventos.Registrar(ctx, tx, envioID, &anterior, nuevo, nil, nil, actorIDPtr(actorID)); err != nil {
+	if err := s.eventos.Registrar(ctx, tx, envioID, &anterior, nuevo, nil, nil, actorIDPtr(actorID), nil); err != nil {
 		return domain.Envio{}, err
 	}
 	if err := tx.Commit(ctx); err != nil {
@@ -153,10 +167,11 @@ func motivoValido(motivo string) bool {
 }
 
 // RegistrarIncidencia marca un envío como no_entregado con un motivo de la
-// lista cerrada (HU-07) y registra el evento con motivo/comentario, en una
-// sola transacción. Solo vale sobre envíos asignados o en_camino. La foto
-// queda pendiente del mecanismo de HU-08/09: si se adjunta se rechaza con
-// ErrImagenNoSoportada.
+// lista cerrada (HU-07) y registra el evento con motivo/comentario/foto, en
+// una sola transacción. Solo vale sobre envíos asignados o en_camino. La
+// foto es opcional (CA-03 HU-07, columna foto de la migración 0005): nil o
+// vacía → NULL (sin foto); si viene, debe ser JPEG (magic bytes FF D8 FF)
+// y no superar MaxImagenBytes (5 MB).
 func (s *EstadoService) RegistrarIncidencia(ctx context.Context, envioID, motivo, comentario string, foto []byte, actorID, rol string) (domain.Envio, error) {
 	detalle, err := s.envios.GetByID(ctx, envioID)
 	if err != nil {
@@ -180,8 +195,11 @@ func (s *EstadoService) RegistrarIncidencia(ctx context.Context, envioID, motivo
 	if detalle.Estado != domain.EstadoEnvioAsignado && detalle.Estado != domain.EstadoEnvioEnCamino {
 		return domain.Envio{}, fmt.Errorf("no se puede registrar una incidencia sobre un envío en estado %q: %w", detalle.Estado, ErrTransicionInvalida)
 	}
-	if len(foto) > 0 {
-		return domain.Envio{}, ErrImagenNoSoportada
+	if len(foto) > domain.MaxImagenBytes {
+		return domain.Envio{}, ErrImagenMuyGrande
+	}
+	if len(foto) > 0 && !bytes.HasPrefix(foto, fotoJPEG) {
+		return domain.Envio{}, ErrImagenInvalida
 	}
 
 	tx, err := s.pool.Begin(ctx)
@@ -199,7 +217,7 @@ func (s *EstadoService) RegistrarIncidencia(ctx context.Context, envioID, motivo
 	if comentario != "" {
 		comentarioPtr = &comentario
 	}
-	if err := s.eventos.Registrar(ctx, tx, envioID, &anterior, domain.EstadoEnvioNoEntregado, motivoPtr, comentarioPtr, actorIDPtr(actorID)); err != nil {
+	if err := s.eventos.Registrar(ctx, tx, envioID, &anterior, domain.EstadoEnvioNoEntregado, motivoPtr, comentarioPtr, actorIDPtr(actorID), foto); err != nil {
 		return domain.Envio{}, err
 	}
 	if err := tx.Commit(ctx); err != nil {
@@ -268,7 +286,7 @@ func (s *EstadoService) Reprogramar(ctx context.Context, envioID, nuevaFecha, fr
 	}
 	anterior := detalle.Estado
 	comentario := fmt.Sprintf("reprogramado para %s (%s)", nuevaFecha, franja)
-	if err := s.eventos.Registrar(ctx, tx, envioID, &anterior, domain.EstadoEnvioPendiente, nil, &comentario, actorIDPtr(actorID)); err != nil {
+	if err := s.eventos.Registrar(ctx, tx, envioID, &anterior, domain.EstadoEnvioPendiente, nil, &comentario, actorIDPtr(actorID), nil); err != nil {
 		return domain.Envio{}, err
 	}
 	if err := tx.Commit(ctx); err != nil {
@@ -277,4 +295,133 @@ func (s *EstadoService) Reprogramar(ctx context.Context, envioID, nuevaFecha, fr
 
 	detalle.Estado = domain.EstadoEnvioPendiente
 	return detalle.Envio, nil
+}
+
+// relacionValida indica si la relación del receptor está en la lista
+// cerrada de HU-08.
+func relacionValida(relacion string) bool {
+	switch relacion {
+	case domain.RelacionDestinatario,
+		domain.RelacionFamiliar,
+		domain.RelacionVecino,
+		domain.RelacionEncargado:
+		return true
+	default:
+		return false
+	}
+}
+
+// firmaPNG es el magic number PNG (la firma de HU-08 es image/png).
+var firmaPNG = []byte{0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A}
+
+// fotoJPEG es el magic number JPEG (la foto de HU-08 es image/jpeg).
+var fotoJPEG = []byte{0xFF, 0xD8, 0xFF}
+
+// ConfirmarEntrega registra la entrega de un envío (HU-08): lo pasa a
+// entregado con su evidencia (receptor + firma PNG + foto JPEG) y el/los
+// evento(s) del historial, en una sola transacción (todo o nada, como las
+// demás operaciones del service). Solo vale sobre envíos asignados o
+// en_camino. Si el rol es repartidor, el envío debe pertenecer a una de
+// sus rutas; si no (ajeno o inexistente) devuelve
+// repository.ErrNoEncontrado.
+//
+// Los []byte YA vienen decodificados (el handler valida el base64 en
+// Task 3): el service valida tamaño (MaxImagenBytes) y magic bytes.
+// actorID vacío equivale a confirmada_por NULL (patrón actorIDPtr).
+func (s *EstadoService) ConfirmarEntrega(ctx context.Context, envioID, receptorNombre, receptorRelacion string, firma, foto []byte, actorID, rol string) (domain.Envio, error) {
+	detalle, err := s.envios.GetByID(ctx, envioID)
+	if err != nil {
+		return domain.Envio{}, err
+	}
+	if rol == domain.RolRepartidor {
+		pertenece, err := s.eventos.EsDelRepartidor(ctx, envioID, actorID)
+		if err != nil {
+			return domain.Envio{}, err
+		}
+		if !pertenece {
+			return domain.Envio{}, repository.ErrNoEncontrado
+		}
+	}
+	if strings.TrimSpace(receptorNombre) == "" || len(firma) == 0 || len(foto) == 0 {
+		return domain.Envio{}, ErrEvidenciaIncompleta
+	}
+	if !relacionValida(receptorRelacion) {
+		return domain.Envio{}, ErrRelacionInvalida
+	}
+	if len(firma) > domain.MaxImagenBytes || len(foto) > domain.MaxImagenBytes {
+		return domain.Envio{}, ErrImagenMuyGrande
+	}
+	if !bytes.HasPrefix(firma, firmaPNG) || !bytes.HasPrefix(foto, fotoJPEG) {
+		return domain.Envio{}, ErrImagenInvalida
+	}
+	if detalle.Estado != domain.EstadoEnvioAsignado && detalle.Estado != domain.EstadoEnvioEnCamino {
+		return domain.Envio{}, fmt.Errorf("no se puede confirmar la entrega de un envío en estado %q: %w", detalle.Estado, ErrTransicionInvalida)
+	}
+
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return domain.Envio{}, err
+	}
+	defer tx.Rollback(ctx) // no-op si ya se hizo commit
+
+	if err := s.envios.ActualizarEstado(ctx, tx, envioID, domain.EstadoEnvioEntregado); err != nil {
+		return domain.Envio{}, err
+	}
+	repo := s.confirmaciones
+	if err := repo.Guardar(ctx, tx, domain.Confirmacion{
+		EnvioID:          envioID,
+		ReceptorNombre:   receptorNombre,
+		ReceptorRelacion: receptorRelacion,
+		Firma:            firma,
+		Foto:             foto,
+		ConfirmadaPor:    actorIDPtr(actorID),
+	}); err != nil {
+		return domain.Envio{}, err
+	}
+	actor := actorIDPtr(actorID)
+	if detalle.Estado == domain.EstadoEnvioAsignado {
+		// Confirmación directa: el envío pasa por en_camino en el
+		// historial (DOS eventos) aunque nunca estuvo en ese estado.
+		asignado := domain.EstadoEnvioAsignado
+		enCamino := domain.EstadoEnvioEnCamino
+		comentario := "paso por en_camino (confirmación directa)"
+		if err := s.eventos.Registrar(ctx, tx, envioID, &asignado, domain.EstadoEnvioEnCamino, nil, &comentario, actor, nil); err != nil {
+			return domain.Envio{}, err
+		}
+		if err := s.eventos.Registrar(ctx, tx, envioID, &enCamino, domain.EstadoEnvioEntregado, nil, nil, actor, nil); err != nil {
+			return domain.Envio{}, err
+		}
+	} else {
+		anterior := detalle.Estado
+		if err := s.eventos.Registrar(ctx, tx, envioID, &anterior, domain.EstadoEnvioEntregado, nil, nil, actor, nil); err != nil {
+			return domain.Envio{}, err
+		}
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return domain.Envio{}, err
+	}
+
+	detalle.Estado = domain.EstadoEnvioEntregado
+	return detalle.Envio, nil
+}
+
+// ObtenerConfirmacion devuelve la evidencia de entrega de un envío (HU-08:
+// sirve a los binarios GET /envios/{id}/confirmacion/firma y /foto). Si el
+// rol es repartidor, el envío debe pertenecer a una de sus rutas; si no
+// (ajeno o inexistente) devuelve repository.ErrNoEncontrado. Sin
+// confirmación (envío no entregado por esta vía) también devuelve
+// repository.ErrNoEncontrado: el handler lo mapea a 404 no_encontrado
+// (envelope JSON, nunca binario). El guard va primero para no filtrar la
+// existencia de evidencia ajena.
+func (s *EstadoService) ObtenerConfirmacion(ctx context.Context, envioID, actorID, rol string) (domain.Confirmacion, error) {
+	if rol == domain.RolRepartidor {
+		pertenece, err := s.eventos.EsDelRepartidor(ctx, envioID, actorID)
+		if err != nil {
+			return domain.Confirmacion{}, err
+		}
+		if !pertenece {
+			return domain.Confirmacion{}, repository.ErrNoEncontrado
+		}
+	}
+	return s.confirmaciones.Obtener(ctx, envioID)
 }

@@ -144,10 +144,10 @@ func TestFlujoCompleto_SeguimientoTransicionesEIncidencia(t *testing.T) {
 		JWTSecret:         "secreto-de-test",
 		AuthHandler:       handlers.NewAuthHandler(authService),
 		UsuariosHandler:   handlers.NewUsuariosHandler(usuarioRepo),
-		EnvioHandler:      handlers.NewEnvioHandler(services.NewEnvioService(pool, envioRepo, eventoRepo)),
+		EnvioHandler:      handlers.NewEnvioHandler(services.NewEnvioService(pool, envioRepo, eventoRepo, repository.NewConfirmacionRepo(pool))),
 		RutaHandler:       handlers.NewRutaHandler(services.NewRutaService(rutaRepo), services.NewAsignacionService(rutaRepo, envioRepo)),
 		RepartidorHandler: handlers.NewRepartidorHandler(services.NewRepartidorService(envioRepo)),
-		EstadoHandler:     handlers.NewEstadoHandler(services.NewEstadoService(pool, envioRepo, eventoRepo)),
+		EstadoHandler:     handlers.NewEstadoHandler(services.NewEstadoService(pool, envioRepo, eventoRepo, repository.NewConfirmacionRepo(pool))),
 	})
 
 	var repartidorID string

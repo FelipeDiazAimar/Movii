@@ -37,7 +37,8 @@ func nuevoEstadoServiceDeTest(t *testing.T) (*EstadoService, *pgxpool.Pool, stri
 
 	envios := repository.NewEnvioRepo(pool)
 	eventos := repository.NewEventoRepo(pool)
-	return NewEstadoService(pool, envios, eventos), pool, repartidorID, operadorID
+	confirmaciones := repository.NewConfirmacionRepo(pool)
+	return NewEstadoService(pool, envios, eventos, confirmaciones), pool, repartidorID, operadorID
 }
 
 // crearEnvioAsignadoDeTest crea un envío en estado asignado en una ruta del
@@ -177,19 +178,28 @@ func TestEstadoService_CambiarEstadoEnvioInexistente(t *testing.T) {
 func TestEstadoService_CambiarEstadoTransicionInvalidaIndicaEndpoint(t *testing.T) {
 	svc, pool, repartidorID, _ := nuevoEstadoServiceDeTest(t)
 	ctx := context.Background()
+	eventos := repository.NewEventoRepo(pool)
 
+	// Con la matriz extendida (HU-08, Task 1) asignado→entregado es válido
+	// en el service: la restricción de vocabulario del PUT vive en el
+	// handler, no en la matriz (fuente de verdad para las transiciones).
 	envioID := crearEnvioAsignadoDeTest(t, pool, repartidorID)
+	entregado, err := svc.CambiarEstado(ctx, envioID, domain.EstadoEnvioEntregado, repartidorID, domain.RolRepartidor)
+	require.NoError(t, err)
+	require.Equal(t, domain.EstadoEnvioEntregado, entregado.Estado)
+	historial, err := eventos.ListarPorEnvio(ctx, envioID)
+	require.NoError(t, err)
+	require.Len(t, historial, 1)
+	require.Equal(t, domain.EstadoEnvioEntregado, historial[0].EstadoNuevo)
 
-	_, err := svc.CambiarEstado(ctx, envioID, domain.EstadoEnvioEntregado, repartidorID, domain.RolRepartidor)
-	require.ErrorIs(t, err, ErrTransicionInvalida)
-	require.Contains(t, err.Error(), "confirmacion")
-
-	_, err = svc.CambiarEstado(ctx, envioID, domain.EstadoEnvioNoEntregado, repartidorID, domain.RolRepartidor)
+	// no_entregado sigue fuera de la matriz: hint a incidencia y sin cambios.
+	envioID2 := crearEnvioAsignadoDeTest(t, pool, repartidorID)
+	_, err = svc.CambiarEstado(ctx, envioID2, domain.EstadoEnvioNoEntregado, repartidorID, domain.RolRepartidor)
 	require.ErrorIs(t, err, ErrTransicionInvalida)
 	require.Contains(t, err.Error(), "incidencia")
 
 	// El estado no cambió.
-	require.Equal(t, domain.EstadoEnvioAsignado, estadoActualDeTest(t, pool, envioID))
+	require.Equal(t, domain.EstadoEnvioAsignado, estadoActualDeTest(t, pool, envioID2))
 }
 
 func TestEstadoService_RegistrarIncidenciaFeliz(t *testing.T) {
@@ -251,10 +261,33 @@ func TestEstadoService_RegistrarIncidenciaErrores(t *testing.T) {
 		require.Equal(t, domain.EstadoEnvioPendiente, estadoActualDeTest(t, pool, envioID))
 	})
 
-	t.Run("con foto se rechaza", func(t *testing.T) {
+	t.Run("con foto JPEG válida se acepta y persiste", func(t *testing.T) {
 		envioID := crearEnvioAsignadoDeTest(t, pool, repartidorID)
-		_, err := svc.RegistrarIncidencia(ctx, envioID, domain.MotivoZonaInsegura, "comentario", []byte{0xFF, 0xD8, 0xFF}, repartidorID, domain.RolRepartidor)
-		require.ErrorIs(t, err, ErrImagenNoSoportada)
+		foto := []byte{0xFF, 0xD8, 0xFF, 0x00, 0x01}
+		actualizado, err := svc.RegistrarIncidencia(ctx, envioID, domain.MotivoZonaInsegura, "comentario", foto, repartidorID, domain.RolRepartidor)
+		require.NoError(t, err)
+		require.Equal(t, domain.EstadoEnvioNoEntregado, actualizado.Estado)
+		// Roundtrip: la foto quedó persistida en el evento (el historial
+		// JSON no la expone, se verifica directo en la columna foto).
+		var guardada []byte
+		err = pool.QueryRow(ctx, "SELECT foto FROM eventos_envio WHERE envio_id = $1", envioID).Scan(&guardada)
+		require.NoError(t, err)
+		require.Equal(t, foto, guardada)
+	})
+
+	t.Run("con foto no-JPEG se rechaza", func(t *testing.T) {
+		envioID := crearEnvioAsignadoDeTest(t, pool, repartidorID)
+		_, err := svc.RegistrarIncidencia(ctx, envioID, domain.MotivoZonaInsegura, "comentario", []byte("hola"), repartidorID, domain.RolRepartidor)
+		require.ErrorIs(t, err, ErrImagenInvalida)
+		require.Equal(t, domain.EstadoEnvioAsignado, estadoActualDeTest(t, pool, envioID))
+	})
+
+	t.Run("con foto mayor a 5MB se rechaza", func(t *testing.T) {
+		envioID := crearEnvioAsignadoDeTest(t, pool, repartidorID)
+		foto := make([]byte, domain.MaxImagenBytes+1)
+		foto[0], foto[1], foto[2] = 0xFF, 0xD8, 0xFF
+		_, err := svc.RegistrarIncidencia(ctx, envioID, domain.MotivoZonaInsegura, "comentario", foto, repartidorID, domain.RolRepartidor)
+		require.ErrorIs(t, err, ErrImagenMuyGrande)
 		require.Equal(t, domain.EstadoEnvioAsignado, estadoActualDeTest(t, pool, envioID))
 	})
 

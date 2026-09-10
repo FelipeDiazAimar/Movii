@@ -56,6 +56,9 @@ func New(deps Deps) http.Handler {
 		protected.Put("/envios/{id}/estado", deps.EstadoHandler.CambiarEstado)
 		protected.Post("/envios/{id}/incidencia", deps.EstadoHandler.RegistrarIncidencia)
 		protected.Post("/envios/{id}/reprogramacion", deps.EstadoHandler.Reprogramar)
+		protected.Post("/envios/{id}/confirmacion", deps.EstadoHandler.Confirmar)
+		protected.Get("/envios/{id}/confirmacion/firma", deps.EstadoHandler.DescargarFirma)
+		protected.Get("/envios/{id}/confirmacion/foto", deps.EstadoHandler.DescargarFoto)
 		protected.Get("/rutas", deps.RutaHandler.List)
 		protected.Get("/rutas/{id}", deps.RutaHandler.Detail)
 

@@ -44,16 +44,20 @@ func validarCrearEnvioInput(in CrearEnvioInput) error {
 }
 
 // EnvioService contiene la lógica de negocio de HU-02 (y el detalle con
-// historial de HU-06/HU-07, Task 5).
+// historial de HU-06/HU-07, Task 5, más la metadata de confirmación de
+// HU-08, Task 4).
 type EnvioService struct {
-	pool       *pgxpool.Pool
-	envioRepo  *repository.EnvioRepo
-	eventoRepo *repository.EventoRepo
+	pool           *pgxpool.Pool
+	envioRepo      *repository.EnvioRepo
+	eventoRepo     *repository.EventoRepo
+	confirmaciones *repository.ConfirmacionRepo
 }
 
-// NewEnvioService crea un EnvioService.
-func NewEnvioService(pool *pgxpool.Pool, envioRepo *repository.EnvioRepo, eventoRepo *repository.EventoRepo) *EnvioService {
-	return &EnvioService{pool: pool, envioRepo: envioRepo, eventoRepo: eventoRepo}
+// NewEnvioService crea un EnvioService. confirmaciones es obligatorio
+// (metadata de entrega en el detalle, HU-08 Task 4); se inyecta por
+// constructor.
+func NewEnvioService(pool *pgxpool.Pool, envioRepo *repository.EnvioRepo, eventoRepo *repository.EventoRepo, confirmaciones *repository.ConfirmacionRepo) *EnvioService {
+	return &EnvioService{pool: pool, envioRepo: envioRepo, eventoRepo: eventoRepo, confirmaciones: confirmaciones}
 }
 
 // Create valida el input y crea remitente + destinatario + envío en una sola
@@ -135,8 +139,10 @@ func (s *EnvioService) List(ctx context.Context, estado, fecha string) ([]domain
 }
 
 // GetByID devuelve el detalle de un envío con su historial de eventos
-// (Task 5, HU-06/HU-07). Sin eventos, Historial es [] y no nil, para que
-// serialice como `"historial": []` según el openapi.
+// (Task 5, HU-06/HU-07) y la metadata de confirmación si fue entregado
+// (Task 4, HU-08: nil → null cuando no hay confirmación). Sin eventos,
+// Historial es [] y no nil, para que serialice como `"historial": []`
+// según el openapi.
 func (s *EnvioService) GetByID(ctx context.Context, id string) (domain.EnvioDetalle, error) {
 	detalle, err := s.envioRepo.GetByID(ctx, id)
 	if err != nil {
@@ -150,5 +156,21 @@ func (s *EnvioService) GetByID(ctx context.Context, id string) (domain.EnvioDeta
 	if err != nil {
 		return domain.EnvioDetalle{}, err
 	}
-	return domain.EnvioDetalle{EnvioConDetalle: detalle, Historial: historial, ReprogramadoPara: para, Franja: franja}, nil
+	var metadata *domain.ConfirmacionMetadata
+	confirmacion, err := s.confirmaciones.Obtener(ctx, id)
+	switch {
+	case err == nil:
+		metadata = &domain.ConfirmacionMetadata{
+			ReceptorNombre:   confirmacion.ReceptorNombre,
+			ReceptorRelacion: confirmacion.ReceptorRelacion,
+			ConfirmadaAt:     confirmacion.ConfirmadaAt,
+			FirmaURL:         "/envios/" + id + "/confirmacion/firma",
+			FotoURL:          "/envios/" + id + "/confirmacion/foto",
+		}
+	case errors.Is(err, repository.ErrNoEncontrado):
+		// Sin confirmación: metadata queda nil (serializa como null).
+	default:
+		return domain.EnvioDetalle{}, err
+	}
+	return domain.EnvioDetalle{EnvioConDetalle: detalle, Historial: historial, ReprogramadoPara: para, Franja: franja, Confirmacion: metadata}, nil
 }

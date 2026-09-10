@@ -59,11 +59,11 @@ func TestEnvioService_GetByIDConEventosDevuelveHistorial(t *testing.T) {
 	})
 
 	// Evento raíz (creación, sin actor ni anterior) + transición a en_camino.
-	require.NoError(t, eventos.Registrar(ctx, pool, envio.ID, nil, domain.EstadoEnvioAsignado, nil, nil, nil))
+	require.NoError(t, eventos.Registrar(ctx, pool, envio.ID, nil, domain.EstadoEnvioAsignado, nil, nil, nil, nil))
 	anterior := domain.EstadoEnvioAsignado
 	motivo := domain.MotivoClienteAusente
 	comentario := "nadie atendió la puerta"
-	require.NoError(t, eventos.Registrar(ctx, pool, envio.ID, &anterior, domain.EstadoEnvioNoEntregado, &motivo, &comentario, nil))
+	require.NoError(t, eventos.Registrar(ctx, pool, envio.ID, &anterior, domain.EstadoEnvioNoEntregado, &motivo, &comentario, nil, nil))
 
 	detalle, err := svc.GetByID(ctx, envio.ID)
 	require.NoError(t, err)
