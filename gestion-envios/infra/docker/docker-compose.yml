@@ -1,0 +1,17 @@
+name: movii-local
+services:
+  db:
+    image: postgres:17-alpine
+    container_name: movii-db-local
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: movii
+      POSTGRES_PASSWORD: movii_dev
+      POSTGRES_DB: movii
+    ports:
+      - "5432:5432"
+    volumes:
+      - movii-pgdata:/var/lib/postgresql/data
+
+volumes:
+  movii-pgdata:
