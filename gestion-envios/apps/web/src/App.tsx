@@ -3,6 +3,7 @@ import { AuthProvider } from "@/features/auth/AuthContext";
 import { ProtectedRoute } from "@/routes/ProtectedRoute";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { LoginPage } from "@/pages/LoginPage";
+import { TrackingPage } from "@/pages/TrackingPage";
 import { AccesoDenegadoPage } from "@/pages/AccesoDenegadoPage";
 import { NotFoundPage } from "@/pages/NotFoundPage";
 import { EnviosListPage } from "@/pages/envios/EnviosListPage";
@@ -20,6 +21,7 @@ export function App() {
       <AuthProvider>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/tracking" element={<TrackingPage />} />
           <Route path="/acceso-denegado" element={<AccesoDenegadoPage />} />
 
           <Route element={<ProtectedRoute allow={["operador", "supervisor"]} />}>
