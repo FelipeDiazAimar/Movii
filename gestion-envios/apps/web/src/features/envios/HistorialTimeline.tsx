@@ -1,5 +1,10 @@
+import { useEffect, useState } from "react";
 import type { EventoEnvio, TrackingEvento } from "./types";
+import { descargarFotoIncidencia } from "./api";
+import { getApiErrorMessage } from "@/services/api-client";
 import { EmptyState } from "@/components/ui/Card";
+import { Alert } from "@/components/ui/Alert";
+import { Button } from "@/components/ui/Button";
 
 /**
  * Textos legibles del historial. Espejan `describirEvento` /
@@ -91,10 +96,66 @@ function esTrackingEvento(e: EventoEnvio | TrackingEvento): e is TrackingEvento 
 }
 
 /**
+ * Foto de una incidencia (HU-07, solo vista): el binario exige auth,
+ * así que se descarga con apiClient (responseType blob) y se muestra
+ * en <img> vía objectURL. La URL se libera al ocultar o desmontar.
+ * Mismo patrón que `EvidenciaEntrega` de HU-08 (EnvioDetallePage).
+ */
+function FotoIncidencia({ envioId, eventoId }: { envioId: string; eventoId: string }) {
+  const [src, setSrc] = useState<string | null>(null);
+  const [cargando, setCargando] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (src) URL.revokeObjectURL(src);
+    };
+  }, [src]);
+
+  async function ver() {
+    if (src) {
+      URL.revokeObjectURL(src);
+      setSrc(null);
+      return;
+    }
+    setCargando(true);
+    setError(null);
+    try {
+      const blob = await descargarFotoIncidencia(envioId, eventoId);
+      setSrc(URL.createObjectURL(blob));
+    } catch (e) {
+      setError(getApiErrorMessage(e, "No se pudo cargar la foto"));
+    } finally {
+      setCargando(false);
+    }
+  }
+
+  return (
+    <div className="flex flex-col gap-1.5">
+      {error && <Alert variant="error">{error}</Alert>}
+      <div>
+        <Button variant="secondary" loading={cargando} onClick={() => void ver()}>
+          {src ? "Ocultar foto" : "Ver foto"}
+        </Button>
+      </div>
+      {src && <img src={src} alt="Foto de incidencia" className="max-w-full rounded border border-gray-200" />}
+    </div>
+  );
+}
+
+/**
  * Timeline compartido entre el detalle (EventoEnvio) y el tracking
  * público (TrackingEvento). Vacío → EmptyState, no lista muda.
+ * `envioId` solo se pasa en el detalle: habilita el botón "Ver foto"
+ * en incidencias con foto (el tracking no trae ese flag).
  */
-export function HistorialTimeline({ eventos }: { eventos: (EventoEnvio | TrackingEvento)[] }) {
+export function HistorialTimeline({
+  eventos,
+  envioId,
+}: {
+  eventos: (EventoEnvio | TrackingEvento)[];
+  envioId?: string;
+}) {
   if (eventos.length === 0) {
     return <EmptyState title="Sin movimientos todavía" description="Todavía no hay eventos registrados para este envío." />;
   }
@@ -121,6 +182,9 @@ export function HistorialTimeline({ eventos }: { eventos: (EventoEnvio | Trackin
               <time className="text-xs text-gray-500">{formatearFecha(e.fecha)}</time>
               {e.actor_nombre && <p className="text-xs text-gray-500">Por {e.actor_nombre}</p>}
               {e.comentario && <p className="text-xs text-gray-600">“{e.comentario}”</p>}
+              {e.motivo !== null && e.tiene_foto && envioId && (
+                <FotoIncidencia envioId={envioId} eventoId={e.id} />
+              )}
             </div>
           </li>
         );

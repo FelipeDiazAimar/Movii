@@ -180,7 +180,7 @@ export function EnvioDetallePage() {
 
       <Card>
         <h2 className="mb-3 text-sm font-semibold text-gray-900">Historial</h2>
-        <HistorialTimeline eventos={envio.historial} />
+        <HistorialTimeline eventos={envio.historial} envioId={envio.id} />
       </Card>
 
       {envio.confirmacion && (

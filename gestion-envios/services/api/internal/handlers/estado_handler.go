@@ -225,6 +225,32 @@ func (h *EstadoHandler) DescargarFoto(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write(confirmacion.Foto)
 }
 
+// DescargarFotoIncidencia maneja GET /envios/{id}/eventos/{eventoId}/foto
+// (HU-07 cierre): devuelve los bytes JPEG de la foto de una incidencia (no
+// JSON). Sin foto en el evento, evento de otro envío o guard de
+// pertenencia fallido → 404 no_encontrado (envelope JSON, nunca binario).
+func (h *EstadoHandler) DescargarFotoIncidencia(w http.ResponseWriter, r *http.Request) {
+	claims, ok := middleware.ClaimsFromContext(r.Context())
+	if !ok {
+		httpx.WriteError(w, http.StatusUnauthorized, "sin_token", "falta autenticación")
+		return
+	}
+
+	foto, err := h.svc.ObtenerFotoIncidencia(r.Context(), chi.URLParam(r, "id"), chi.URLParam(r, "eventoId"), claims.UsuarioID, claims.Rol)
+	if err != nil {
+		if errors.Is(err, repository.ErrNoEncontrado) {
+			httpx.WriteError(w, http.StatusNotFound, "no_encontrado", "el envío no existe o el evento no tiene foto")
+			return
+		}
+		httpx.WriteError(w, http.StatusInternalServerError, "error_interno", "no se pudo obtener la foto de la incidencia")
+		return
+	}
+
+	w.Header().Set("Content-Type", "image/jpeg")
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write(foto)
+}
+
 type incidenciaRequest struct {
 	Motivo     string `json:"motivo"`
 	Comentario string `json:"comentario"`

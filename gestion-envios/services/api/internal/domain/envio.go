@@ -69,12 +69,18 @@ const (
 // migración 0003; HU-06/HU-07). Los campos nullables de la base se
 // representan con punteros: nil equivale a NULL.
 type EventoEnvio struct {
+	ID             string  `json:"id"`
 	Fecha          string  `json:"fecha"`
 	ActorNombre    *string `json:"actor_nombre"`
 	EstadoAnterior *string `json:"estado_anterior"`
 	EstadoNuevo    string  `json:"estado_nuevo"`
 	Motivo         *string `json:"motivo"`
 	Comentario     *string `json:"comentario"`
+	// TieneFoto indica si el evento tiene foto (incidencias HU-07,
+	// columna foto de la migración 0005). Nunca es null: false en
+	// eventos viejos o sin foto. La foto en sí se descarga por el
+	// binario GET /envios/{id}/eventos/{eventoId}/foto.
+	TieneFoto bool `json:"tiene_foto"`
 }
 
 // Motivos de fallo de entrega (HU-07). Lista cerrada: coincide con el enum

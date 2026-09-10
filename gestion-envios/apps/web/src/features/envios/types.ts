@@ -100,12 +100,14 @@ export const ESTADOS_CAMBIABLES = ["asignado", "en_camino"] as const;
 export type EstadoCambiable = (typeof ESTADOS_CAMBIABLES)[number];
 
 export interface EventoEnvio {
+  id: string;
   fecha: string;
   actor_nombre: string | null;
   estado_anterior: EstadoEnvio | null;
   estado_nuevo: EstadoEnvio;
   motivo: string | null;
   comentario: string | null;
+  tiene_foto: boolean;
 }
 
 export interface ConfirmacionMetadata {

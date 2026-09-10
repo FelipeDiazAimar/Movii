@@ -50,3 +50,15 @@ export async function obtenerTracking(codigo: string): Promise<TrackingResponse>
   const { data } = await apiClient.get<TrackingResponse>(`/tracking/${codigo}`);
   return data;
 }
+
+/**
+ * HU-07 (cierre): foto de una incidencia. El binario exige auth, así que
+ * se descarga como blob y el llamador lo muestra vía objectURL
+ * (mismo patrón que la evidencia de entrega HU-08).
+ */
+export async function descargarFotoIncidencia(envioId: string, eventoId: string): Promise<Blob> {
+  const { data } = await apiClient.get<Blob>(`/envios/${envioId}/eventos/${eventoId}/foto`, {
+    responseType: "blob",
+  });
+  return data;
+}

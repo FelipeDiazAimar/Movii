@@ -4,12 +4,14 @@ import type { EventoEnvio } from "./types";
 
 function evento(overrides: Partial<EventoEnvio>): EventoEnvio {
   return {
+    id: "ev-1",
     fecha: "2026-09-09T15:40:00Z",
     actor_nombre: null,
     estado_anterior: null,
     estado_nuevo: "pendiente",
     motivo: null,
     comentario: null,
+    tiene_foto: false,
     ...overrides,
   };
 }

@@ -405,6 +405,36 @@ func (s *EstadoService) ConfirmarEntrega(ctx context.Context, envioID, receptorN
 	return detalle.Envio, nil
 }
 
+// ObtenerFotoIncidencia devuelve la foto de un evento de incidencia
+// (HU-07 cierre: sirve al binario
+// GET /envios/{id}/eventos/{eventoId}/foto). Espeja ObtenerConfirmacion
+// (Task 3, HU-08): si el rol es repartidor, el envío debe pertenecer a una
+// de sus rutas; si no (ajeno o inexistente) devuelve
+// repository.ErrNoEncontrado. Además verifica que el evento pertenezca al
+// envío pedido (mismatch → ErrNoEncontrado, para no filtrar fotos ajenas).
+// Sin foto en el evento también devuelve repository.ErrNoEncontrado: el
+// handler lo mapea a 404 no_encontrado (envelope JSON, nunca binario).
+// El guard va primero para no filtrar la existencia de fotos ajenas.
+func (s *EstadoService) ObtenerFotoIncidencia(ctx context.Context, envioID, eventoID, actorID, rol string) ([]byte, error) {
+	if rol == domain.RolRepartidor {
+		pertenece, err := s.eventos.EsDelRepartidor(ctx, envioID, actorID)
+		if err != nil {
+			return nil, err
+		}
+		if !pertenece {
+			return nil, repository.ErrNoEncontrado
+		}
+	}
+	foto, fotoEnvioID, err := s.eventos.ObtenerFoto(ctx, eventoID)
+	if err != nil {
+		return nil, err
+	}
+	if fotoEnvioID != envioID {
+		return nil, repository.ErrNoEncontrado
+	}
+	return foto, nil
+}
+
 // ObtenerConfirmacion devuelve la evidencia de entrega de un envío (HU-08:
 // sirve a los binarios GET /envios/{id}/confirmacion/firma y /foto). Si el
 // rol es repartidor, el envío debe pertenecer a una de sus rutas; si no

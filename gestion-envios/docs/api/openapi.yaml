@@ -1099,6 +1099,48 @@ paths:
         "500":
           $ref: "#/components/responses/ErrorInterno"
 
+  /envios/{id}/eventos/{eventoId}/foto:
+    get:
+      tags: [envios]
+      summary: Descargar la foto de una incidencia
+      description: |
+        Devuelve los bytes JPEG de la foto de un evento de incidencia (no
+        JSON). Requiere autenticación, cualquier rol (el repartidor solo ve
+        envíos de sus rutas). 404 si el evento no tiene foto o no pertenece
+        al envío.
+      operationId: descargarFotoIncidencia
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: eventoId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Imagen JPEG de la incidencia.
+          content:
+            image/jpeg:
+              schema:
+                type: string
+                format: binary
+        "401":
+          $ref: "#/components/responses/NoAutenticado"
+        "404":
+          description: El envío no existe, el evento no tiene foto o no pertenece al envío (`no_encontrado`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "500":
+          $ref: "#/components/responses/ErrorInterno"
+
   /envios/{id}/reprogramacion:
     post:
       tags: [envios]
@@ -1798,6 +1840,8 @@ components:
       type: object
       description: Una fila del historial del envío (tabla eventos_envio).
       properties:
+        id:
+          type: string
         fecha:
           type: string
           example: "2026-09-09T15:40:00Z"
@@ -1816,6 +1860,9 @@ components:
         comentario:
           type: string
           nullable: true
+        tiene_foto:
+          type: boolean
+          description: True si el evento tiene foto (incidencias HU-07); se descarga por GET /envios/{id}/eventos/{eventoId}/foto.
       required: [fecha, estado_nuevo]
 
     ConfirmacionMetadata:
