@@ -1,1 +1,3 @@
 node_modules/
+# Overrides locales de compose (puertos, etc. por máquina)
+infra/docker/docker-compose.override.yml
