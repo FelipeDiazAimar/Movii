@@ -45,7 +45,7 @@ func nuevoEnvioServiceDeTest(t *testing.T) (*EnvioService, *pgxpool.Pool) {
 	pool, err := pgxpool.New(context.Background(), url)
 	require.NoError(t, err)
 	t.Cleanup(pool.Close)
-	return NewEnvioService(pool, repository.NewEnvioRepo(pool)), pool
+	return NewEnvioService(pool, repository.NewEnvioRepo(pool), repository.NewEventoRepo(pool)), pool
 }
 
 func TestEnvioService_CreateGeneraCodigoYPersiste(t *testing.T) {

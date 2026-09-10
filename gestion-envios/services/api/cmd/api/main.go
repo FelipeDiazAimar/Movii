@@ -35,10 +35,12 @@ func main() {
 	rutaRepo := repository.NewRutaRepo(pool)
 
 	authService := services.NewAuthService(usuarioRepo, cfg.JWTSecret)
-	envioService := services.NewEnvioService(pool, envioRepo)
+	eventoRepo := repository.NewEventoRepo(pool)
+	envioService := services.NewEnvioService(pool, envioRepo, eventoRepo)
 	rutaService := services.NewRutaService(rutaRepo)
 	asignacionService := services.NewAsignacionService(rutaRepo, envioRepo)
 	repartidorService := services.NewRepartidorService(envioRepo)
+	estadoService := services.NewEstadoService(pool, envioRepo, eventoRepo)
 
 	router := httprouter.New(httprouter.Deps{
 		CORSOrigins:       cfg.CORSOrigins,
@@ -48,6 +50,7 @@ func main() {
 		EnvioHandler:      handlers.NewEnvioHandler(envioService),
 		RutaHandler:       handlers.NewRutaHandler(rutaService, asignacionService),
 		RepartidorHandler: handlers.NewRepartidorHandler(repartidorService),
+		EstadoHandler:     handlers.NewEstadoHandler(estadoService),
 	})
 
 	log.Printf("API escuchando en :%s (env=%s)", cfg.Port, cfg.Env)

@@ -27,13 +27,13 @@
 
 La API ya no apunta a Supabase en desarrollo: Postgres 17 en Docker (ver `gestion-envios/infra/docker/README.md`).
 
-- [ ] **Paso 1: Levantar la base local**
+- [x] **Paso 1: Levantar la base local**
   - `cd gestion-envios/infra/docker && docker compose up -d`
   - Verificar `services/api/.env` con `DATABASE_URL=postgresql://movii:movii_dev@localhost:5432/movii?sslmode=disable` (si no existe, crearlo según el README).
-- [ ] **Paso 2: Aplicar migraciones 0001–0004**
+- [x] **Paso 2: Aplicar migraciones 0001–0004**
   - `cd services/api && go run ./cmd/migrate up`
   - Verificar: `eventos_envio` existe y tiene el backfill (un evento raíz por envío existente).
-- [ ] **Paso 3: Suite base en verde**
+- [x] **Paso 3: Suite base en verde**
   - `go test ./... -p 1` todo pasa antes de tocar nada. Si algo falla, arreglar el entorno primero (no es parte de las HU).
 
 ## Task 1: Dominio — EventoEnvio, motivos y errores
@@ -67,8 +67,8 @@ La API ya no apunta a Supabase en desarrollo: Postgres 17 en Docker (ver `gestio
   var ErrComentarioObligatorio = errors.New(...) // motivo "otro" sin comentario
   ```
 
-- [ ] **Paso 1: Agregar `EventoEnvio` + consts de motivo a `domain/envio.go`**
-- [ ] **Paso 2: Matriz de transiciones de HU-06 como función pura**
+- [x] **Paso 1: Agregar `EventoEnvio` + consts de motivo a `domain/envio.go`**
+- [x] **Paso 2: Matriz de transiciones de HU-06 como función pura**
   - `map[string][]string{ asignado: {en_camino}, en_camino: {asignado} }` (este plan; HU-08/09 agregan salidas en sus planes).
   - Función `transicionValida(origen, destino string) bool` + test unitario sin DB (tabla: todos los pares válidos/inválidos, incluyendo `entregado`/`no_entregado` como destino → false).
 
@@ -90,10 +90,10 @@ La API ya no apunta a Supabase en desarrollo: Postgres 17 en Docker (ver `gestio
     // El "del día" lo gobierna el listado HU-05; acá el guard es no tocar envíos ajenos.
   ```
 
-- [ ] **Paso 1: `Registrar` con `INSERT` (actor/motivo/comentario/anterior nullables)**
-- [ ] **Paso 2: `ListarPorEnvio` con `LEFT JOIN usuarios` + `to_char(... UTC ...)` igual que `EnvioRepo.List`**
-- [ ] **Paso 3: `EsDelRepartidor`**
-- [ ] **Paso 4: Tests contra DB local** (registrar y listar incl. actor NULL; lista vacía → `[]`; pertenencia true/false)
+- [x] **Paso 1: `Registrar` con `INSERT` (actor/motivo/comentario/anterior nullables)**
+- [x] **Paso 2: `ListarPorEnvio` con `LEFT JOIN usuarios` + `to_char(... UTC ...)` igual que `EnvioRepo.List`**
+- [x] **Paso 3: `EsDelRepartidor`**
+- [x] **Paso 4: Tests contra DB local** (registrar y listar incl. actor NULL; lista vacía → `[]`; pertenencia true/false)
 
 ## Task 3: Service — CambiarEstado + RegistrarIncidencia
 
@@ -125,9 +125,9 @@ La API ya no apunta a Supabase en desarrollo: Postgres 17 en Docker (ver `gestio
   ```
   > NOTA: la foto de incidencia (CA-03 HU-07, opcional) se resuelve en el plan HU-08/09 una vez exista el mecanismo de imágenes. Este plan no la implementa; el endpoint la rechaza con `imagen_no_soportada` (400) si se envía, para no aceptarla en silencio. (Ajustar openapi en ese plan.)
 
-- [ ] **Paso 1: `CambiarEstado` + tests** (camino feliz ambas direcciones, transición inválida, repartidor ajeno → NoEncontrado, operador sobre cualquiera OK)
-- [ ] **Paso 2: `RegistrarIncidencia` + tests** (motivo válido, motivo inválido, otro sin comentario, estado final → TransicionInvalida, evento con motivo persistido)
-- [ ] **Paso 3: UPDATE de estado como método del `EnvioRepo`** (`ActualizarEstado(ctx, q, envioID, nuevo)`) — q = tx
+- [x] **Paso 1: `CambiarEstado` + tests** (camino feliz ambas direcciones, transición inválida, repartidor ajeno → NoEncontrado, operador sobre cualquiera OK)
+- [x] **Paso 2: `RegistrarIncidencia` + tests** (motivo válido, motivo inválido, otro sin comentario, estado final → TransicionInvalida, evento con motivo persistido)
+- [x] **Paso 3: UPDATE de estado como método del `EnvioRepo`** (`ActualizarEstado(ctx, q, envioID, nuevo)`) — q = tx
 
 ## Task 4: Handlers + rutas + wiring
 
@@ -137,9 +137,9 @@ La API ya no apunta a Supabase en desarrollo: Postgres 17 en Docker (ver `gestio
 - Edit: `gestion-envios/services/api/internal/httprouter/router.go` Deps + `cmd/api/main.go` (construir `EstadoService` + handler)
 - Tests de handlers con `httptest` (patrón de `envio_handler_test.go`)
 
-- [ ] **Paso 1: `EstadoHandler` con mapeo de errores** (tabla centinela→status+code según openapi)
-- [ ] **Paso 2: Rutas + Deps + main**
-- [ ] **Paso 3: Tests** (feliz + 400 + 404 repartidor ajeno + 409 por estado; al menos un error por endpoint)
+- [x] **Paso 1: `EstadoHandler` con mapeo de errores** (tabla centinela→status+code según openapi)
+- [x] **Paso 2: Rutas + Deps + main**
+- [x] **Paso 3: Tests** (feliz + 400 + 404 repartidor ajeno + 409 por estado; al menos un error por endpoint)
 
 ## Task 5: Historial en el detalle
 
@@ -148,14 +148,14 @@ La API ya no apunta a Supabase en desarrollo: Postgres 17 en Docker (ver `gestio
 - Edit: `services.EnvioService.GetByID` → devuelve `domain.EnvioDetalle` (nuevo struct: `EnvioConDetalle` + `Historial []EventoEnvio`; `reprogramado_para`/`franja`/`confirmacion` los agregan planes siguientes)
 - Tests: detalle con eventos y sin eventos (`"historial": []`)
 
-- [ ] **Paso 1: `EnvioDetalle` en dominio + cableado repo/service/handler**
-- [ ] **Paso 2: Tests** (el `GET /envios/{id}` existente sigue pasando: campos nuevos son aditivos)
+- [x] **Paso 1: `EnvioDetalle` en dominio + cableado repo/service/handler**
+- [x] **Paso 2: Tests** (el `GET /envios/{id}` existente sigue pasando: campos nuevos son aditivos)
 
 ## Task 6: E2E + cierre
 
 **Files:**
 - Create: `gestion-envios/services/api/tests/seguimiento_flow_test.go` (login repartidor → en_camino → incidencia con motivo → 409 al reintentar cambio; login operador → en_camino de otro envío OK)
 
-- [ ] **Paso 1: E2E en verde**
-- [ ] **Paso 2: `gofmt -l .`, `go vet ./...`, `go test ./... -p 1` completos en verde**
-- [ ] **Paso 3: Registrar horas reales de la tarea (planilla cátedra) + commit(s) en español con trailer**
+- [x] **Paso 1: E2E en verde**
+- [x] **Paso 2: `gofmt -l .`, `go vet ./...`, `go test ./... -p 1` completos en verde**
+- [x] **Paso 3: Registrar horas reales de la tarea (planilla cátedra) + commit(s) en español con trailer**

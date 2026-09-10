@@ -197,6 +197,20 @@ func (r *EnvioRepo) DesasignarEnvio(ctx context.Context, envioID, rutaID string)
 	return nil
 }
 
+// ActualizarEstado cambia el estado de un envío. q suele ser la transacción
+// de la operación de HU-06/HU-07 (el UPDATE corre junto al INSERT del evento
+// en eventos_envio). Devuelve ErrNoEncontrado si el envío no existe.
+func (r *EnvioRepo) ActualizarEstado(ctx context.Context, q Querier, envioID, nuevo string) error {
+	tag, err := q.Exec(ctx, `UPDATE envios SET estado = $1::estado_envio WHERE id = $2`, nuevo, envioID)
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() == 0 {
+		return ErrNoEncontrado
+	}
+	return nil
+}
+
 // currentDateUTC devuelve la fecha de hoy en UTC, formato "YYYY-MM-DD". Se
 // usa en vez de time.Now().Format en horario local para no repetir el bug
 // de huso horario ya corregido en AsignacionService (una fecha calculada en

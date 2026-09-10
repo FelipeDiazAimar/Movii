@@ -21,6 +21,7 @@ type Deps struct {
 	EnvioHandler      *handlers.EnvioHandler
 	RutaHandler       *handlers.RutaHandler
 	RepartidorHandler *handlers.RepartidorHandler
+	EstadoHandler     *handlers.EstadoHandler
 }
 
 // New arma el router HTTP completo de la API.
@@ -52,6 +53,8 @@ func New(deps Deps) http.Handler {
 
 		protected.Get("/envios", deps.EnvioHandler.List)
 		protected.Get("/envios/{id}", deps.EnvioHandler.GetByID)
+		protected.Put("/envios/{id}/estado", deps.EstadoHandler.CambiarEstado)
+		protected.Post("/envios/{id}/incidencia", deps.EstadoHandler.RegistrarIncidencia)
 		protected.Get("/rutas", deps.RutaHandler.List)
 		protected.Get("/rutas/{id}", deps.RutaHandler.Detail)
 

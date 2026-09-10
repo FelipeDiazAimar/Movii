@@ -43,15 +43,17 @@ func validarCrearEnvioInput(in CrearEnvioInput) error {
 	return nil
 }
 
-// EnvioService contiene la lógica de negocio de HU-02.
+// EnvioService contiene la lógica de negocio de HU-02 (y el detalle con
+// historial de HU-06/HU-07, Task 5).
 type EnvioService struct {
-	pool      *pgxpool.Pool
-	envioRepo *repository.EnvioRepo
+	pool       *pgxpool.Pool
+	envioRepo  *repository.EnvioRepo
+	eventoRepo *repository.EventoRepo
 }
 
 // NewEnvioService crea un EnvioService.
-func NewEnvioService(pool *pgxpool.Pool, envioRepo *repository.EnvioRepo) *EnvioService {
-	return &EnvioService{pool: pool, envioRepo: envioRepo}
+func NewEnvioService(pool *pgxpool.Pool, envioRepo *repository.EnvioRepo, eventoRepo *repository.EventoRepo) *EnvioService {
+	return &EnvioService{pool: pool, envioRepo: envioRepo, eventoRepo: eventoRepo}
 }
 
 // Create valida el input y crea remitente + destinatario + envío en una sola
@@ -132,7 +134,17 @@ func (s *EnvioService) List(ctx context.Context, estado, fecha string) ([]domain
 	return s.envioRepo.List(ctx, estado, fecha)
 }
 
-// GetByID devuelve el detalle de un envío.
-func (s *EnvioService) GetByID(ctx context.Context, id string) (domain.EnvioConDetalle, error) {
-	return s.envioRepo.GetByID(ctx, id)
+// GetByID devuelve el detalle de un envío con su historial de eventos
+// (Task 5, HU-06/HU-07). Sin eventos, Historial es [] y no nil, para que
+// serialice como `"historial": []` según el openapi.
+func (s *EnvioService) GetByID(ctx context.Context, id string) (domain.EnvioDetalle, error) {
+	detalle, err := s.envioRepo.GetByID(ctx, id)
+	if err != nil {
+		return domain.EnvioDetalle{}, err
+	}
+	historial, err := s.eventoRepo.ListarPorEnvio(ctx, id)
+	if err != nil {
+		return domain.EnvioDetalle{}, err
+	}
+	return domain.EnvioDetalle{EnvioConDetalle: detalle, Historial: historial}, nil
 }

@@ -44,12 +44,44 @@ type EnvioConDetalle struct {
 	FechaCreacion string       `json:"fecha_creacion"`
 }
 
+// EnvioDetalle es el detalle extendido del Sprint 2 (Task 5, HU-06/HU-07):
+// aditivo sobre EnvioConDetalle, suma el historial de eventos
+// (schema EnvioDetalle del openapi; reprogramado_para/franja/confirmacion
+// los agregan planes siguientes). Historial nunca es nil: serializa como []
+// cuando está vacío.
+type EnvioDetalle struct {
+	EnvioConDetalle
+	Historial []EventoEnvio `json:"historial"`
+}
+
 const (
 	EstadoEnvioPendiente   = "pendiente"
 	EstadoEnvioAsignado    = "asignado"
 	EstadoEnvioEnCamino    = "en_camino"
 	EstadoEnvioEntregado   = "entregado"
 	EstadoEnvioNoEntregado = "no_entregado"
+)
+
+// EventoEnvio es una fila del historial del envío (tabla eventos_envio,
+// migración 0003; HU-06/HU-07). Los campos nullables de la base se
+// representan con punteros: nil equivale a NULL.
+type EventoEnvio struct {
+	Fecha          string  `json:"fecha"`
+	ActorNombre    *string `json:"actor_nombre"`
+	EstadoAnterior *string `json:"estado_anterior"`
+	EstadoNuevo    string  `json:"estado_nuevo"`
+	Motivo         *string `json:"motivo"`
+	Comentario     *string `json:"comentario"`
+}
+
+// Motivos de fallo de entrega (HU-07). Lista cerrada: coincide con el enum
+// motivo_fallo de la migración 0003 y con MotivoFallo del openapi.
+const (
+	MotivoClienteAusente      = "cliente_ausente"
+	MotivoDireccionIncorrecta = "direccion_incorrecta"
+	MotivoRechazado           = "rechazado"
+	MotivoZonaInsegura        = "zona_insegura"
+	MotivoOtro                = "otro"
 )
 
 const (
