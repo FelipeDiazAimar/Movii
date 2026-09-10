@@ -134,6 +134,30 @@ type ConfirmacionMetadata struct {
 	FotoURL          string `json:"foto_url"`
 }
 
+// TrackingEvento es un evento legible para el cliente final (HU-10,
+// schema TrackingEvento del openapi). Solo lleva fecha, descripción y
+// motivo opcional: NUNCA actor, comentarios internos, fotos, teléfonos,
+// emails ni dirección exacta (el repo ni siquiera selecciona esas
+// columnas — garantía en tiempo de compilación). Motivo se omite cuando
+// es nil (omitempty, como el ejemplo del openapi).
+type TrackingEvento struct {
+	Fecha       string  `json:"fecha"`
+	Descripcion string  `json:"descripcion"`
+	Motivo      *string `json:"motivo,omitempty"`
+}
+
+// TrackingResponse es la respuesta de GET /tracking/{codigo} (HU-10,
+// schema TrackingResponse del openapi). Solo columnas blancas:
+// codigo_guia, estado, localidad, actualizado_en e historial.
+// Historial nunca es nil: serializa como [] cuando está vacío.
+type TrackingResponse struct {
+	CodigoGuia    string           `json:"codigo_guia"`
+	Estado        string           `json:"estado"`
+	Localidad     string           `json:"localidad"`
+	ActualizadoEn string           `json:"actualizado_en"`
+	Historial     []TrackingEvento `json:"historial"`
+}
+
 const (
 	TamanoChico   = "chico"
 	TamanoMediano = "mediano"

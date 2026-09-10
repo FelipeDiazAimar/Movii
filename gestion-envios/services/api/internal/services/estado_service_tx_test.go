@@ -134,14 +134,17 @@ func TestEstadoService_CambiarEstadoFelizAmbasDirecciones(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, domain.EstadoEnvioAsignado, deVuelta.Estado)
 
-	// Dos eventos registrados, uno por cambio.
+	// Tres eventos: asignación (HU-10, Task 1) + uno por cambio.
 	historial, err := eventos.ListarPorEnvio(ctx, envioID)
 	require.NoError(t, err)
-	require.Len(t, historial, 2)
-	require.Equal(t, domain.EstadoEnvioEnCamino, historial[0].EstadoNuevo)
-	require.Equal(t, domain.EstadoEnvioAsignado, historial[1].EstadoNuevo)
+	require.Len(t, historial, 3)
+	require.Equal(t, domain.EstadoEnvioAsignado, historial[0].EstadoNuevo)
 	require.NotNil(t, historial[0].EstadoAnterior)
-	require.Equal(t, domain.EstadoEnvioAsignado, *historial[0].EstadoAnterior)
+	require.Equal(t, domain.EstadoEnvioPendiente, *historial[0].EstadoAnterior)
+	require.Equal(t, domain.EstadoEnvioEnCamino, historial[1].EstadoNuevo)
+	require.Equal(t, domain.EstadoEnvioAsignado, historial[2].EstadoNuevo)
+	require.NotNil(t, historial[1].EstadoAnterior)
+	require.Equal(t, domain.EstadoEnvioAsignado, *historial[1].EstadoAnterior)
 }
 
 func TestEstadoService_CambiarEstadoOperadorSobreEnvioAjenoOK(t *testing.T) {
@@ -189,8 +192,9 @@ func TestEstadoService_CambiarEstadoTransicionInvalidaIndicaEndpoint(t *testing.
 	require.Equal(t, domain.EstadoEnvioEntregado, entregado.Estado)
 	historial, err := eventos.ListarPorEnvio(ctx, envioID)
 	require.NoError(t, err)
-	require.Len(t, historial, 1)
-	require.Equal(t, domain.EstadoEnvioEntregado, historial[0].EstadoNuevo)
+	require.Len(t, historial, 2) // asignación (HU-10) + asignado→entregado
+	require.Equal(t, domain.EstadoEnvioAsignado, historial[0].EstadoNuevo)
+	require.Equal(t, domain.EstadoEnvioEntregado, historial[1].EstadoNuevo)
 
 	// no_entregado sigue fuera de la matriz: hint a incidencia y sin cambios.
 	envioID2 := crearEnvioAsignadoDeTest(t, pool, repartidorID)
@@ -268,9 +272,11 @@ func TestEstadoService_RegistrarIncidenciaErrores(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, domain.EstadoEnvioNoEntregado, actualizado.Estado)
 		// Roundtrip: la foto quedó persistida en el evento (el historial
-		// JSON no la expone, se verifica directo en la columna foto).
+		// JSON no la expone, se verifica directo en la columna foto). Se filtra
+		// por estado_nuevo porque el envío también trae el evento de asignación
+		// de HU-10 (foto NULL).
 		var guardada []byte
-		err = pool.QueryRow(ctx, "SELECT foto FROM eventos_envio WHERE envio_id = $1", envioID).Scan(&guardada)
+		err = pool.QueryRow(ctx, "SELECT foto FROM eventos_envio WHERE envio_id = $1 AND estado_nuevo = 'no_entregado'", envioID).Scan(&guardada)
 		require.NoError(t, err)
 		require.Equal(t, foto, guardada)
 	})

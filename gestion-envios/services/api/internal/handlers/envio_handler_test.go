@@ -96,7 +96,7 @@ func TestEnvioHandler_ListDevuelve200(t *testing.T) {
 // TestEnvioHandler_GetByIDIncluyeHistorialVacio: un envío recién creado no
 // tiene eventos; el JSON debe traer "historial": [] (array vacío, nunca
 // null) junto a los campos existentes — Task 5, HU-06/HU-07.
-func TestEnvioHandler_GetByIDIncluyeHistorialVacio(t *testing.T) {
+func TestEnvioHandler_GetByIDIncluyeEventoRaiz(t *testing.T) {
 	h, pool := nuevoEnvioHandlerDeTest(t)
 	ctx := context.Background()
 
@@ -131,7 +131,12 @@ func TestEnvioHandler_GetByIDIncluyeHistorialVacio(t *testing.T) {
 	require.Contains(t, raw, "historial", "el detalle debe incluir historial (openapi EnvioDetalle)")
 	historial, ok := raw["historial"].([]any)
 	require.True(t, ok, "historial debe ser un array JSON, no null")
-	require.Empty(t, historial)
+	// HU-10, Task 1: el alta registra el evento raíz (anterior=nil,
+	// nuevo=pendiente), así que el detalle de un envío nuevo ya no sale vacío.
+	require.Len(t, historial, 1)
+	raiz, _ := historial[0].(map[string]any)
+	require.Equal(t, "pendiente", raiz["estado_nuevo"])
+	require.Nil(t, raiz["estado_anterior"])
 	// Campos preexistentes intactos (aditivo, sin regresión).
 	require.Equal(t, id, raw["id"])
 	require.Contains(t, raw, "destinatario")
@@ -179,8 +184,14 @@ func TestEnvioHandler_GetByIDIncluyeHistorialConEventos(t *testing.T) {
 	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &raw))
 	historial, ok := raw["historial"].([]any)
 	require.True(t, ok, "historial debe ser un array JSON")
-	require.Len(t, historial, 1)
-	ev, _ := historial[0].(map[string]any)
-	require.Equal(t, "en_camino", ev["estado_nuevo"])
-	require.Equal(t, "asignado", ev["estado_anterior"])
+	// HU-10, Task 1: el alta deja el evento raíz + la transición registrada.
+	require.Len(t, historial, 2)
+	nuevos := make(map[string]bool, 2)
+	for _, evAny := range historial {
+		ev, _ := evAny.(map[string]any)
+		nuevo, _ := ev["estado_nuevo"].(string)
+		nuevos[nuevo] = true
+	}
+	require.True(t, nuevos["pendiente"], "falta el evento raíz: %v", historial)
+	require.True(t, nuevos["en_camino"], "falta la transición: %v", historial)
 }

@@ -45,10 +45,12 @@ func TestEstadoService_ConfirmarEntregaFelizDesdeEnCamino(t *testing.T) {
 	require.Equal(t, domain.EstadoEnvioEntregado, entregado.Estado)
 	require.Equal(t, envioID, entregado.ID)
 
-	// UN solo evento: en_camino → entregado.
+	// Evento de confirmación: en_camino → entregado (más los previos: evento de
+	// asignación de HU-10 + pase a en_camino; el helper no pasa por svc.Create
+	// así que no hay evento raíz acá).
 	historial, err := eventos.ListarPorEnvio(ctx, envioID)
 	require.NoError(t, err)
-	require.Len(t, historial, 2) // 1 del pase a en_camino + 1 de la confirmación
+	require.Len(t, historial, 3) // 1 de asignación + 1 del pase a en_camino + 1 de la confirmación
 	ultimo := historial[len(historial)-1]
 	require.Equal(t, domain.EstadoEnvioEntregado, ultimo.EstadoNuevo)
 	require.NotNil(t, ultimo.EstadoAnterior)
@@ -76,12 +78,13 @@ func TestEstadoService_ConfirmarEntregaFelizDesdeAsignadoDosEventos(t *testing.T
 	require.NoError(t, err)
 	require.Equal(t, domain.EstadoEnvioEntregado, entregado.Estado)
 
-	// DOS eventos: asignado → en_camino (paso intermedio) + en_camino → entregado.
+	// TRES eventos: asignación (HU-10) + asignado → en_camino (paso
+	// intermedio) + en_camino → entregado.
 	// (Sin orden posicional: ambos se insertan en la misma tx, comparten
 	// created_at y el id es UUID aleatorio, así que el ORDER BY empata.)
 	historial, err := eventos.ListarPorEnvio(ctx, envioID)
 	require.NoError(t, err)
-	require.Len(t, historial, 2)
+	require.Len(t, historial, 3)
 	porNuevo := make(map[string]domain.EventoEnvio, 2)
 	for _, e := range historial {
 		porNuevo[e.EstadoNuevo] = e

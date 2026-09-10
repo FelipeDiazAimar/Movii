@@ -93,6 +93,14 @@ func (s *EnvioService) Create(ctx context.Context, in CrearEnvioInput) (domain.E
 		return domain.Envio{}, err
 	}
 
+	// Evento raíz del historial (HU-10, Task 1): anterior=nil, nuevo=pendiente.
+	// Actor nil: el handler de creación (POST /envios) hoy no pasa claims/actor
+	// al service, así que no hay actorID disponible a mano; se registra como
+	// evento de sistema (actor NULL) igual que un backfill.
+	if err := s.eventoRepo.Registrar(ctx, tx, envio.ID, nil, domain.EstadoEnvioPendiente, nil, nil, nil, nil); err != nil {
+		return domain.Envio{}, fmt.Errorf("envios: no se pudo registrar el evento inicial: %w", err)
+	}
+
 	if err := tx.Commit(ctx); err != nil {
 		return domain.Envio{}, fmt.Errorf("envios: no se pudo confirmar la transacción: %w", err)
 	}

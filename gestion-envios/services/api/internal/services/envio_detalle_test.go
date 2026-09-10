@@ -10,10 +10,11 @@ import (
 	"movii/api/internal/repository"
 )
 
-// TestEnvioService_GetByIDSinEventosDevuelveHistorialVacio: un envío recién
-// creado no tiene eventos; el detalle debe traer "historial": [] (no nil,
-// no null) — Task 5, HU-06/HU-07.
-func TestEnvioService_GetByIDSinEventosDevuelveHistorialVacio(t *testing.T) {
+// TestEnvioService_GetByIDDevuelveEventoRaiz: un envío recién creado trae 1
+// evento raíz (anterior=nil, nuevo=pendiente, sin actor) — HU-10, Task 1.
+// Antes (HU-06/HU-07) el historial salía vacío; con el evento raíz el
+// tracking de envíos nuevos ya no sale vacío.
+func TestEnvioService_GetByIDDevuelveEventoRaiz(t *testing.T) {
 	svc, pool := nuevoEnvioServiceDeTest(t)
 	ctx := context.Background()
 
@@ -33,8 +34,10 @@ func TestEnvioService_GetByIDSinEventosDevuelveHistorialVacio(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, envio.ID, detalle.ID)
 	require.Equal(t, "Cliente Sin Eventos", detalle.Destinatario.Nombre)
-	require.NotNil(t, detalle.Historial, "el historial vacío debe ser [] y no nil/null")
-	require.Empty(t, detalle.Historial)
+	require.NotNil(t, detalle.Historial, "el historial debe ser [] y no nil/null")
+	require.Len(t, detalle.Historial, 1, "el envío recién creado trae su evento raíz")
+	require.Nil(t, detalle.Historial[0].EstadoAnterior)
+	require.Equal(t, domain.EstadoEnvioPendiente, detalle.Historial[0].EstadoNuevo)
 }
 
 // TestEnvioService_GetByIDConEventosDevuelveHistorial: tras registrar eventos
@@ -58,8 +61,8 @@ func TestEnvioService_GetByIDConEventosDevuelveHistorial(t *testing.T) {
 		_, _ = pool.Exec(ctx, "DELETE FROM destinatarios WHERE id = $1", envio.DestinatarioID)
 	})
 
-	// Evento raíz (creación, sin actor ni anterior) + transición a en_camino.
-	require.NoError(t, eventos.Registrar(ctx, pool, envio.ID, nil, domain.EstadoEnvioAsignado, nil, nil, nil, nil))
+	// El Create ya registra el evento raíz (HU-10, Task 1); acá solo se suma
+	// la incidencia. El detalle trae ambos, ordenados de más viejo a más nuevo.
 	anterior := domain.EstadoEnvioAsignado
 	motivo := domain.MotivoClienteAusente
 	comentario := "nadie atendió la puerta"
@@ -72,7 +75,7 @@ func TestEnvioService_GetByIDConEventosDevuelveHistorial(t *testing.T) {
 
 	raiz := detalle.Historial[0]
 	require.Nil(t, raiz.EstadoAnterior)
-	require.Equal(t, domain.EstadoEnvioAsignado, raiz.EstadoNuevo)
+	require.Equal(t, domain.EstadoEnvioPendiente, raiz.EstadoNuevo)
 
 	incidencia := detalle.Historial[1]
 	require.NotNil(t, incidencia.EstadoAnterior)

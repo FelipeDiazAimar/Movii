@@ -22,6 +22,7 @@ type Deps struct {
 	RutaHandler       *handlers.RutaHandler
 	RepartidorHandler *handlers.RepartidorHandler
 	EstadoHandler     *handlers.EstadoHandler
+	TrackingHandler   *handlers.TrackingHandler
 }
 
 // New arma el router HTTP completo de la API.
@@ -42,6 +43,8 @@ func New(deps Deps) http.Handler {
 
 	r.Post("/auth/register", deps.AuthHandler.Register)
 	r.Post("/auth/login", deps.AuthHandler.Login)
+
+	r.Get("/tracking/{codigo}", deps.TrackingHandler.PorCodigo)
 
 	r.Group(func(protected chi.Router) {
 		protected.Use(middleware.RequireAuth(deps.JWTSecret))
