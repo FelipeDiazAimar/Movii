@@ -71,6 +71,47 @@ func (h *EstadoHandler) CambiarEstado(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+type reprogramacionRequest struct {
+	NuevaFecha string `json:"nueva_fecha"`
+	Franja     string `json:"franja"`
+}
+
+// Reprogramar maneja POST /envios/{id}/reprogramacion (HU-09): vuelve un
+// envío en estado no_entregado a pendiente para una nueva fecha + franja.
+func (h *EstadoHandler) Reprogramar(w http.ResponseWriter, r *http.Request) {
+	claims, ok := middleware.ClaimsFromContext(r.Context())
+	if !ok {
+		httpx.WriteError(w, http.StatusUnauthorized, "sin_token", "falta autenticación")
+		return
+	}
+
+	var req reprogramacionRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		httpx.WriteError(w, http.StatusBadRequest, "body_invalido", "el cuerpo de la petición no es JSON válido")
+		return
+	}
+	if strings.TrimSpace(req.NuevaFecha) == "" || strings.TrimSpace(req.Franja) == "" {
+		httpx.WriteError(w, http.StatusBadRequest, "body_invalido", "nueva_fecha y franja son obligatorios")
+		return
+	}
+
+	envio, err := h.svc.Reprogramar(r.Context(), chi.URLParam(r, "id"), strings.TrimSpace(req.NuevaFecha), strings.TrimSpace(req.Franja), claims.UsuarioID, claims.Rol)
+	switch {
+	case err == nil:
+		httpx.WriteJSON(w, http.StatusOK, envio)
+	case errors.Is(err, repository.ErrNoEncontrado):
+		httpx.WriteError(w, http.StatusNotFound, "no_encontrado", "el envío no existe")
+	case errors.Is(err, services.ErrFechaInvalida):
+		httpx.WriteError(w, http.StatusBadRequest, "fecha_invalida", "la fecha debe tener formato YYYY-MM-DD y ser hoy o futura")
+	case errors.Is(err, services.ErrFranjaInvalida):
+		httpx.WriteError(w, http.StatusBadRequest, "franja_invalida", "la franja debe ser manana, tarde o noche")
+	case errors.Is(err, services.ErrTransicionInvalida):
+		httpx.WriteError(w, http.StatusConflict, "transicion_invalida", "solo se puede reprogramar un envío en estado no_entregado")
+	default:
+		httpx.WriteError(w, http.StatusInternalServerError, "error_interno", "no se pudo reprogramar el envío")
+	}
+}
+
 type incidenciaRequest struct {
 	Motivo     string `json:"motivo"`
 	Comentario string `json:"comentario"`

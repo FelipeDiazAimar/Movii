@@ -146,5 +146,9 @@ func (s *EnvioService) GetByID(ctx context.Context, id string) (domain.EnvioDeta
 	if err != nil {
 		return domain.EnvioDetalle{}, err
 	}
-	return domain.EnvioDetalle{EnvioConDetalle: detalle, Historial: historial}, nil
+	para, franja, err := s.envioRepo.ReprogramacionDe(ctx, id)
+	if err != nil {
+		return domain.EnvioDetalle{}, err
+	}
+	return domain.EnvioDetalle{EnvioConDetalle: detalle, Historial: historial, ReprogramadoPara: para, Franja: franja}, nil
 }

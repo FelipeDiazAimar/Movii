@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
@@ -12,10 +13,11 @@ import (
 	"movii/api/internal/repository"
 )
 
-// Errores centinela de HU-06/HU-07. Los handlers los mapean a los códigos
+// Errores centinela de HU-06/HU-07/HU-09. Los handlers los mapean a los códigos
 // del openapi: ErrTransicionInvalida → 409 transicion_invalida,
 // ErrMotivoInvalido → 400 motivo_invalido, ErrComentarioObligatorio → 400
-// comentario_obligatorio.
+// comentario_obligatorio, ErrFechaInvalida → 400 fecha_invalida,
+// ErrFranjaInvalida → 400 franja_invalida.
 var (
 	ErrTransicionInvalida    = errors.New("transición de estado inválida")
 	ErrMotivoInvalido        = errors.New("motivo de fallo inválido")
@@ -25,13 +27,22 @@ var (
 	// mecanismo de imágenes de HU-08/09; este plan la rechaza con
 	// imagen_no_soportada (400) en vez de aceptarla en silencio.
 	ErrImagenNoSoportada = errors.New("la incidencia con foto aún no está soportada")
+	// ErrFechaInvalida indica que la nueva fecha de reprogramación (HU-09)
+	// tiene mal formato o es pasada (solo valen hoy o futuras).
+	ErrFechaInvalida = errors.New("fecha de reprogramación inválida")
+	// ErrFranjaInvalida indica que la franja no está en {manana, tarde, noche}.
+	ErrFranjaInvalida = errors.New("franja horaria inválida")
 )
 
 // transicionesValidas es la matriz de transiciones de HU-06: el repartidor
-// alterna entre asignado y en_camino. HU-08/09 agregan salidas en sus planes.
+// alterna entre asignado y en_camino. HU-09 agrega la salida de
+// no_entregado a pendiente (reprogramación, endpoint propio
+// POST /envios/{id}/reprogramacion: PUT /envios/{id}/estado la rechaza
+// por su vocabulario con estado_invalido antes de llegar a la matriz).
 var transicionesValidas = map[string][]string{
-	domain.EstadoEnvioAsignado: {domain.EstadoEnvioEnCamino},
-	domain.EstadoEnvioEnCamino: {domain.EstadoEnvioAsignado},
+	domain.EstadoEnvioAsignado:    {domain.EstadoEnvioEnCamino},
+	domain.EstadoEnvioEnCamino:    {domain.EstadoEnvioAsignado},
+	domain.EstadoEnvioNoEntregado: {domain.EstadoEnvioPendiente},
 }
 
 // transicionValida indica si se puede pasar del estado origen al destino
@@ -196,5 +207,74 @@ func (s *EstadoService) RegistrarIncidencia(ctx context.Context, envioID, motivo
 	}
 
 	detalle.Estado = domain.EstadoEnvioNoEntregado
+	return detalle.Envio, nil
+}
+
+// franjaValida indica si la franja está en el vocabulario cerrado de HU-09.
+func franjaValida(franja string) bool {
+	switch franja {
+	case domain.FranjaManana,
+		domain.FranjaTarde,
+		domain.FranjaNoche:
+		return true
+	default:
+		return false
+	}
+}
+
+// Reprogramar vuelve un envío en estado no_entregado a pendiente para una
+// nueva fecha + franja (HU-09) y registra el evento en el historial, en una
+// sola transacción. Solo vale sobre no_entregado (endpoint propio
+// POST /envios/{id}/reprogramacion). Si el rol es repartidor, el envío debe
+// pertenecer a una de sus rutas; si no (ajeno o inexistente) devuelve
+// repository.ErrNoEncontrado.
+func (s *EstadoService) Reprogramar(ctx context.Context, envioID, nuevaFecha, franja, actorID, rol string) (domain.Envio, error) {
+	detalle, err := s.envios.GetByID(ctx, envioID)
+	if err != nil {
+		return domain.Envio{}, err
+	}
+	if rol == domain.RolRepartidor {
+		pertenece, err := s.eventos.EsDelRepartidor(ctx, envioID, actorID)
+		if err != nil {
+			return domain.Envio{}, err
+		}
+		if !pertenece {
+			return domain.Envio{}, repository.ErrNoEncontrado
+		}
+	}
+	parsed, err := time.Parse("2006-01-02", nuevaFecha)
+	if err != nil {
+		return domain.Envio{}, fmt.Errorf("fecha de reprogramación %q inválida: %w", nuevaFecha, ErrFechaInvalida)
+	}
+	hoy, _ := time.Parse("2006-01-02", time.Now().UTC().Format("2006-01-02"))
+	if parsed.Before(hoy) {
+		return domain.Envio{}, fmt.Errorf("fecha de reprogramación %q es pasada (solo valen hoy o futuras): %w", nuevaFecha, ErrFechaInvalida)
+	}
+	if !franjaValida(franja) {
+		return domain.Envio{}, fmt.Errorf("franja horaria %q inválida: %w", franja, ErrFranjaInvalida)
+	}
+	if !transicionValida(detalle.Estado, domain.EstadoEnvioPendiente) {
+		return domain.Envio{}, fmt.Errorf("no se puede reprogramar un envío en estado %q: %w", detalle.Estado, ErrTransicionInvalida)
+	}
+
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return domain.Envio{}, err
+	}
+	defer tx.Rollback(ctx) // no-op si ya se hizo commit
+
+	if err := s.envios.Reprogramar(ctx, tx, envioID, nuevaFecha, franja); err != nil {
+		return domain.Envio{}, err
+	}
+	anterior := detalle.Estado
+	comentario := fmt.Sprintf("reprogramado para %s (%s)", nuevaFecha, franja)
+	if err := s.eventos.Registrar(ctx, tx, envioID, &anterior, domain.EstadoEnvioPendiente, nil, &comentario, actorIDPtr(actorID)); err != nil {
+		return domain.Envio{}, err
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return domain.Envio{}, err
+	}
+
+	detalle.Estado = domain.EstadoEnvioPendiente
 	return detalle.Envio, nil
 }

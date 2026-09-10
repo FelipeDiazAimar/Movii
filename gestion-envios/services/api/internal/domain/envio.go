@@ -51,7 +51,9 @@ type EnvioConDetalle struct {
 // cuando está vacío.
 type EnvioDetalle struct {
 	EnvioConDetalle
-	Historial []EventoEnvio `json:"historial"`
+	Historial        []EventoEnvio `json:"historial"`
+	ReprogramadoPara *string       `json:"reprogramado_para"`
+	Franja           *string       `json:"franja"`
 }
 
 const (
@@ -82,6 +84,14 @@ const (
 	MotivoRechazado           = "rechazado"
 	MotivoZonaInsegura        = "zona_insegura"
 	MotivoOtro                = "otro"
+)
+
+// Franjas horarias de reprogramación (HU-09). Coinciden con el enum
+// franja_horaria de la migración 0004 y con FranjaHoraria del openapi.
+const (
+	FranjaManana = "manana"
+	FranjaTarde  = "tarde"
+	FranjaNoche  = "noche"
 )
 
 const (

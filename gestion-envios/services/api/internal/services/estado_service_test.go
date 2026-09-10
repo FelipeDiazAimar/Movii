@@ -6,9 +6,10 @@ import (
 	"movii/api/internal/domain"
 )
 
-// TestTransicionValida cubre la matriz de HU-06 sin DB: los dos pares
-// válidos (asignado ⇄ en_camino) y todo lo demás inválido, incluyendo los
-// estados finales como destino (los gobiernan HU-07/HU-08 en sus planes).
+// TestTransicionValida cubre la matriz de HU-06 + HU-09 sin DB: los pares
+// válidos (asignado ⇄ en_camino, no_entregado → pendiente por reprogramación)
+// y todo lo demás inválido, incluyendo los estados finales como destino
+// (los gobiernan HU-07/HU-08 en sus planes).
 func TestTransicionValida(t *testing.T) {
 	casos := []struct {
 		nombre  string
@@ -18,6 +19,7 @@ func TestTransicionValida(t *testing.T) {
 	}{
 		{"asignado a en_camino", domain.EstadoEnvioAsignado, domain.EstadoEnvioEnCamino, true},
 		{"en_camino a asignado", domain.EstadoEnvioEnCamino, domain.EstadoEnvioAsignado, true},
+		{"no_entregado a pendiente (reprogramación HU-09)", domain.EstadoEnvioNoEntregado, domain.EstadoEnvioPendiente, true},
 
 		{"mismo estado asignado", domain.EstadoEnvioAsignado, domain.EstadoEnvioAsignado, false},
 		{"mismo estado en_camino", domain.EstadoEnvioEnCamino, domain.EstadoEnvioEnCamino, false},
