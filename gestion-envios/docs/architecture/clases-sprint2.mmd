@@ -1,0 +1,159 @@
+classDiagram
+
+class Usuario {
+  +UUID id
+  +String nombre
+  +String email
+  +String password_hash
+  +String rol
+  +Boolean activo
+  +Timestamp created_at
+  +Timestamp updated_at
+}
+
+class Remitente {
+  +UUID id
+  +String nombre
+  +String telefono
+  +String direccion
+  +Timestamp created_at
+}
+
+class Destinatario {
+  +UUID id
+  +String nombre
+  +String telefono
+  +String calle
+  +String numero
+  +String piso_depto
+  +String localidad
+  +String codigo_postal
+  +Timestamp created_at
+}
+
+class Ruta {
+  +UUID id
+  +String nombre
+  +String zona
+  +Date fecha
+  +String estado
+  +UUID repartidor_id
+  +Timestamp created_at
+  +Timestamp updated_at
+}
+
+class Envio {
+  +UUID id
+  +String codigo_guia
+  +String estado
+  +Decimal peso
+  +String tamano
+  +String tipo_contenido
+  +Boolean fragil
+  +Boolean urgente
+  +UUID remitente_id
+  +UUID destinatario_id
+  +UUID ruta_id
+  +Date reprogramado_para
+  +String franja
+  +Timestamp created_at
+  +Timestamp updated_at
+}
+
+class EventoEnvio {
+  +UUID id
+  +UUID envio_id
+  +String estado_anterior
+  +String estado_nuevo
+  +String motivo
+  +String comentario
+  +Boolean tiene_foto
+  +UUID actor_id
+  +Timestamptz created_at
+}
+
+class ConfirmacionEntrega {
+  +UUID envio_id
+  +String receptor_nombre
+  +String receptor_relacion
+  +Bytes firma
+  +Bytes foto
+  +UUID confirmada_por
+  +Timestamptz confirmada_at
+}
+
+class Rol {
+  <<enumeration>>
+  operador
+  repartidor
+  supervisor
+}
+
+class EstadoEnvio {
+  <<enumeration>>
+  pendiente
+  asignado
+  en_camino
+  entregado
+  no_entregado
+}
+
+class TamanoPaquete {
+  <<enumeration>>
+  chico
+  mediano
+  grande
+}
+
+class EstadoRuta {
+  <<enumeration>>
+  planificada
+  en_curso
+  completada
+}
+
+class MotivoFallo {
+  <<enumeration>>
+  cliente_ausente
+  direccion_incorrecta
+  rechazado
+  zona_insegura
+  otro
+}
+
+class FranjaHoraria {
+  <<enumeration>>
+  manana
+  tarde
+  noche
+}
+
+class RelacionReceptor {
+  <<enumeration>>
+  destinatario
+  familiar
+  vecino
+  encargado
+}
+
+Usuario "1" --> "0..*" Ruta : reparte
+Ruta "1" --> "0..*" Envio : contiene
+Remitente "1" --> "0..*" Envio : origina
+Destinatario "1" --> "0..*" Envio : recibe
+Envio "1" --> "0..*" EventoEnvio : historial
+Usuario "1" --> "0..*" EventoEnvio : actua
+Envio "1" --> "0..1" ConfirmacionEntrega : evidencia
+Usuario "1" --> "0..*" ConfirmacionEntrega : confirma
+
+Usuario ..> Rol : usa
+Ruta ..> EstadoRuta : usa
+Envio ..> EstadoEnvio : usa
+Envio ..> TamanoPaquete : usa
+Envio ..> FranjaHoraria : usa
+EventoEnvio ..> EstadoEnvio : usa
+EventoEnvio ..> MotivoFallo : usa
+ConfirmacionEntrega ..> RelacionReceptor : usa
+
+note for Envio "reprogramado_para + franja HU-09. Se limpian al asignar."
+note for EventoEnvio "estado_anterior null en evento raiz. foto solo HU-07."
+note for ConfirmacionEntrega "Un envio = una confirmacion maximo. PK = envio_id."

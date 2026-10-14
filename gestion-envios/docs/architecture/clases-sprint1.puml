@@ -1,0 +1,114 @@
+@startuml Movii Sprint1 - Diagrama de Clases
+' Modelo de datos Sprint 1 — 5 tablas
+' Fuente: Apuntes/Sprints/sprint backlog1.md §6 + internal/domain
+
+skinparam classAttributeIconSize 0
+skinparam linetype ortho
+
+enum Rol {
+  operador
+  repartidor
+  supervisor
+}
+
+enum EstadoEnvio {
+  pendiente
+  asignado
+  en_camino
+  entregado
+  no_entregado
+}
+
+enum TamanoPaquete {
+  chico
+  mediano
+  grande
+}
+
+enum EstadoRuta {
+  planificada
+  en_curso
+  completada
+}
+
+class Usuario {
+  +id: UUID
+  +nombre: String
+  +email: String
+  +password_hash: String
+  +rol: Rol
+  +activo: Boolean
+  +created_at: Timestamp
+  +updated_at: Timestamp
+}
+
+class Remitente {
+  +id: UUID
+  +nombre: String
+  +telefono: String
+  +direccion: String
+  +created_at: Timestamp
+}
+
+class Destinatario {
+  +id: UUID
+  +nombre: String
+  +telefono: String
+  +calle: String
+  +numero: String
+  +piso_depto: String
+  +localidad: String
+  +codigo_postal: String
+  +created_at: Timestamp
+}
+
+class Ruta {
+  +id: UUID
+  +nombre: String
+  +zona: String
+  +fecha: Date
+  +estado: EstadoRuta
+  +repartidor_id: UUID
+  +created_at: Timestamp
+  +updated_at: Timestamp
+}
+
+class Envio {
+  +id: UUID
+  +codigo_guia: String
+  +estado: EstadoEnvio
+  +peso: Decimal
+  +tamano: TamanoPaquete
+  +tipo_contenido: String
+  +fragil: Boolean
+  +urgente: Boolean
+  +remitente_id: UUID
+  +destinatario_id: UUID
+  +ruta_id: UUID <<nullable>>
+  +created_at: Timestamp
+  +updated_at: Timestamp
+}
+
+Usuario "1" -- "0..*" Ruta : reparte >\nrepartidor_id
+Ruta "1" -- "0..*" Envio : contiene >\nruta_id nullable
+Remitente "1" -- "0..*" Envio : origina >\nremitente_id
+Destinatario "1" -- "0..*" Envio : recibe >\ndestinatario_id
+
+Usuario ..> Rol
+Ruta ..> EstadoRuta
+Envio ..> EstadoEnvio
+Envio ..> TamanoPaquete
+
+note right of Envio
+  codigo_guia = MOV-YYYYMMDD-XXXX
+  UNIQUE. Se genera en el service
+  dentro de la transaccion de alta.
+  ruta_id = null si aun no asignado.
+end note
+
+note right of Ruta
+  Solo editable si estado
+  = planificada (HU-03).
+end note
+
+@enduml

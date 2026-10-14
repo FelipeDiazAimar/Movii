@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { TAMANOS } from "./types";
+import { ESTADOS_CAMBIABLES, FRANJAS, MOTIVOS_FALLO, TAMANOS } from "./types";
 
 /**
  * Espeja las validaciones reales de `validarCrearEnvioInput` en
@@ -46,3 +46,53 @@ export const ENVIO_FORM_DEFAULTS: EnvioFormValues = {
   fragil: false,
   urgente: false,
 };
+
+/**
+ * HU-06: cambiar estado solo entre `asignado` ⇄ `en_camino` (el resto va
+ * por confirmación o incidencia; el backend responde 409 en esos casos).
+ */
+export const cambiarEstadoSchema = z.object({
+  estado: z.enum(ESTADOS_CAMBIABLES),
+});
+
+export type CambiarEstadoValues = z.infer<typeof cambiarEstadoSchema>;
+
+/**
+ * HU-07: motivo de la lista cerrada (openapi MotivoFallo); con motivo
+ * `otro` el comentario es obligatorio (el backend responde 400
+ * `comentario_obligatorio` si falta).
+ */
+export const incidenciaSchema = z
+  .object({
+    motivo: z.enum(MOTIVOS_FALLO),
+    comentario: z.string().max(500).optional().or(z.literal("")),
+    foto_base64: z.string().optional(),
+  })
+  .refine((v) => v.motivo !== "otro" || (v.comentario ?? "").trim().length > 0, {
+    message: "El comentario es obligatorio cuando el motivo es otro",
+    path: ["comentario"],
+  });
+
+export type IncidenciaValues = z.infer<typeof incidenciaSchema>;
+
+/**
+ * HU-09: nueva fecha en formato YYYY-MM-DD (el backend valida que no sea
+ * pasada) + franja de la lista cerrada (openapi FranjaHoraria).
+ */
+export const reprogramacionSchema = z.object({
+  nueva_fecha: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "La fecha debe tener formato AAAA-MM-DD"),
+  franja: z.enum(FRANJAS),
+});
+
+export type ReprogramacionValues = z.infer<typeof reprogramacionSchema>;
+
+/**
+ * HU-10: código de guía para el buscador de tracking. Validación amable
+ * (trim + no-vacío + formato `MOV-AAAAMMDD-XXXX`); el backend es la
+ * autoridad y responde 404 genérico si no existe.
+ */
+export const trackingCodigoSchema = z
+  .string()
+  .trim()
+  .min(1, "Ingresá un código de guía")
+  .regex(/^MOV-\d{8}-[A-Za-z0-9]{4}$/, "El código tiene formato MOV-AAAAMMDD-XXXX");

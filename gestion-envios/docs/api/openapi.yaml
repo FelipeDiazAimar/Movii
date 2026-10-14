@@ -38,6 +38,8 @@ tags:
     description: Gestión de rutas y asignación de envíos
   - name: repartidor
     description: Vista del repartidor autenticado
+  - name: tracking
+    description: Consulta pública por código de guía (sin login)
   - name: health
     description: Chequeo de disponibilidad
 
@@ -263,7 +265,10 @@ paths:
         - name: fecha
           in: query
           required: false
-          description: Filtra por fecha de creación (formato YYYY-MM-DD).
+          description: >
+            Filtra por fecha (formato YYYY-MM-DD): matchea la fecha de
+            creación del envío O su fecha de reprogramación (Sprint 2,
+            HU-09). Un reprogramado aparece en los listados de su nueva fecha.
           schema:
             type: string
             example: "2026-09-09"
@@ -363,7 +368,10 @@ paths:
       tags: [envios]
       summary: Obtener el detalle de un envío
       description: |
-        Requiere autenticación, cualquier rol.
+        Requiere autenticación, cualquier rol. Desde el Sprint 2 incluye
+        el historial de eventos, los datos de reprogramación (si aplica) y
+        la metadata de la confirmación de entrega con las URLs binarias de
+        firma y foto (si aplica).
       operationId: getEnvioById
       security:
         - bearerAuth: []
@@ -379,7 +387,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/EnvioConDetalle"
+                $ref: "#/components/schemas/EnvioDetalle"
         "401":
           $ref: "#/components/responses/NoAutenticado"
         "404":
@@ -760,6 +768,503 @@ paths:
           $ref: "#/components/responses/NoAutenticado"
         "403":
           $ref: "#/components/responses/RolNoAutorizado"
+        "500":
+          $ref: "#/components/responses/ErrorInterno"
+
+  /envios/{id}/estado:
+    put:
+      tags: [envios]
+      summary: Cambiar el estado de un envío (HU-06)
+      description: |
+        Transiciones permitidas por este endpoint: `asignado` ⇄ `en_camino`.
+        A `entregado` solo se llega por confirmación (`POST .../confirmacion`,
+        HU-08) y a `no_entregado` solo por incidencia (`POST .../incidencia`,
+        HU-07): pedirlos acá responde 409 e indica el endpoint correcto.
+        Cada cambio válido registra un evento en el historial.
+        Requiere autenticación. **Roles: repartidor (solo envíos de sus
+        rutas), operador, supervisor.**
+      operationId: cambiarEstadoEnvio
+      x-required-role: [repartidor, operador, supervisor]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CambiarEstadoRequest"
+            example:
+              estado: en_camino
+      responses:
+        "200":
+          description: Estado actualizado (devuelve el envío).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Envio"
+        "400":
+          description: >
+            Body no válido (`body_invalido`) o estado desconocido
+            (`estado_invalido`: debe ser `asignado` o `en_camino`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+              example:
+                error:
+                  code: estado_invalido
+                  message: el estado debe ser asignado o en_camino
+        "401":
+          $ref: "#/components/responses/NoAutenticado"
+        "403":
+          $ref: "#/components/responses/RolNoAutorizado"
+        "404":
+          description: >
+            El envío no existe o no pertenece al repartidor (`no_encontrado`;
+            404 genérico para no revelar envíos ajenos).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+              example:
+                error:
+                  code: no_encontrado
+                  message: el envío no existe
+        "409":
+          description: >
+            Transición no permitida desde el estado actual
+            (`transicion_invalida`). Si se pidió `entregado` o `no_entregado`,
+            el mensaje indica usar confirmación o incidencia.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+              example:
+                error:
+                  code: transicion_invalida
+                  message: para marcar entregado usá la confirmación de entrega
+        "500":
+          $ref: "#/components/responses/ErrorInterno"
+
+  /envios/{id}/incidencia:
+    post:
+      tags: [envios]
+      summary: Registrar entrega fallida con motivo (HU-07)
+      description: |
+        Solo sobre envíos `asignados` o `en_camino`. El envío pasa a
+        `no_entregado` y se registra el evento con motivo (y foto si se
+        adjunta, reutilizando el mecanismo de HU-08). Todo en una
+        transacción: si algo falla, no cambia nada.
+        Requiere autenticación. **Roles: repartidor (solo envíos de sus
+        rutas), operador, supervisor.**
+      operationId: registrarIncidencia
+      x-required-role: [repartidor, operador, supervisor]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/IncidenciaRequest"
+            example:
+              motivo: cliente_ausente
+              comentario: "Volver después de las 18"
+      responses:
+        "200":
+          description: Incidencia registrada (devuelve el envío).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Envio"
+        "400":
+          description: >
+            Body no válido (`body_invalido`), motivo fuera de la lista
+            (`motivo_invalido`), falta el comentario con motivo `otro`
+            (`comentario_obligatorio`), o imagen inválida
+            (`imagen_invalida`: base64 malformado o no es PNG/JPEG).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+              example:
+                error:
+                  code: motivo_invalido
+                  message: el motivo debe ser uno de la lista cerrada
+        "401":
+          $ref: "#/components/responses/NoAutenticado"
+        "403":
+          $ref: "#/components/responses/RolNoAutorizado"
+        "404":
+          description: El envío no existe o no pertenece al repartidor (`no_encontrado`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+              example:
+                error:
+                  code: no_encontrado
+                  message: el envío no existe
+        "409":
+          description: El envío no está asignado ni en camino (`transicion_invalida`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+              example:
+                error:
+                  code: transicion_invalida
+                  message: solo se puede registrar incidencia sobre un envío asignado o en camino
+        "413":
+          description: La foto supera los 5 MB (`imagen_muy_grande`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+              example:
+                error:
+                  code: imagen_muy_grande
+                  message: la imagen no puede superar los 5 MB
+        "500":
+          $ref: "#/components/responses/ErrorInterno"
+
+  /envios/{id}/confirmacion:
+    post:
+      tags: [envios]
+      summary: Confirmar entrega con firma y foto (HU-08)
+      description: |
+        Solo sobre envíos `asignados` o `en_camino`. Si estaba `asignado`,
+        el historial registra el paso por `en_camino`. El envío pasa a
+        `entregado` (terminal) y se guarda la evidencia. Firma (PNG) y foto
+        (JPEG) viajan en base64 dentro del JSON, máximo 5 MB cada una.
+        Requiere autenticación. **Roles: repartidor (solo envíos de sus
+        rutas), operador, supervisor.**
+      operationId: confirmarEntrega
+      x-required-role: [repartidor, operador, supervisor]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ConfirmacionRequest"
+            example:
+              receptor_nombre: Juan Pérez
+              receptor_relacion: destinatario
+              firma_base64: iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==
+              foto_base64: /9j/4AAQSkZJRgABAQEASABIAAD/2wBDAP//////////////////////////////////////////////////////////////////////////////////////2wBDAf//////////////////////////////////////////////////////////////////////////////////////wAARCAABAAEDASIAAhEBAxEB/8QAFAABAAAAAAAAAAAAAAAAAAAAAP/EABQQAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQEAAD8AK//Z
+      responses:
+        "200":
+          description: Entrega confirmada (devuelve el envío).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Envio"
+        "400":
+          description: >
+            Body no válido (`body_invalido`), falta receptor/firma/foto
+            (`evidencia_incompleta`), relación fuera de la lista
+            (`relacion_invalida`), o imagen inválida (`imagen_invalida`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+              example:
+                error:
+                  code: evidencia_incompleta
+                  message: la confirmación requiere receptor, firma y foto
+        "401":
+          $ref: "#/components/responses/NoAutenticado"
+        "403":
+          $ref: "#/components/responses/RolNoAutorizado"
+        "404":
+          description: El envío no existe o no pertenece al repartidor (`no_encontrado`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+              example:
+                error:
+                  code: no_encontrado
+                  message: el envío no existe
+        "409":
+          description: El envío no está asignado ni en camino (`transicion_invalida`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+              example:
+                error:
+                  code: transicion_invalida
+                  message: solo se puede confirmar un envío asignado o en camino
+        "413":
+          description: Firma o foto superan los 5 MB (`imagen_muy_grande`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+              example:
+                error:
+                  code: imagen_muy_grande
+                  message: la imagen no puede superar los 5 MB
+        "500":
+          $ref: "#/components/responses/ErrorInterno"
+
+  /envios/{id}/confirmacion/firma:
+    get:
+      tags: [envios]
+      summary: Descargar la firma de una entrega confirmada
+      description: |
+        Devuelve los bytes PNG de la firma (no JSON). Requiere autenticación,
+        cualquier rol. 404 si el envío no tiene confirmación.
+      operationId: descargarFirma
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Imagen PNG de la firma.
+          content:
+            image/png:
+              schema:
+                type: string
+                format: binary
+        "401":
+          $ref: "#/components/responses/NoAutenticado"
+        "404":
+          description: El envío no existe o no tiene evidencia (`no_encontrado`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "500":
+          $ref: "#/components/responses/ErrorInterno"
+
+  /envios/{id}/confirmacion/foto:
+    get:
+      tags: [envios]
+      summary: Descargar la foto de una entrega confirmada
+      description: |
+        Devuelve los bytes JPEG de la foto del paquete (no JSON). Requiere
+        autenticación, cualquier rol. 404 si el envío no tiene confirmación.
+      operationId: descargarFotoEntrega
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Imagen JPEG del paquete entregado.
+          content:
+            image/jpeg:
+              schema:
+                type: string
+                format: binary
+        "401":
+          $ref: "#/components/responses/NoAutenticado"
+        "404":
+          description: El envío no existe o no tiene evidencia (`no_encontrado`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "500":
+          $ref: "#/components/responses/ErrorInterno"
+
+  /envios/{id}/eventos/{eventoId}/foto:
+    get:
+      tags: [envios]
+      summary: Descargar la foto de una incidencia
+      description: |
+        Devuelve los bytes JPEG de la foto de un evento de incidencia (no
+        JSON). Requiere autenticación, cualquier rol (el repartidor solo ve
+        envíos de sus rutas). 404 si el evento no tiene foto o no pertenece
+        al envío.
+      operationId: descargarFotoIncidencia
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: eventoId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Imagen JPEG de la incidencia.
+          content:
+            image/jpeg:
+              schema:
+                type: string
+                format: binary
+        "401":
+          $ref: "#/components/responses/NoAutenticado"
+        "404":
+          description: El envío no existe, el evento no tiene foto o no pertenece al envío (`no_encontrado`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "500":
+          $ref: "#/components/responses/ErrorInterno"
+
+  /envios/{id}/reprogramacion:
+    post:
+      tags: [envios]
+      summary: Reprogramar una entrega fallida (HU-09)
+      description: |
+        Solo sobre envíos `no_entregados`. El envío vuelve a `pendiente`
+        para su nueva fecha (aparece en `GET /envios?fecha=` de ese día) y
+        se registra el evento. Al asignarse a una ruta, la fecha de la ruta
+        manda y se limpian los datos de reprogramación. Notificación al
+        cliente: fuera de alcance (decisión Sprint 2).
+        Requiere autenticación. **Roles: repartidor (solo envíos de sus
+        rutas), operador, supervisor.**
+      operationId: reprogramarEnvio
+      x-required-role: [repartidor, operador, supervisor]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReprogramacionRequest"
+            example:
+              nueva_fecha: "2026-09-20"
+              franja: manana
+      responses:
+        "200":
+          description: Envío reprogramado (devuelve el envío).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Envio"
+        "400":
+          description: >
+            Body no válido (`body_invalido`), fecha pasada o con mal formato
+            (`fecha_invalida`), o franja fuera de la lista (`franja_invalida`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+              example:
+                error:
+                  code: fecha_invalida
+                  message: la nueva fecha no puede ser pasada
+        "401":
+          $ref: "#/components/responses/NoAutenticado"
+        "403":
+          $ref: "#/components/responses/RolNoAutorizado"
+        "404":
+          description: El envío no existe o no pertenece al repartidor (`no_encontrado`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+              example:
+                error:
+                  code: no_encontrado
+                  message: el envío no existe
+        "409":
+          description: El envío no está en estado no_entregado (`transicion_invalida`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+              example:
+                error:
+                  code: transicion_invalida
+                  message: solo se puede reprogramar un envío no entregado
+        "500":
+          $ref: "#/components/responses/ErrorInterno"
+
+  /tracking/{codigo}:
+    get:
+      tags: [tracking]
+      summary: Tracking público por código de guía (HU-10)
+      description: |
+        Consulta pública SIN login. Devuelve estado actual, localidad e
+        historial con descripciones legibles. **Nunca** expone teléfonos,
+        emails, dirección exacta, nombre del repartidor ni datos internos:
+        el repo de tracking selecciona solo columnas blancas.
+      operationId: trackingPorCodigo
+      parameters:
+        - name: codigo
+          in: path
+          required: true
+          description: Código de guía exacto (formato MOV-YYYYMMDD-XXXX).
+          schema:
+            type: string
+            example: MOV-20260909-0001
+      responses:
+        "200":
+          description: Estado e historial del envío.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TrackingResponse"
+              example:
+                codigo_guia: MOV-20260909-0001
+                estado: en_camino
+                localidad: San Francisco
+                actualizado_en: "2026-09-09T15:40:00Z"
+                historial:
+                  - fecha: "2026-09-09T13:20:00Z"
+                    descripcion: Envío registrado
+                  - fecha: "2026-09-09T14:05:00Z"
+                    descripcion: Asignado a ruta de reparto
+                  - fecha: "2026-09-09T15:40:00Z"
+                    descripcion: En camino
+        "404":
+          description: Código inexistente (`no_encontrado`, mensaje genérico).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+              example:
+                error:
+                  code: no_encontrado
+                  message: no se encontró ningún envío con ese código
         "500":
           $ref: "#/components/responses/ErrorInterno"
 
@@ -1266,3 +1771,165 @@ components:
         - en_camino
         - entregados
         - no_entregados
+
+    # ---- Sprint 2: seguimiento (HU-06 a HU-10) ----
+    MotivoFallo:
+      type: string
+      description: Lista cerrada de motivos de entrega fallida (HU-07).
+      enum: [cliente_ausente, direccion_incorrecta, rechazado, zona_insegura, otro]
+
+    FranjaHoraria:
+      type: string
+      description: Franja para reprogramación (HU-09).
+      enum: [manana, tarde, noche]
+
+    RelacionReceptor:
+      type: string
+      description: Relación de quien recibe con el destinatario (HU-08).
+      enum: [destinatario, familiar, vecino, encargado]
+
+    CambiarEstadoRequest:
+      type: object
+      properties:
+        estado:
+          type: string
+          description: Solo `asignado` o `en_camino` (el resto va por sus endpoints).
+          enum: [asignado, en_camino]
+      required: [estado]
+
+    IncidenciaRequest:
+      type: object
+      properties:
+        motivo:
+          $ref: "#/components/schemas/MotivoFallo"
+        comentario:
+          type: string
+          description: Libre; obligatorio si el motivo es `otro`.
+        foto_base64:
+          type: string
+          description: Opcional. Foto JPEG en base64, máximo 5 MB decodificada.
+      required: [motivo]
+
+    ConfirmacionRequest:
+      type: object
+      properties:
+        receptor_nombre:
+          type: string
+        receptor_relacion:
+          $ref: "#/components/schemas/RelacionReceptor"
+        firma_base64:
+          type: string
+          description: Firma PNG en base64, máximo 5 MB decodificada.
+        foto_base64:
+          type: string
+          description: Foto JPEG del paquete en base64, máximo 5 MB decodificada.
+      required: [receptor_nombre, receptor_relacion, firma_base64, foto_base64]
+
+    ReprogramacionRequest:
+      type: object
+      properties:
+        nueva_fecha:
+          type: string
+          description: Fecha futura o de hoy, formato YYYY-MM-DD.
+          example: "2026-09-20"
+        franja:
+          $ref: "#/components/schemas/FranjaHoraria"
+      required: [nueva_fecha, franja]
+
+    EventoEnvio:
+      type: object
+      description: Una fila del historial del envío (tabla eventos_envio).
+      properties:
+        id:
+          type: string
+        fecha:
+          type: string
+          example: "2026-09-09T15:40:00Z"
+        actor_nombre:
+          type: string
+          nullable: true
+          description: Quien hizo el cambio; null en el backfill o si el usuario se dio de baja.
+        estado_anterior:
+          type: string
+          nullable: true
+          description: Null en el evento raíz.
+        estado_nuevo:
+          type: string
+        motivo:
+          $ref: "#/components/schemas/MotivoFallo"
+        comentario:
+          type: string
+          nullable: true
+        tiene_foto:
+          type: boolean
+          description: True si el evento tiene foto (incidencias HU-07); se descarga por GET /envios/{id}/eventos/{eventoId}/foto.
+      required: [fecha, estado_nuevo]
+
+    ConfirmacionMetadata:
+      type: object
+      description: Evidencia de entrega sin los bytes (van por URLs binarias).
+      properties:
+        receptor_nombre:
+          type: string
+        receptor_relacion:
+          $ref: "#/components/schemas/RelacionReceptor"
+        confirmada_at:
+          type: string
+        firma_url:
+          type: string
+          example: /envios/1a2b3c4d/confirmacion/firma
+        foto_url:
+          type: string
+          example: /envios/1a2b3c4d/confirmacion/foto
+      required: [receptor_nombre, receptor_relacion, confirmada_at, firma_url, foto_url]
+
+    EnvioDetalle:
+      description: Detalle extendido Sprint 2 (aditivo sobre EnvioConDetalle).
+      allOf:
+        - $ref: "#/components/schemas/EnvioConDetalle"
+        - type: object
+          properties:
+            reprogramado_para:
+              type: string
+              nullable: true
+              description: Fecha comprometida (formato YYYY-MM-DD), solo si se reprogramó y aún no se asignó a una ruta.
+            franja:
+              $ref: "#/components/schemas/FranjaHoraria"
+            historial:
+              type: array
+              items:
+                $ref: "#/components/schemas/EventoEnvio"
+            confirmacion:
+              $ref: "#/components/schemas/ConfirmacionMetadata"
+          required: [historial]
+
+    TrackingEvento:
+      type: object
+      description: Evento legible para el cliente final (sin datos internos).
+      properties:
+        fecha:
+          type: string
+        descripcion:
+          type: string
+          example: "No se pudo entregar: cliente ausente"
+        motivo:
+          $ref: "#/components/schemas/MotivoFallo"
+      required: [fecha, descripcion]
+
+    TrackingResponse:
+      type: object
+      description: Respuesta de GET /tracking/{codigo}. Solo columnas blancas.
+      properties:
+        codigo_guia:
+          type: string
+        estado:
+          $ref: "#/components/schemas/EstadoEnvio"
+        localidad:
+          type: string
+        actualizado_en:
+          type: string
+        historial:
+          type: array
+          items:
+            $ref: "#/components/schemas/TrackingEvento"
+      required: [codigo_guia, estado, localidad, actualizado_en, historial]

@@ -68,7 +68,7 @@ func (r *EnvioRepo) List(ctx context.Context, estado, fecha string) ([]domain.En
 		FROM envios e
 		JOIN destinatarios d ON d.id = e.destinatario_id
 		WHERE ($1 = '' OR e.estado::text = $1)
-		  AND ($2 = '' OR e.created_at::date = $2::date)
+		  AND ($2 = '' OR e.created_at::date = $2::date OR e.reprogramado_para = $2::date)
 		ORDER BY e.created_at DESC
 	`, estado, fecha)
 	if err != nil {
@@ -151,7 +151,7 @@ func (r *EnvioRepo) AsignarEnvios(ctx context.Context, envioIDs []string, rutaID
 	defer tx.Rollback(ctx) // no-op si ya se hizo commit
 
 	tag, err := tx.Exec(ctx, `
-		UPDATE envios SET ruta_id = $1, estado = 'asignado'
+		UPDATE envios SET ruta_id = $1, estado = 'asignado', reprogramado_para = NULL, franja = NULL
 		WHERE id = ANY($2) AND estado = 'pendiente'
 	`, rutaID, unicos)
 	if err != nil {
@@ -161,6 +161,16 @@ func (r *EnvioRepo) AsignarEnvios(ctx context.Context, envioIDs []string, rutaID
 	// se actualiza una sola vez y no debe contar como "faltante".
 	if int(tag.RowsAffected()) != len(unicos) {
 		return 0, ErrEnvioNoDisponible
+	}
+	// Eventos de asignación (HU-10, Task 1): un evento por envío asignado
+	// (anterior=pendiente — el UPDATE solo toca pendientes —, nuevo=asignado),
+	// dentro de la MISMA tx para mantener atomicidad con el UPDATE.
+	eventoRepo := NewEventoRepo(r.pool)
+	anterior := domain.EstadoEnvioPendiente
+	for _, id := range unicos {
+		if err := eventoRepo.Registrar(ctx, tx, id, &anterior, domain.EstadoEnvioAsignado, nil, nil, nil, nil); err != nil {
+			return 0, err
+		}
 	}
 	if err := tx.Commit(ctx); err != nil {
 		return 0, err
@@ -183,8 +193,17 @@ func idsUnicos(ids []string) []string {
 
 // DesasignarEnvio quita un envío de una ruta y lo vuelve a "pendiente".
 // Devuelve ErrNoEncontrado si el envío no existe o no pertenece a esa ruta.
+// El UPDATE y el evento del historial (anterior=asignado, nuevo=pendiente;
+// HU-10, Task 1) corren en la misma tx para mantener atomicidad. No se
+// cambia la firma pública: la tx se gestiona internamente con r.pool.
 func (r *EnvioRepo) DesasignarEnvio(ctx context.Context, envioID, rutaID string) error {
-	tag, err := r.pool.Exec(ctx, `
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx) // no-op si ya se hizo commit
+
+	tag, err := tx.Exec(ctx, `
 		UPDATE envios SET ruta_id = NULL, estado = 'pendiente'
 		WHERE id = $1 AND ruta_id = $2
 	`, envioID, rutaID)
@@ -194,7 +213,73 @@ func (r *EnvioRepo) DesasignarEnvio(ctx context.Context, envioID, rutaID string)
 	if tag.RowsAffected() == 0 {
 		return ErrNoEncontrado
 	}
+	anterior := domain.EstadoEnvioAsignado
+	if err := NewEventoRepo(r.pool).Registrar(ctx, tx, envioID, &anterior, domain.EstadoEnvioPendiente, nil, nil, nil, nil); err != nil {
+		return err
+	}
+	return tx.Commit(ctx)
+}
+
+// ActualizarEstado cambia el estado de un envío. q suele ser la transacción
+// de la operación de HU-06/HU-07 (el UPDATE corre junto al INSERT del evento
+// en eventos_envio). Devuelve ErrNoEncontrado si el envío no existe.
+func (r *EnvioRepo) ActualizarEstado(ctx context.Context, q Querier, envioID, nuevo string) error {
+	tag, err := q.Exec(ctx, `UPDATE envios SET estado = $1::estado_envio WHERE id = $2`, nuevo, envioID)
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() == 0 {
+		return ErrNoEncontrado
+	}
 	return nil
+}
+
+// Reprogramar vuelve un envío a "pendiente" para una fecha + franja (HU-09):
+// limpia la ruta (un pendiente no pertenece a ninguna ruta, igual que
+// DesasignarEnvio) y fija reprogramado_para/franja. fechaYYYYMMDD tiene
+// formato "YYYY-MM-DD" (validado en el service) y franja es uno de los
+// valores del enum franja_horaria (0004). Devuelve ErrNoEncontrado si el
+// envío no existe.
+func (r *EnvioRepo) Reprogramar(ctx context.Context, q Querier, envioID, fechaYYYYMMDD, franja string) error {
+	tag, err := q.Exec(ctx, `
+		UPDATE envios
+		SET estado = 'pendiente', reprogramado_para = $2::date, franja = $3::franja_horaria, ruta_id = NULL
+		WHERE id = $1::uuid
+	`, envioID, fechaYYYYMMDD, franja)
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() == 0 {
+		return ErrNoEncontrado
+	}
+	return nil
+}
+
+// ReprogramacionDe devuelve la fecha ("YYYY-MM-DD") y franja de
+// reprogramación de un envío (HU-09). Si el envío nunca se reprogramó
+// (columnas NULL) devuelve nil, nil. Devuelve ErrNoEncontrado si el envío
+// no existe. Método chico para no cambiar la firma de GetByID que usan
+// muchos llamadores (la usa EnvioService.GetByID en la Task 4).
+func (r *EnvioRepo) ReprogramacionDe(ctx context.Context, envioID string) (para *string, franja *string, err error) {
+	var fecha sql.NullString
+	var fr sql.NullString
+	err = r.pool.QueryRow(ctx, `
+		SELECT to_char(reprogramado_para, 'YYYY-MM-DD'), franja::text
+		FROM envios WHERE id = $1::uuid
+	`, envioID).Scan(&fecha, &fr)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, nil, ErrNoEncontrado
+	}
+	if err != nil {
+		return nil, nil, err
+	}
+	if fecha.Valid {
+		para = &fecha.String
+	}
+	if fr.Valid {
+		franja = &fr.String
+	}
+	return para, franja, nil
 }
 
 // currentDateUTC devuelve la fecha de hoy en UTC, formato "YYYY-MM-DD". Se

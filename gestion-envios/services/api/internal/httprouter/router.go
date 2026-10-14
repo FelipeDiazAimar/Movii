@@ -21,6 +21,8 @@ type Deps struct {
 	EnvioHandler      *handlers.EnvioHandler
 	RutaHandler       *handlers.RutaHandler
 	RepartidorHandler *handlers.RepartidorHandler
+	EstadoHandler     *handlers.EstadoHandler
+	TrackingHandler   *handlers.TrackingHandler
 }
 
 // New arma el router HTTP completo de la API.
@@ -42,6 +44,8 @@ func New(deps Deps) http.Handler {
 	r.Post("/auth/register", deps.AuthHandler.Register)
 	r.Post("/auth/login", deps.AuthHandler.Login)
 
+	r.Get("/tracking/{codigo}", deps.TrackingHandler.PorCodigo)
+
 	r.Group(func(protected chi.Router) {
 		protected.Use(middleware.RequireAuth(deps.JWTSecret))
 
@@ -52,6 +56,13 @@ func New(deps Deps) http.Handler {
 
 		protected.Get("/envios", deps.EnvioHandler.List)
 		protected.Get("/envios/{id}", deps.EnvioHandler.GetByID)
+		protected.Put("/envios/{id}/estado", deps.EstadoHandler.CambiarEstado)
+		protected.Post("/envios/{id}/incidencia", deps.EstadoHandler.RegistrarIncidencia)
+		protected.Get("/envios/{id}/eventos/{eventoId}/foto", deps.EstadoHandler.DescargarFotoIncidencia)
+		protected.Post("/envios/{id}/reprogramacion", deps.EstadoHandler.Reprogramar)
+		protected.Post("/envios/{id}/confirmacion", deps.EstadoHandler.Confirmar)
+		protected.Get("/envios/{id}/confirmacion/firma", deps.EstadoHandler.DescargarFirma)
+		protected.Get("/envios/{id}/confirmacion/foto", deps.EstadoHandler.DescargarFoto)
 		protected.Get("/rutas", deps.RutaHandler.List)
 		protected.Get("/rutas/{id}", deps.RutaHandler.Detail)
 

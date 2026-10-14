@@ -36,7 +36,7 @@ func TestFlujoCompleto_EnvioRutaYAsignacion(t *testing.T) {
 		JWTSecret:       "secreto-de-test",
 		AuthHandler:     handlers.NewAuthHandler(authService),
 		UsuariosHandler: handlers.NewUsuariosHandler(usuarioRepo),
-		EnvioHandler:    handlers.NewEnvioHandler(services.NewEnvioService(pool, envioRepo)),
+		EnvioHandler:    handlers.NewEnvioHandler(services.NewEnvioService(pool, envioRepo, repository.NewEventoRepo(pool), repository.NewConfirmacionRepo(pool))),
 		RutaHandler:     handlers.NewRutaHandler(services.NewRutaService(rutaRepo), services.NewAsignacionService(rutaRepo, envioRepo)),
 	})
 

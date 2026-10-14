@@ -41,6 +41,10 @@ export interface EnvioDetalle {
   ruta_id: string | null;
   destinatario: Destinatario;
   fecha_creacion: string;
+  historial: EventoEnvio[];
+  reprogramado_para: string | null;
+  franja: FranjaHoraria | null;
+  confirmacion: ConfirmacionMetadata | null;
 }
 
 export interface CrearEnvioInput {
@@ -79,3 +83,55 @@ export interface EnviosFiltro {
   estado?: EstadoEnvio;
   fecha?: string;
 }
+
+export const MOTIVOS_FALLO = [
+  "cliente_ausente",
+  "direccion_incorrecta",
+  "rechazado",
+  "zona_insegura",
+  "otro",
+] as const;
+export type MotivoFallo = (typeof MOTIVOS_FALLO)[number];
+
+export const FRANJAS = ["manana", "tarde", "noche"] as const;
+export type FranjaHoraria = (typeof FRANJAS)[number];
+
+export const ESTADOS_CAMBIABLES = ["asignado", "en_camino"] as const;
+export type EstadoCambiable = (typeof ESTADOS_CAMBIABLES)[number];
+
+export interface EventoEnvio {
+  id: string;
+  fecha: string;
+  actor_nombre: string | null;
+  estado_anterior: EstadoEnvio | null;
+  estado_nuevo: EstadoEnvio;
+  motivo: string | null;
+  comentario: string | null;
+  tiene_foto: boolean;
+}
+
+export interface ConfirmacionMetadata {
+  receptor_nombre: string;
+  receptor_relacion: string;
+  confirmada_at: string;
+  firma_url: string;
+  foto_url: string;
+}
+
+export interface TrackingEvento {
+  fecha: string;
+  descripcion: string;
+  motivo?: string;
+}
+
+export interface TrackingResponse {
+  codigo_guia: string;
+  estado: EstadoEnvio;
+  localidad: string;
+  actualizado_en: string;
+  historial: TrackingEvento[];
+}
+
+export type CambiarEstadoInput = { estado: EstadoCambiable };
+export type IncidenciaInput = { motivo: string; comentario?: string; foto_base64?: string };
+export type ReprogramacionInput = { nueva_fecha: string; franja: FranjaHoraria };

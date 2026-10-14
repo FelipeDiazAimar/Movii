@@ -1,0 +1,180 @@
+@startuml Movii Sprint2 - Diagrama de Clases Completo
+' Modelo Sprint 1 + agregados Sprint 2 (migraciones 0003/0004/0005)
+' Fuente: Sprint_Backlog2 §6 + internal/domain (envio.go, ruta.go, usuario.go, repartidor.go)
+
+skinparam classAttributeIconSize 0
+skinparam linetype ortho
+
+enum Rol {
+  operador
+  repartidor
+  supervisor
+}
+
+enum EstadoEnvio {
+  pendiente
+  asignado
+  en_camino
+  entregado
+  no_entregado
+}
+
+enum TamanoPaquete {
+  chico
+  mediano
+  grande
+}
+
+enum EstadoRuta {
+  planificada
+  en_curso
+  completada
+}
+
+enum MotivoFallo {
+  cliente_ausente
+  direccion_incorrecta
+  rechazado
+  zona_insegura
+  otro
+}
+
+enum FranjaHoraria {
+  manana
+  tarde
+  noche
+}
+
+enum RelacionReceptor {
+  destinatario
+  familiar
+  vecino
+  encargado
+}
+
+class Usuario {
+  +id: UUID
+  +nombre: String
+  +email: String
+  +password_hash: String
+  +rol: Rol
+  +activo: Boolean
+  +created_at: Timestamp
+  +updated_at: Timestamp
+}
+
+class Remitente {
+  +id: UUID
+  +nombre: String
+  +telefono: String
+  +direccion: String
+  +created_at: Timestamp
+}
+
+class Destinatario {
+  +id: UUID
+  +nombre: String
+  +telefono: String
+  +calle: String
+  +numero: String
+  +piso_depto: String
+  +localidad: String
+  +codigo_postal: String
+  +created_at: Timestamp
+}
+
+class Ruta {
+  +id: UUID
+  +nombre: String
+  +zona: String
+  +fecha: Date
+  +estado: EstadoRuta
+  +repartidor_id: UUID
+  +created_at: Timestamp
+  +updated_at: Timestamp
+}
+
+class Envio {
+  +id: UUID
+  +codigo_guia: String
+  +estado: EstadoEnvio
+  +peso: Decimal
+  +tamano: TamanoPaquete
+  +tipo_contenido: String
+  +fragil: Boolean
+  +urgente: Boolean
+  +remitente_id: UUID
+  +destinatario_id: UUID
+  +ruta_id: UUID <<nullable>>
+  +reprogramado_para: Date <<nullable>>
+  +franja: FranjaHoraria <<nullable>>
+  +created_at: Timestamp
+  +updated_at: Timestamp
+}
+
+class EventoEnvio {
+  +id: UUID
+  +envio_id: UUID
+  +estado_anterior: EstadoEnvio <<nullable>>
+  +estado_nuevo: EstadoEnvio
+  +motivo: MotivoFallo <<nullable>>
+  +comentario: Text <<nullable>>
+  +foto: Bytea <<nullable>>
+  +tiene_foto: Boolean
+  +actor_id: UUID <<nullable>>
+  +created_at: Timestamptz
+}
+
+class ConfirmacionEntrega {
+  +envio_id: UUID <<PK + FK>>
+  +receptor_nombre: String
+  +receptor_relacion: RelacionReceptor
+  +firma: Bytea <<PNG <= 5MB>>
+  +foto: Bytea <<JPEG <= 5MB>>
+  +confirmada_por: UUID <<nullable>>
+  +confirmada_at: Timestamptz
+}
+
+' --- Relaciones Sprint 1 (sin cambios) ---
+Usuario "1" -- "0..*" Ruta : reparte >\nrepartidor_id
+Ruta "1" -- "0..*" Envio : contiene >\nruta_id nullable
+Remitente "1" -- "0..*" Envio : origina >\nremitente_id
+Destinatario "1" -- "0..*" Envio : recibe >\ndestinatario_id
+
+' --- Relaciones nuevas Sprint 2 ---
+Envio "1" -- "0..*" EventoEnvio : historial >\nenvio_id ON DELETE CASCADE
+Usuario "1" -- "0..*" EventoEnvio : actua >\nactor_id SET NULL
+Envio "1" -- "0..1" ConfirmacionEntrega : evidencia >\nenvio_id ON DELETE CASCADE
+Usuario "1" -- "0..*" ConfirmacionEntrega : confirma >\nconfirmada_por SET NULL
+
+Usuario ..> Rol
+Ruta ..> EstadoRuta
+Envio ..> EstadoEnvio
+Envio ..> TamanoPaquete
+Envio ..> FranjaHoraria
+EventoEnvio ..> EstadoEnvio
+EventoEnvio ..> MotivoFallo
+ConfirmacionEntrega ..> RelacionReceptor
+
+note right of Envio
+  reprogramado_para + franja (HU-09,
+  migracion 0004). Al asignar a ruta,
+  la fecha de la ruta manda y ambas
+  se limpian.
+end note
+
+note right of EventoEnvio
+  estado_anterior = null en el
+  evento raiz (backfill Sprint 2).
+  foto solo en incidencias HU-07
+  (migracion 0005).
+end note
+
+note right of ConfirmacionEntrega
+  Un envio = una confirmacion
+  como maximo (PK = envio_id).
+  Tabla separada para no cargar
+  BYTEAs en los listados.
+end note
+
+@enduml
