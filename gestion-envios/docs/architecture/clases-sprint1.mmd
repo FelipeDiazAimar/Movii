@@ -1,0 +1,102 @@
+classDiagram
+
+class Usuario {
+  +UUID id
+  +String nombre
+  +String email
+  +String password_hash
+  +String rol
+  +Boolean activo
+  +Timestamp created_at
+  +Timestamp updated_at
+}
+
+class Remitente {
+  +UUID id
+  +String nombre
+  +String telefono
+  +String direccion
+  +Timestamp created_at
+}
+
+class Destinatario {
+  +UUID id
+  +String nombre
+  +String telefono
+  +String calle
+  +String numero
+  +String piso_depto
+  +String localidad
+  +String codigo_postal
+  +Timestamp created_at
+}
+
+class Ruta {
+  +UUID id
+  +String nombre
+  +String zona
+  +Date fecha
+  +String estado
+  +UUID repartidor_id
+  +Timestamp created_at
+  +Timestamp updated_at
+}
+
+class Envio {
+  +UUID id
+  +String codigo_guia
+  +String estado
+  +Decimal peso
+  +String tamano
+  +String tipo_contenido
+  +Boolean fragil
+  +Boolean urgente
+  +UUID remitente_id
+  +UUID destinatario_id
+  +UUID ruta_id
+  +Timestamp created_at
+  +Timestamp updated_at
+}
+
+class Rol {
+  <<enumeration>>
+  operador
+  repartidor
+  supervisor
+}
+
+class EstadoEnvio {
+  <<enumeration>>
+  pendiente
+  asignado
+  en_camino
+  entregado
+  no_entregado
+}
+
+class TamanoPaquete {
+  <<enumeration>>
+  chico
+  mediano
+  grande
+}
+
+class EstadoRuta {
+  <<enumeration>>
+  planificada
+  en_curso
+  completada
+}
+
+Usuario "1" --> "0..*" Ruta : reparte
+Ruta "1" --> "0..*" Envio : contiene
+Remitente "1" --> "0..*" Envio : origina
+Destinatario "1" --> "0..*" Envio : recibe
+
+Usuario ..> Rol : usa
+Ruta ..> EstadoRuta : usa
+Envio ..> EstadoEnvio : usa
+Envio ..> TamanoPaquete : usa
+
+note for Envio "codigo_guia MOV-YYYYMMDD-XXXX UNIQUE. ruta_id null si no asignado."
+note for Ruta "Solo editable si planificada (HU-03)."
