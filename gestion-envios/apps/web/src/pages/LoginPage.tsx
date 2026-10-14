@@ -11,8 +11,13 @@ export function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  // Credenciales del supervisor de la demo (migrations/0002_seed.up.sql)
+  // precargadas, igual que en la app móvil (apps/mobile/app/login.tsx). El
+  // autocompletado del navegador venía pisando la contraseña con una vieja
+  // guardada y el login fallaba con "email o contraseña incorrectos" aunque
+  // el usuario existiera; de ahí el autoComplete="off" de los campos.
+  const [email, setEmail] = useState("supervisor@movii.demo");
+  const [password, setPassword] = useState("Movii2026!");
   const [error, setError] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
 
@@ -55,7 +60,7 @@ export function LoginPage() {
             label="Email"
             name="email"
             type="email"
-            autoComplete="username"
+            autoComplete="off"
             required
             value={email}
             onChange={(e) => setEmail(e.target.value)}
@@ -64,7 +69,7 @@ export function LoginPage() {
             label="Contraseña"
             name="password"
             type="password"
-            autoComplete="current-password"
+            autoComplete="new-password"
             required
             value={password}
             onChange={(e) => setPassword(e.target.value)}
