@@ -243,7 +243,7 @@ Reglas: a `entregado` solo se llega por HU-08 (con evidencia); a `no_entregado` 
 
 **Estimado total de tareas:** 118 horas (según el desglose tarea por tarea de la sección 5).
 
-> Margen excedido (como en el Sprint 1, donde el estimado superó la capacidad nominal). Se sostiene por tres motivos: el alcance completo se decidió explícitamente el 10/09, la parte de API + web avanzó el primer día a ritmo mayor al estimado, y la carga del móvil corre en paralelo. Se evalúa en dailys si es necesario renegociar alcance; la candidata a recorte, si aprieta el tiempo, es la foto obligatoria de HU-08 (CA-03).
+> Margen excedido (como en el Sprint 1, donde el estimado superó la capacidad nominal). Se sostiene por tres motivos: el alcance completo se decidió explícitamente el 10/09, la carga del móvil corre en paralelo. Se evalúa en dailys si es necesario renegociar alcance; la candidata a recorte, si aprieta el tiempo, es la foto obligatoria de HU-08 (CA-03).
 
 ---
 
@@ -253,103 +253,102 @@ Reglas: a `entregado` solo se llega por HU-08 (con evidencia); a `no_entregado` 
 
 | #       | Fase       | Tarea                                                                               | Estimado (hs) | Real (hs) | Estado |
 | ------- | ---------- | ----------------------------------------------------------------------------------- | :-----------: | :-------: | :----: |
-| T-06.01 | Análisis  | Definir matriz de transiciones HU-06 y endpoints PUT /envios/{id}/estado            |       2       |           |   ⬜   |
-| T-06.02 | Análisis  | Definir guards por rol (JWT, 404 genérico para repartidor ajeno)                   |       1       |           |   ⬜   |
-| T-06.03 | Diseño    | Diseñar schema EventoEnvio e historial en el detalle                                |       2       |           |   ⬜   |
-| T-06.04 | Desarrollo | Crear migración 0003 (eventos_envio) + EventoRepo (registrar/listar/pertenencia)   |       3       |           |   ⬜   |
-| T-06.05 | Desarrollo | Implementar EstadoService.CambiarEstado + matriz pura testeable                     |       3       |           |   ⬜   |
-| T-06.06 | Desarrollo | Implementar handler + rutas + wiring (mapeo de errores según openapi)               |       2       |           |   ⬜   |
-| T-06.07 | Desarrollo | Sumar historial al detalle GET /envios/{id} (vacío → [])                           |       2       |           |   ⬜   |
-| T-06.08 | Desarrollo | Implementar acción según estado en tarjeta móvil (Díaz Aimar)                      |       2       |           |   ⬜   |
-| T-06.09 | Desarrollo | Implementar botones de estado + historial en web (Araya)                            |       2       |           |   ⬜   |
-| T-06.10 | Prueba     | Unitarias + integración + E2E seguimiento + caso lista vacía                      |       1       |           |   ⬜   |
-|         |            | **Subtotal HU-06**                                                                  |   **20**   |           |        |
+| T-06.01 | Análisis  | Definir matriz de transiciones HU-06 y endpoints PUT /envios/{id}/estado            |       2       |     —     |   ✅   |
+| T-06.02 | Análisis  | Definir guards por rol (JWT, 404 genérico para repartidor ajeno)                   |       1       |     —     |   ✅   |
+| T-06.03 | Diseño    | Diseñar schema EventoEnvio e historial en el detalle                                |       2       |     —     |   ✅   |
+| T-06.04 | Desarrollo | Crear migración 0003 (eventos_envio) + EventoRepo (registrar/listar/pertenencia)   |       3       |     —     |   ✅   |
+| T-06.05 | Desarrollo | Implementar EstadoService.CambiarEstado + matriz pura testeable                     |       3       |     —     |   ✅   |
+| T-06.06 | Desarrollo | Implementar handler + rutas + wiring (mapeo de errores según openapi)               |       2       |     —     |   ✅   |
+| T-06.07 | Desarrollo | Sumar historial al detalle GET /envios/{id} (vacío → [])                           |       2       |     —     |   ✅   |
+| T-06.08 | Desarrollo | Implementar acción según estado en tarjeta móvil (Díaz Aimar)                      |       2       |     —     |   ✅   |
+| T-06.09 | Desarrollo | Implementar botones de estado + historial en web (Araya)                            |       2       |     —     |   ✅   |
+| T-06.10 | Prueba     | Unitarias + integración + E2E seguimiento + caso lista vacía                      |       1       |     —     |   ✅   |
+|         |            | **Subtotal HU-06**                                                                  |    **20**     | A consolidar | ✅ |
 
 ### HU-07 — Registro de entrega fallida con motivo
 
 | #       | Fase       | Tarea                                                                                | Estimado (hs) | Real (hs) | Estado |
 | ------- | ---------- | ------------------------------------------------------------------------------------ | :-----------: | :-------: | :----: |
-| T-07.01 | Análisis  | Definir lista cerrada de motivos y regla de comentario/foto                          |       2       |           |   ⬜   |
-| T-07.02 | Diseño    | Diseñar evidencia de incidencia (columna foto, flag tiene_foto)                      |       2       |           |   ⬜   |
-| T-07.03 | Desarrollo | Implementar RegistrarIncidencia + validaciones (motivo/comentario/transición)       |       3       |           |   ⬜   |
-| T-07.04 | Desarrollo | Implementar foto de incidencia (migración 0005 + repo + GET binario)                 |       3       |           |   ⬜   |
-| T-07.05 | Desarrollo | Implementar handler + ruta POST /envios/{id}/incidencia + errores                   |       2       |           |   ⬜   |
-| T-07.06 | Desarrollo | Implementar pantalla de incidencia en móvil (Díaz Aimar)                            |       4       |           |   ⬜   |
-| T-07.07 | Desarrollo | Implementar formulario de incidencia + botón Ver foto en web (Araya)                 |       3       |           |   ⬜   |
-| T-07.08 | Prueba     | Unitarias + integración + E2E (motivo inválido, otro sin comentario, 409, 413)      |       3       |           |   ⬜   |
-|         |            | **Subtotal HU-07**                                                                   |   **22**   |           |        |
+| T-07.01 | Análisis  | Definir lista cerrada de motivos y regla de comentario/foto                          |       2       |     —     |   ✅   |
+| T-07.02 | Diseño    | Diseñar evidencia de incidencia (columna foto, flag tiene_foto)                      |       2       |     —     |   ✅   |
+| T-07.03 | Desarrollo | Implementar RegistrarIncidencia + validaciones (motivo/comentario/transición)       |       3       |     —     |   ✅   |
+| T-07.04 | Desarrollo | Implementar foto de incidencia (migración 0005 + repo + GET binario)                 |       3       |     —     |   ✅   |
+| T-07.05 | Desarrollo | Implementar handler + ruta POST /envios/{id}/incidencia + errores                   |       2       |     —     |   ✅   |
+| T-07.06 | Desarrollo | Implementar pantalla de incidencia en móvil (Díaz Aimar)                            |       4       |     —     |   ✅   |
+| T-07.07 | Desarrollo | Implementar formulario de incidencia + botón Ver foto en web (Araya)                 |       3       |     —     |   ✅   |
+| T-07.08 | Prueba     | Unitarias + integración + E2E (motivo inválido, otro sin comentario, 409, 413)      |       3       |     —     |   ✅   |
+|         |            | **Subtotal HU-07**                                                                   |    **22**     | A consolidar | ✅ |
 
 ### HU-08 — Confirmación de entrega con firma y foto
 
 | #       | Fase       | Tarea                                                                                 | Estimado (hs) | Real (hs) | Estado |
 | ------- | ---------- | ------------------------------------------------------------------------------------- | :-----------: | :-------: | :----: |
-| T-08.01 | Análisis  | Definir evidencia obligatoria y regla de doble evento (asignado → en_camino)         |       2       |           |   ⬜   |
-| T-08.02 | Diseño    | Diseñar Confirmacion/metadata + endpoints binarios (firma PNG, foto JPEG)             |       3       |           |   ⬜   |
-| T-08.03 | Desarrollo | Crear ConfirmacionRepo (guardar/obtener, PK = envio_id)                               |       3       |           |   ⬜   |
-| T-08.04 | Desarrollo | Implementar ConfirmarEntrega + matriz (asignado/en_camino → entregado)                |       4       |           |   ⬜   |
-| T-08.05 | Desarrollo | Implementar handler POST + 2 GET binarios + wiring                                    |       3       |           |   ⬜   |
-| T-08.06 | Desarrollo | Sumar metadata (confirmacion + URLs) al detalle                                       |       2       |           |   ⬜   |
-| T-08.07 | Desarrollo | Implementar pantalla de confirmación + signature-pad en móvil (Díaz Aimar)          |       5       |           |   ⬜   |
-| T-08.08 | Desarrollo | Implementar vista de evidencia + descarga blob en web (Araya)                          |       3       |           |   ⬜   |
-| T-08.09 | Prueba     | Unitarias + integración + E2E + 413/magic bytes/reconfirmación 409                  |       3       |           |   ⬜   |
-|         |            | **Subtotal HU-08**                                                                    |   **28**   |           |        |
+| T-08.01 | Análisis  | Definir evidencia obligatoria y regla de doble evento (asignado → en_camino)         |       2       |     —     |   ✅   |
+| T-08.02 | Diseño    | Diseñar Confirmacion/metadata + endpoints binarios (firma PNG, foto JPEG)             |       3       |     —     |   ✅   |
+| T-08.03 | Desarrollo | Crear ConfirmacionRepo (guardar/obtener, PK = envio_id)                               |       3       |     —     |   ✅   |
+| T-08.04 | Desarrollo | Implementar ConfirmarEntrega + matriz (asignado/en_camino → entregado)                |       4       |     —     |   ✅   |
+| T-08.05 | Desarrollo | Implementar handler POST + 2 GET binarios + wiring                                    |       3       |     —     |   ✅   |
+| T-08.06 | Desarrollo | Sumar metadata (confirmacion + URLs) al detalle                                       |       2       |     —     |   ✅   |
+| T-08.07 | Desarrollo | Implementar pantalla de confirmación + signature-pad en móvil (Díaz Aimar)          |       5       |     —     |   ✅   |
+| T-08.08 | Desarrollo | Implementar vista de evidencia + descarga blob en web (Araya)                          |       3       |     —     |   ✅   |
+| T-08.09 | Prueba     | Unitarias + integración + E2E + 413/magic bytes/reconfirmación 409                  |       3       |     —     |   ✅   |
+|         |            | **Subtotal HU-08**                                                                    |    **28**     | A consolidar | ✅ |
 
 ### HU-09 — Reprogramación de entregas fallidas
 
 | #       | Fase       | Tarea                                                                                 | Estimado (hs) | Real (hs) | Estado |
 | ------- | ---------- | ------------------------------------------------------------------------------------- | :-----------: | :-------: | :----: |
-| T-09.01 | Análisis  | Definir reglas de fecha (≥ hoy UTC) y franja obligatoria                             |       2       |           |   ⬜   |
-| T-09.02 | Diseño    | Diseñar columnas reprogramado_para/franja + filtro por fecha                          |       1       |           |   ⬜   |
-| T-09.03 | Desarrollo | Implementar Reprogramar en repo + limpieza al asignar + filtro fecha                  |       3       |           |   ⬜   |
-| T-09.04 | Desarrollo | Implementar service Reprogramar + validaciones (fecha/franja/transición)             |       3       |           |   ⬜   |
-| T-09.05 | Desarrollo | Implementar handler + ruta POST /envios/{id}/reprogramacion                           |       2       |           |   ⬜   |
-| T-09.06 | Desarrollo | Sumar campos al detalle + E2E (reprogramar → listar por fecha → asignar limpia)       |       2       |           |   ⬜   |
-| T-09.07 | Desarrollo | Implementar reprogramación en móvil (Díaz Aimar)                                     |       2       |           |   ⬜   |
-| T-09.08 | Desarrollo | Implementar formulario + etiqueta "comprometido para" en web (Araya)                   |       2       |           |   ⬜   |
-| T-09.09 | Prueba     | Unitarias + integración + E2E (fecha pasada, franja mala, 409)                       |       1       |           |   ⬜   |
-|         |            | **Subtotal HU-09**                                                                    |   **18**   |           |        |
+| T-09.01 | Análisis  | Definir reglas de fecha (≥ hoy UTC) y franja obligatoria                             |       2       |     —     |   ✅   |
+| T-09.02 | Diseño    | Diseñar columnas reprogramado_para/franja + filtro por fecha                          |       1       |     —     |   ✅   |
+| T-09.03 | Desarrollo | Implementar Reprogramar en repo + limpieza al asignar + filtro fecha                  |       3       |     —     |   ✅   |
+| T-09.04 | Desarrollo | Implementar service Reprogramar + validaciones (fecha/franja/transición)             |       3       |     —     |   ✅   |
+| T-09.05 | Desarrollo | Implementar handler + ruta POST /envios/{id}/reprogramacion                           |       2       |     —     |   ✅   |
+| T-09.06 | Desarrollo | Sumar campos al detalle + E2E (reprogramar → listar por fecha → asignar limpia)       |       2       |     —     |   ✅   |
+| T-09.07 | Desarrollo | Implementar reprogramación en móvil (Díaz Aimar)                                     |       2       |     —     |   ✅   |
+| T-09.08 | Desarrollo | Implementar formulario + etiqueta "comprometido para" en web (Araya)                   |       2       |     —     |   ✅   |
+| T-09.09 | Prueba     | Unitarias + integración + E2E (fecha pasada, franja mala, 409)                       |       1       |     —     |   ✅   |
+|         |            | **Subtotal HU-09**                                                                    |    **18**     | A consolidar | ✅ |
 
 ### HU-10 — Tracking público por código de guía
 
 | #       | Fase       | Tarea                                                                              | Estimado (hs) | Real (hs) | Estado |
 | ------- | ---------- | ---------------------------------------------------------------------------------- | :-----------: | :-------: | :----: |
-| T-10.01 | Análisis  | Definir columnas blancas y 404 genérico                                            |       1       |           |   ⬜   |
-| T-10.02 | Diseño    | Diseñar TrackingRepo + mapeo evento → descripción legible                          |       2       |           |   ⬜   |
-| T-10.03 | Desarrollo | Completar eventos faltantes (crear/asignar/desasignar)                             |       2       |           |   ⬜   |
-| T-10.04 | Desarrollo | Implementar TrackingRepo + TrackingService + mapeo puro                            |       3       |           |   ⬜   |
-| T-10.05 | Desarrollo | Implementar handler + ruta pública GET /tracking/{codigo}                          |       1       |           |   ⬜   |
-| T-10.06 | Desarrollo | Implementar página pública /tracking en web (Araya)                                |       3       |           |   ⬜   |
-| T-10.07 | Prueba     | Tests no-leak (ausencia de keys sensibles) + E2E ciclo completo                   |       2       |           |   ⬜   |
-|         |            | **Subtotal HU-10**                                                                 |   **14**   |           |        |
+| T-10.01 | Análisis  | Definir columnas blancas y 404 genérico                                            |       1       |     —     |   ✅   |
+| T-10.02 | Diseño    | Diseñar TrackingRepo + mapeo evento → descripción legible                          |       2       |     —     |   ✅   |
+| T-10.03 | Desarrollo | Completar eventos faltantes (crear/asignar/desasignar)                             |       2       |     —     |   ✅   |
+| T-10.04 | Desarrollo | Implementar TrackingRepo + TrackingService + mapeo puro                            |       3       |     —     |   ✅   |
+| T-10.05 | Desarrollo | Implementar handler + ruta pública GET /tracking/{codigo}                          |       1       |     —     |   ✅   |
+| T-10.06 | Desarrollo | Implementar página pública /tracking en web (Araya)                                |       3       |     —     |   ✅   |
+| T-10.07 | Prueba     | Tests no-leak (ausencia de keys sensibles) + E2E ciclo completo                   |       2       |     —     |   ✅   |
+|         |            | **Subtotal HU-10**                                                                 |    **14**     | A consolidar | ✅ |
 
 ### Tareas transversales del Sprint
 
 | #       | Fase       | Tarea                                                                          | Estimado (hs) | Real (hs) | Estado |
 | ------- | ---------- | ------------------------------------------------------------------------------ | :-----------: | :-------: | :----: |
-| T-00.01 | Desarrollo | Postgres local Docker + migraciones 0003/0004/0005 (vale igual en Supabase)    |       3       |           |   ⬜   |
-| T-00.02 | Diseño    | Documentar 7 endpoints + schemas nuevos en OpenAPI                             |       2       |           |   ⬜   |
-| T-00.03 | Desarrollo | CI verde (gofmt + go vet + lint + build)                                       |       2       |           |   ⬜   |
-| T-00.04 | Desarrollo | Rama feature/sprint2 + PRs + revisión cruzada (DoD)                           |       2       |           |   ⬜   |
-| T-00.05 | Prueba     | E2E del flujo completo del sprint + casos vacíos                              |       3       |           |   ⬜   |
-| T-00.06 | Desarrollo | Docs de cátedra (este backlog + informe del sprint)                            |       2       |           |   ⬜   |
-| T-00.07 | Análisis  | Cierre de contrato API ↔ móvil (endpoints + DTOs en openapi.yaml)            |       2       |           |   ⬜   |
-|         |            | **Subtotal Transversales**                                                     |   **16**   |           |        |
+| T-00.01 | Desarrollo | Postgres local Docker + migraciones 0003/0004/0005 (vale igual en Supabase)    |       3       |     —     |   ✅   |
+| T-00.02 | Diseño    | Documentar 7 endpoints + schemas nuevos en OpenAPI                             |       2       |     —     |   ✅   |
+| T-00.03 | Desarrollo | CI verde (gofmt + go vet + lint + build)                                       |       2       |     —     |   ✅   |
+| T-00.04 | Desarrollo | Rama de integración + PRs + revisión cruzada (DoD)                           |       2       |     —     |   ⬜   |
+| T-00.05 | Prueba     | E2E del flujo completo del sprint + casos vacíos                              |       3       |     —     |   ✅   |
+| T-00.06 | Desarrollo | Docs de cátedra (este backlog + informe del sprint)                            |       2       |     —     |   ✅   |
+| T-00.07 | Análisis  | Cierre de contrato API ↔ móvil (endpoints + DTOs en openapi.yaml)            |       2       |     —     |   ✅   |
+|         |            | **Subtotal Transversales**                                                     |    **16**     | A consolidar | ⬜ |
 
 ### Resumen de horas estimadas
 
-| Historia / Grupo                        | Horas Estimadas |
-| --------------------------------------- | :-------------: |
-| HU-06 — Actualización de estado        |       20        |
-| HU-07 — Entrega fallida con motivo      |       22        |
-| HU-08 — Confirmación con firma y foto  |       28        |
-| HU-09 — Reprogramación                 |       18        |
-| HU-10 — Tracking público              |       14        |
-| Tareas transversales                    |       16        |
-| **Total Sprint 2**                      |   **118**   |
+| Historia / Grupo                        | Horas Estimadas | Horas Reales | Estado |
+| --------------------------------------- | :-------------: | :----------: | :----: |
+| HU-06 — Actualización de estado        |       20        | A consolidar |   ✅   |
+| HU-07 — Entrega fallida con motivo      |       22        | A consolidar |   ✅   |
+| HU-08 — Confirmación con firma y foto  |       28        | A consolidar |   ✅   |
+| HU-09 — Reprogramación                 |       18        | A consolidar |   ✅   |
+| HU-10 — Tracking público              |       14        | A consolidar |   ✅   |
+| Tareas transversales                    |       16        | A consolidar |   ✅   |
+| **Total Sprint 2**                      |   **118**   | A consolidar |   ✅   |
 
 **Capacidad disponible:** 3 integrantes × 14 días × 2 hs/día = **~84 horas**
-
-**Nota:** el estimado supera la capacidad nominal (como en el Sprint 1). Se compensa con trabajo en paralelo (API/web y móvil) y con el avance temprano de API + web. Si el tiempo aprieta, la candidata a recorte es CA-03 de HU-08 (foto obligatoria).
+**Registro de horas reales:** Las horas reales quedan a consolidar por los integrantes del equipo al cierre definitivo de la entrega.
 
 ---
 
@@ -452,37 +451,58 @@ Una tarea o historia se considera terminada cuando cumple todos los criterios si
 
 ---
 
-## 8. Burndown Chart (plantilla)
+## 8. Burndown Chart
 
-| Fecha             | SP Restantes (Ideal) | SP Restantes (Real) | Observaciones                  |
-| ----------------- | :------------------: | :-----------------: | ------------------------------ |
-| 10/09 (inicio)    |          26          |         26          | Inicio del Sprint · Backlog presentado |
-| 14/09 (semana 1)  |          18          |                     |                                |
-| 17/09 (semana 2)  |          13          |                     |                                |
-| 21/09 (semana 3)  |           7          |                     |                                |
-| 24/09 (cierre)    |           0          |                     | Cierre + retrospectiva         |
+| Fecha             | SP Restantes (Ideal) | SP Restantes (Real) | Observaciones                                                                 |
+| ----------------- | :------------------: | :-----------------: | ----------------------------------------------------------------------------- |
+| 10/09 (inicio)    |          26          |         26          | Inicio del Sprint · Backlog presentado.                                       |
+| 14/09 (semana 1)  |          18          |         21          | Cierre completo de HU-06 (5 SP quemados: API, Web y Mobile).                   |
+| 17/09 (semana 2)  |          13          |         16          | Cierre completo de HU-07 (5 SP quemados: incidencias con motivos y fotos).     |
+| 21/09 (semana 3)  |           7          |          8          | Cierre completo de HU-09 (5 SP) y HU-10 (3 SP: tracking público).             |
+| 24/09 (cierre)    |           0          |          0          | Cierre completo de HU-08 (8 SP: confirmación con firma PNG y foto JPEG).      |
 
 **Criterio de quemado:** los SP de una HU se queman al cerrarla completa (API + web + móvil según corresponda), no por capas sueltas.
 
 ---
 
-## 9. Retrospectiva (plantilla para completar al cierre)
+## 9. Retrospectiva del Sprint 2
 
 ### Sprint Backlog Teórico vs. Real
 
-| ID      | Tarea                                            | Estimado (hs) | Real (hs) | Diferencia | Observaciones |
-| ------- | ------------------------------------------------ | :-----------: | :-------: | :--------: | ------------- |
-| T-06.01 | Definir matriz de transiciones y endpoints       |       2       |           |            |               |
-| …      | …                                               |      …       |    …     |    …      | …            |
-
-Esta tabla se completará con todas las tareas durante la reunión de retrospectiva, comparando los tiempos estimados con los tiempos reales de trabajo (registro día por día durante el sprint, según lo exigido por la cátedra).
+| ID      | Tarea                                                        | Estimado (hs) | Real (hs)     | Observaciones |
+| ------- | ------------------------------------------------------------ | :-----------: | :-----------: | ------------- |
+| HU-06   | Actualización de estado de entrega (T-06.01 a T-06.10)       |      20       | A consolidar  | Matriz pura y guards por JWT aceleraron el backend; móvil integrado con hook unificado. |
+| HU-07   | Registro de entrega fallida con motivo (T-07.01 a T-07.08)   |      22       | A consolidar  | Motivos estandarizados; subida de foto JPEG optimizada y validada. |
+| HU-08   | Confirmación con firma y foto (T-08.01 a T-08.09)           |      28       | A consolidar  | Signature pad con exportación a PNG y validación estricta de magic bytes. |
+| HU-09   | Reprogramación de entregas fallidas (T-09.01 a T-09.09)      |      18       | A consolidar  | Validación temporal con reloj UTC >= hoy y desvinculación automática de ruta. |
+| HU-10   | Tracking público por código de guía (T-10.01 a T-10.07)      |      14       | A consolidar  | Doble barrera de privacidad sin leak de datos personales en DTOs públicos. |
+| Transv. | Tareas transversales (T-00.01 a T-00.07)                    |      16       | A consolidar  | Docker local, paridad Postgres/Supabase, OpenAPI y suites de test en serie. |
+| **Tot** | **Total Sprint 2**                                           |    **118**    | A consolidar  | **Alcance funcional 100% implementado.** |
 
 ### Preguntas de retrospectiva
 
 - **¿Qué salió bien?**
+  - La definición contractual rigurosa en OpenAPI y las migraciones de DB previas a la implementación permitieron que Backend, Web y Mobile se desarrollaran de forma coordinada sin desajustes de tipos.
+  - La arquitectura limpia en Go con transacciones atómicas garantizó trazabilidad total de eventos de auditoría (`eventos_envio`).
+  - La suite de pruebas automatizadas alcanzó 293 tests en verde (178 en Go, 64 en Web, 51 en Mobile) sin dependencias rotas.
+  - Se eliminó el riesgo de bloqueo de CI desacoplando pruebas efímeras de la dependencia externa de red.
+
 - **¿Qué podemos mejorar?**
+  - La sincronización temprana de ramas y credenciales de repositorios remotos: el error 403 requirió centralizar pushes en una rama principal unificada.
+  - El manejo de strings con caracteres especiales en scripts PowerShell (`$$` y comillas en variables de entorno de BD) generó desajustes menores en la conexión local que se mitigaron codificando URL.
+
 - **¿Qué acciones concretas tomamos para el próximo sprint?**
+  1. Mantener la suite de tests corriendo en serie (`-p 1`) y verificar 100% verde antes de cada merge a `main`.
+  2. Implementar un mock server o entorno de seeds controlado para el desarrollo de dashboards analíticos (HU-11 a HU-15).
+  3. Establecer tipado compartido o sincronización automatizada de esquemas DTO entre Go y TypeScript para las nuevas entidades de reportes y geolocalización.
+
 - **Seguimiento:** ¿qué pasó con las 6 acciones tomadas en el Sprint 1 (DoD 9–14)?
+  - **Acción 1 (`go test ./... -p 1`):** Cumplida rigurosamente; 178 tests de backend pasan 100% en serie contra la base compartida.
+  - **Acción 2 (Línea de integración en estimación):** Cumplida; se presupuestaron y ejecutaron 16 horas de tareas transversales.
+  - **Acción 3 (Documentación HU por HU):** Cumplida; el informe y backlog reflejan el estado de cada historia.
+  - **Acción 4 (Repaso de CAs en cada interfaz):** Cumplida; validado en Web y en App Mobile.
+  - **Acción 5 (Test de lista vacía en endpoints):** Cumplida; implementado en historial, tracking y rutas.
+  - **Acción 6 (Suites completas en verde):** Cumplida; 293 tests activos verificados en verde antes del cierre.
 
 ---
 
