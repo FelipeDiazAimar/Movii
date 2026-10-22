@@ -4,9 +4,11 @@ on:
   push:
     paths:
       - "gestion-envios/services/api/**"
+      - ".github/workflows/api-ci.yml"
   pull_request:
     paths:
       - "gestion-envios/services/api/**"
+      - ".github/workflows/api-ci.yml"
 
 jobs:
   test:
@@ -14,8 +16,22 @@ jobs:
     defaults:
       run:
         working-directory: gestion-envios/services/api
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: movii_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d movii_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     env:
-      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      DATABASE_URL: postgres://postgres:postgres@localhost:5432/movii_test?sslmode=disable
       JWT_SECRET: ci-secret-de-pruebas
     steps:
       - uses: actions/checkout@v4
