@@ -2,6 +2,7 @@ import axios from "axios";
 import * as SecureStore from "expo-secure-store";
 import { Platform } from "react-native";
 
+import type { FranjaHoraria, MotivoFallo, RelacionReceptor, TrackingInfo } from "@/lib/seguimiento";
 import type { Shipment, ShipmentStatus } from "@/types/logistics";
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:8080";
@@ -174,4 +175,69 @@ export async function getEnviosDelDia(estado?: EstadoEnvioAPI): Promise<ResumenD
   // normaliza igual por si responde una version anterior que mandaba null:
   // con null la pantalla rompia y mostraba un error de conexion enganoso.
   return { ...data, rutas: data.rutas ?? [] };
+}
+
+// ---------- Sprint 2: seguimiento de la entrega (HU-06 a HU-10) ----------
+// Mismos endpoints que usa la web; la API valida pertenencia por el JWT (un
+// envío de otro repartidor responde 404) y la matriz de transiciones.
+
+/** HU-06: PUT /envios/{id}/estado (asignado ⇄ en_camino). */
+export async function actualizarEstadoEnvio(id: string, nuevoEstado: "asignado" | "en_camino"): Promise<void> {
+  await api.put(`/envios/${id}/estado`, { estado: nuevoEstado });
+}
+
+/** HU-07: POST /envios/{id}/incidencia → no_entregado. La foto va en base64 JPEG, sin prefijo data:. */
+export async function registrarIncidencia(
+  id: string,
+  data: { motivo: MotivoFallo; comentario?: string; foto_base64?: string },
+): Promise<void> {
+  await api.post(`/envios/${id}/incidencia`, data);
+}
+
+/** HU-08: POST /envios/{id}/confirmacion → entregado (firma PNG + foto JPEG en base64). */
+export async function confirmarEntrega(
+  id: string,
+  data: { receptor_nombre: string; receptor_relacion: RelacionReceptor; firma_base64: string; foto_base64: string },
+): Promise<void> {
+  // Dos imágenes de hasta 5 MB tardan más que el timeout por defecto en redes móviles.
+  await api.post(`/envios/${id}/confirmacion`, data, { timeout: 60000 });
+}
+
+/** HU-09: POST /envios/{id}/reprogramacion → pendiente (fecha ≥ hoy UTC, franja obligatoria). */
+export async function reprogramarEnvio(id: string, data: { nueva_fecha: string; franja: FranjaHoraria }): Promise<void> {
+  await api.post(`/envios/${id}/reprogramacion`, data);
+}
+
+/** HU-10: GET /tracking/{codigo}, público (no necesita sesión). */
+export async function consultarTracking(codigo: string): Promise<TrackingInfo> {
+  const { data } = await api.get<TrackingInfo>(`/tracking/${encodeURIComponent(codigo.trim())}`);
+  return { ...data, historial: data.historial ?? [] };
+}
+
+// ---------- Sprint 3: mapa de ruta (HU-12) ----------
+
+export type ParadaMapaAPI = {
+  orden: number;
+  envio_id: string;
+  codigo_guia: string;
+  estado: EstadoEnvioAPI;
+  destinatario_nombre: string;
+  direccion: string;
+  localidad: string;
+  /** null cuando la dirección no pudo geocodificarse. */
+  coordenadas: { lat: number; lng: number } | null;
+};
+
+export type MapaRutaAPI = {
+  ruta_id: string;
+  nombre: string;
+  fecha: string;
+  repartidor: { id: string; nombre: string };
+  paradas: ParadaMapaAPI[];
+};
+
+/** HU-12: GET /rutas/{id}/mapa (404 si la ruta no existe o es de otro repartidor). */
+export async function obtenerMapaRuta(rutaId: string): Promise<MapaRutaAPI> {
+  const { data } = await api.get<MapaRutaAPI>(`/rutas/${encodeURIComponent(rutaId)}/mapa`);
+  return { ...data, paradas: data.paradas ?? [] };
 }

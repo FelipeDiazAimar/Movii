@@ -97,6 +97,14 @@ const config: ExpoConfig = {
     "expo-status-bar",
     "expo-web-browser",
     [
+      "expo-image-picker",
+      {
+        cameraPermission: "Movii usa la cámara para registrar la evidencia de entrega y las incidencias.",
+        photosPermission: "Movii usa tus fotos para adjuntar evidencia de entrega y de incidencias.",
+        microphonePermission: false,
+      },
+    ],
+    [
       "expo-audio",
       {
         microphonePermission: "Allow $(PRODUCT_NAME) to access your microphone.",
