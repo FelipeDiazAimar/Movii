@@ -40,6 +40,8 @@ tags:
     description: Vista del repartidor autenticado
   - name: tracking
     description: Consulta pública por código de guía (sin login)
+  - name: analitica
+    description: Panel de operaciones, mapa de ruta y reportes (Sprint 3)
   - name: health
     description: Chequeo de disponibilidad
 
@@ -1228,6 +1230,7 @@ paths:
         emails, dirección exacta, nombre del repartidor ni datos internos:
         el repo de tracking selecciona solo columnas blancas.
       operationId: trackingPorCodigo
+      security: []
       parameters:
         - name: codigo
           in: path
@@ -1265,6 +1268,299 @@ paths:
                 error:
                   code: no_encontrado
                   message: no se encontró ningún envío con ese código
+        "500":
+          $ref: "#/components/responses/ErrorInterno"
+
+  /operaciones/dashboard:
+    get:
+      tags: [analitica]
+      summary: Panel de operaciones del día (HU-11)
+      description: |
+        Métricas, avance de rutas y últimas alertas de un día.
+
+        - Envíos del día: los que están en rutas de esa fecha, más los
+          pendientes sin ruta creados o reprogramados para ese día.
+        - `porcentaje_efectividad` = entregados / (entregados + no_entregados)
+          * 100, con 2 decimales; 0 si no hay intentos resueltos.
+        - `completadas` de cada ruta = entregadas + no entregadas.
+        - `ultimas_alertas`: hasta 10 incidencias del día, las más nuevas primero.
+        - Los arrays nunca son null (vacíos si no hay datos).
+
+        Requiere autenticación. **Rol requerido: operador, supervisor.**
+      operationId: dashboardOperaciones
+      x-required-role: [operador, supervisor]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: fecha
+          in: query
+          required: false
+          description: Fecha a consultar (YYYY-MM-DD). Por defecto, hoy (UTC).
+          schema:
+            type: string
+            example: "2026-09-09"
+      responses:
+        "200":
+          description: Panel del día.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardOperaciones"
+        "400":
+          description: La fecha no tiene formato YYYY-MM-DD (`fecha_invalida`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+              example:
+                error:
+                  code: fecha_invalida
+                  message: la fecha debe tener formato YYYY-MM-DD
+        "401":
+          $ref: "#/components/responses/NoAutenticado"
+        "403":
+          $ref: "#/components/responses/RolNoAutorizado"
+        "500":
+          $ref: "#/components/responses/ErrorInterno"
+
+  /rutas/{id}/mapa:
+    get:
+      tags: [analitica, rutas]
+      summary: Paradas de una ruta para el mapa (HU-12)
+      description: |
+        Paradas de la ruta con su orden y coordenadas. `coordenadas` es null
+        si el destino todavía no está geolocalizado.
+
+        Requiere autenticación. **Roles: repartidor (solo sus rutas; una
+        ruta ajena responde 404), operador, supervisor.**
+      operationId: getRutaMapa
+      x-required-role: [repartidor, operador, supervisor]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID de la ruta.
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Ruta con sus paradas.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RutaMapa"
+        "401":
+          $ref: "#/components/responses/NoAutenticado"
+        "403":
+          $ref: "#/components/responses/RolNoAutorizado"
+        "404":
+          description: La ruta no existe o no pertenece al repartidor (`no_encontrado`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+              example:
+                error:
+                  code: no_encontrado
+                  message: la ruta no existe
+        "500":
+          $ref: "#/components/responses/ErrorInterno"
+
+  /reportes/envios:
+    get:
+      tags: [analitica]
+      summary: Reporte de envíos, JSON o CSV (HU-13)
+      description: |
+        Envíos dados de alta entre `desde` y `hasta` (inclusive, UTC). Con
+        `formato=csv` devuelve un archivo UTF-8 con BOM, con
+        `Content-Disposition: attachment; filename="reporte_envios_YYYYMMDD_YYYYMMDD.csv"`
+        y columnas: Codigo Guia, Fecha Creacion, Remitente, Destinatario,
+        Direccion, Localidad, Estado Actual, Ultima Actualizacion, Motivo
+        Fallo. Las celdas que empiezan con `=`, `+`, `-` o `@` se prefijan
+        con `'` para evitar inyección de fórmulas.
+
+        Requiere autenticación. **Rol requerido: operador, supervisor.**
+      operationId: reporteEnvios
+      x-required-role: [operador, supervisor]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: desde
+          in: query
+          required: true
+          description: Inicio del período (YYYY-MM-DD).
+          schema:
+            type: string
+            example: "2026-09-01"
+        - name: hasta
+          in: query
+          required: true
+          description: Fin del período (YYYY-MM-DD), inclusive. Máximo 366 días desde `desde`.
+          schema:
+            type: string
+            example: "2026-09-30"
+        - name: estado
+          in: query
+          required: false
+          description: Filtra por estado actual del envío.
+          schema:
+            $ref: "#/components/schemas/EstadoEnvio"
+        - name: formato
+          in: query
+          required: false
+          description: Formato de salida. Por defecto `json`.
+          schema:
+            type: string
+            enum: [json, csv]
+            default: json
+      responses:
+        "200":
+          description: Reporte en el formato pedido.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReporteEnvios"
+            text/csv:
+              schema:
+                type: string
+        "400":
+          description: >
+            Período inválido (`periodo_invalido`: desde/hasta obligatorios en
+            YYYY-MM-DD, desde <= hasta, máximo 366 días), estado inexistente
+            (`estado_invalido`) o formato distinto de json/csv
+            (`formato_invalido`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+              examples:
+                periodo_invalido:
+                  value:
+                    error:
+                      code: periodo_invalido
+                      message: desde y hasta son obligatorios (YYYY-MM-DD), desde no puede ser posterior a hasta y el período no puede superar 366 días
+                estado_invalido:
+                  value:
+                    error:
+                      code: estado_invalido
+                      message: el estado indicado no existe
+                formato_invalido:
+                  value:
+                    error:
+                      code: formato_invalido
+                      message: el formato debe ser json o csv
+        "401":
+          $ref: "#/components/responses/NoAutenticado"
+        "403":
+          $ref: "#/components/responses/RolNoAutorizado"
+        "500":
+          $ref: "#/components/responses/ErrorInterno"
+
+  /reportes/repartidores:
+    get:
+      tags: [analitica]
+      summary: Ranking de desempeño de repartidores (HU-14)
+      description: |
+        Orden: `tasa_efectividad` desc, `entregados` desc, `nombre`.
+        `entregados` y `fallidos` son los eventos registrados por el propio
+        repartidor en el período; `asignados` = entregados + fallidos +
+        envíos aún en curso en sus rutas del período.
+
+        Requiere autenticación. **Rol requerido: operador, supervisor.**
+      operationId: reporteRepartidores
+      x-required-role: [operador, supervisor]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: desde
+          in: query
+          required: true
+          description: Inicio del período (YYYY-MM-DD).
+          schema:
+            type: string
+            example: "2026-09-01"
+        - name: hasta
+          in: query
+          required: true
+          description: Fin del período (YYYY-MM-DD), inclusive. Máximo 366 días desde `desde`.
+          schema:
+            type: string
+            example: "2026-09-30"
+      responses:
+        "200":
+          description: Ranking de repartidores.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RankingRepartidores"
+        "400":
+          description: Período inválido (`periodo_invalido`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+              example:
+                error:
+                  code: periodo_invalido
+                  message: desde y hasta son obligatorios (YYYY-MM-DD), desde no puede ser posterior a hasta y el período no puede superar 366 días
+        "401":
+          $ref: "#/components/responses/NoAutenticado"
+        "403":
+          $ref: "#/components/responses/RolNoAutorizado"
+        "500":
+          $ref: "#/components/responses/ErrorInterno"
+
+  /reportes/incidencias:
+    get:
+      tags: [analitica]
+      summary: Distribución de incidencias por motivo (HU-15)
+      description: |
+        Los 5 motivos siempre están presentes (incluso con cantidad 0),
+        ordenados de mayor a menor cantidad.
+
+        Requiere autenticación. **Rol requerido: operador, supervisor.**
+      operationId: reporteIncidencias
+      x-required-role: [operador, supervisor]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: desde
+          in: query
+          required: true
+          description: Inicio del período (YYYY-MM-DD).
+          schema:
+            type: string
+            example: "2026-09-01"
+        - name: hasta
+          in: query
+          required: true
+          description: Fin del período (YYYY-MM-DD), inclusive. Máximo 366 días desde `desde`.
+          schema:
+            type: string
+            example: "2026-09-30"
+      responses:
+        "200":
+          description: Distribución de incidencias.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReporteIncidencias"
+        "400":
+          description: Período inválido (`periodo_invalido`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+              example:
+                error:
+                  code: periodo_invalido
+                  message: desde y hasta son obligatorios (YYYY-MM-DD), desde no puede ser posterior a hasta y el período no puede superar 366 días
+        "401":
+          $ref: "#/components/responses/NoAutenticado"
+        "403":
+          $ref: "#/components/responses/RolNoAutorizado"
         "500":
           $ref: "#/components/responses/ErrorInterno"
 
@@ -1933,3 +2229,275 @@ components:
           items:
             $ref: "#/components/schemas/TrackingEvento"
       required: [codigo_guia, estado, localidad, actualizado_en, historial]
+
+    # ---- Sprint 3: analítica y mapas (HU-11 a HU-15) ----
+    MetricasDia:
+      type: object
+      description: Contadores del panel de operaciones.
+      properties:
+        total_envios:
+          type: integer
+        pendientes:
+          type: integer
+        asignados:
+          type: integer
+        en_camino:
+          type: integer
+        entregados:
+          type: integer
+        no_entregados:
+          type: integer
+        porcentaje_efectividad:
+          type: number
+          format: double
+          description: entregados / (entregados + no_entregados) * 100, 2 decimales; 0 si no hay intentos resueltos.
+      required: [total_envios, pendientes, asignados, en_camino, entregados, no_entregados, porcentaje_efectividad]
+
+    RutaActiva:
+      type: object
+      description: Avance de una ruta del día.
+      properties:
+        ruta_id:
+          type: string
+        nombre:
+          type: string
+        repartidor_nombre:
+          type: string
+        total_paradas:
+          type: integer
+        completadas:
+          type: integer
+          description: Entregadas + no entregadas.
+        porcentaje_avance:
+          type: number
+          format: double
+        estado_ruta:
+          $ref: "#/components/schemas/EstadoRuta"
+      required: [ruta_id, nombre, repartidor_nombre, total_paradas, completadas, porcentaje_avance, estado_ruta]
+
+    Alerta:
+      type: object
+      description: Incidencia reciente del día.
+      properties:
+        envio_id:
+          type: string
+        codigo_guia:
+          type: string
+        tipo:
+          type: string
+        descripcion:
+          type: string
+        fecha:
+          type: string
+          example: "2026-09-09T15:40:00Z"
+      required: [envio_id, codigo_guia, tipo, descripcion, fecha]
+
+    DashboardOperaciones:
+      type: object
+      description: Respuesta de GET /operaciones/dashboard.
+      properties:
+        fecha:
+          type: string
+          description: Fecha consultada, formato YYYY-MM-DD.
+        metricas:
+          $ref: "#/components/schemas/MetricasDia"
+        rutas_activas:
+          type: array
+          items:
+            $ref: "#/components/schemas/RutaActiva"
+        ultimas_alertas:
+          type: array
+          description: Hasta 10 incidencias del día, las más nuevas primero.
+          items:
+            $ref: "#/components/schemas/Alerta"
+      required: [fecha, metricas, rutas_activas, ultimas_alertas]
+
+    Coordenadas:
+      type: object
+      properties:
+        lat:
+          type: number
+          format: double
+        lng:
+          type: number
+          format: double
+      required: [lat, lng]
+
+    ParadaMapa:
+      type: object
+      description: Envío de la ruta ubicado en el mapa.
+      properties:
+        orden:
+          type: integer
+        envio_id:
+          type: string
+        codigo_guia:
+          type: string
+        estado:
+          $ref: "#/components/schemas/EstadoEnvio"
+        destinatario_nombre:
+          type: string
+        direccion:
+          type: string
+        localidad:
+          type: string
+        coordenadas:
+          type: object
+          allOf:
+            - $ref: "#/components/schemas/Coordenadas"
+          nullable: true
+          description: null si el destino todavía no está geolocalizado.
+      required: [orden, envio_id, codigo_guia, estado, destinatario_nombre, direccion, localidad, coordenadas]
+
+    RepartidorRef:
+      type: object
+      properties:
+        id:
+          type: string
+        nombre:
+          type: string
+      required: [id, nombre]
+
+    RutaMapa:
+      type: object
+      description: Respuesta de GET /rutas/{id}/mapa.
+      properties:
+        ruta_id:
+          type: string
+        nombre:
+          type: string
+        fecha:
+          type: string
+          description: Formato YYYY-MM-DD.
+        repartidor:
+          $ref: "#/components/schemas/RepartidorRef"
+        paradas:
+          type: array
+          items:
+            $ref: "#/components/schemas/ParadaMapa"
+      required: [ruta_id, nombre, fecha, repartidor, paradas]
+
+    Periodo:
+      type: object
+      description: Rango de fechas del reporte, ambos extremos inclusive (UTC).
+      properties:
+        desde:
+          type: string
+          description: Formato YYYY-MM-DD.
+        hasta:
+          type: string
+          description: Formato YYYY-MM-DD.
+      required: [desde, hasta]
+
+    FilaReporteEnvio:
+      type: object
+      properties:
+        codigo_guia:
+          type: string
+        fecha_creacion:
+          type: string
+        remitente:
+          type: string
+        destinatario:
+          type: string
+        direccion:
+          type: string
+        localidad:
+          type: string
+        estado:
+          $ref: "#/components/schemas/EstadoEnvio"
+        ultima_actualizacion:
+          type: string
+        motivo_fallo:
+          type: string
+          nullable: true
+          description: Motivo de la última incidencia; null si nunca falló.
+      required: [codigo_guia, fecha_creacion, remitente, destinatario, direccion, localidad, estado, ultima_actualizacion, motivo_fallo]
+
+    ReporteEnvios:
+      type: object
+      description: Respuesta JSON de GET /reportes/envios.
+      properties:
+        periodo:
+          $ref: "#/components/schemas/Periodo"
+        total:
+          type: integer
+        envios:
+          type: array
+          items:
+            $ref: "#/components/schemas/FilaReporteEnvio"
+      required: [periodo, total, envios]
+
+    DesempenoRepartidor:
+      type: object
+      properties:
+        posicion:
+          type: integer
+        repartidor_id:
+          type: string
+        nombre:
+          type: string
+        asignados:
+          type: integer
+          description: Entregados + fallidos + envíos aún en curso en sus rutas del período.
+        entregados:
+          type: integer
+          description: Eventos registrados por el propio repartidor en el período.
+        fallidos:
+          type: integer
+          description: Eventos registrados por el propio repartidor en el período.
+        tasa_efectividad:
+          type: number
+          format: double
+          description: Porcentaje con 2 decimales.
+        promedio_minutos_entrega:
+          type: number
+          format: double
+          nullable: true
+          description: >
+            Minutos promedio entre en_camino y entregado, 1 decimal. Excluye
+            la confirmación directa desde asignado; null si no hay entregas medibles.
+      required: [posicion, repartidor_id, nombre, asignados, entregados, fallidos, tasa_efectividad, promedio_minutos_entrega]
+
+    RankingRepartidores:
+      type: object
+      description: Respuesta de GET /reportes/repartidores.
+      properties:
+        periodo:
+          $ref: "#/components/schemas/Periodo"
+        ranking:
+          type: array
+          items:
+            $ref: "#/components/schemas/DesempenoRepartidor"
+      required: [periodo, ranking]
+
+    MotivoIncidencia:
+      type: object
+      properties:
+        motivo:
+          $ref: "#/components/schemas/MotivoFallo"
+        etiqueta:
+          type: string
+          example: Destinatario ausente
+        cantidad:
+          type: integer
+        porcentaje:
+          type: number
+          format: double
+          description: Porcentaje con 2 decimales.
+      required: [motivo, etiqueta, cantidad, porcentaje]
+
+    ReporteIncidencias:
+      type: object
+      description: Respuesta de GET /reportes/incidencias.
+      properties:
+        periodo:
+          $ref: "#/components/schemas/Periodo"
+        total_incidencias:
+          type: integer
+        distribucion:
+          type: array
+          description: Los 5 motivos siempre presentes, de mayor a menor cantidad.
+          items:
+            $ref: "#/components/schemas/MotivoIncidencia"
+      required: [periodo, total_incidencias, distribucion]

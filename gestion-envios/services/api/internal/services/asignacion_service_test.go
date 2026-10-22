@@ -61,7 +61,7 @@ func TestAsignacionService_AsignarYDesasignar(t *testing.T) {
 	rutaRepo := repository.NewRutaRepo(pool)
 
 	ruta, err := rutaRepo.Create(ctx, domain.Ruta{
-		Nombre: "Ruta Asig Test", Zona: "Centro", Fecha: time.Now().Format("2006-01-02"), RepartidorID: repartidorID,
+		Nombre: "Ruta Asig Test", Zona: "Centro", Fecha: time.Now().UTC().Format("2006-01-02"), RepartidorID: repartidorID,
 	})
 	require.NoError(t, err)
 	t.Cleanup(func() { _, _ = pool.Exec(ctx, "DELETE FROM rutas WHERE id = $1", ruta.ID) })
@@ -80,7 +80,7 @@ func TestAsignacionService_AsignarRechazaFechaVencida(t *testing.T) {
 	ctx := context.Background()
 	rutaRepo := repository.NewRutaRepo(pool)
 
-	ayer := time.Now().AddDate(0, 0, -1).Format("2006-01-02")
+	ayer := time.Now().UTC().AddDate(0, 0, -1).Format("2006-01-02")
 	ruta, err := rutaRepo.Create(ctx, domain.Ruta{
 		Nombre: "Ruta Vencida Test", Zona: "Centro", Fecha: ayer, RepartidorID: repartidorID,
 	})
@@ -99,7 +99,7 @@ func TestAsignacionService_DesasignarRechazaRutaNoPlanificada(t *testing.T) {
 	rutaRepo := repository.NewRutaRepo(pool)
 
 	ruta, err := rutaRepo.Create(ctx, domain.Ruta{
-		Nombre: "Ruta EnCurso Test", Zona: "Centro", Fecha: time.Now().Format("2006-01-02"), RepartidorID: repartidorID,
+		Nombre: "Ruta EnCurso Test", Zona: "Centro", Fecha: time.Now().UTC().Format("2006-01-02"), RepartidorID: repartidorID,
 	})
 	require.NoError(t, err)
 	t.Cleanup(func() { _, _ = pool.Exec(ctx, "DELETE FROM rutas WHERE id = $1", ruta.ID) })

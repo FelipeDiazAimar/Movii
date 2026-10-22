@@ -23,6 +23,9 @@ type Deps struct {
 	RepartidorHandler *handlers.RepartidorHandler
 	EstadoHandler     *handlers.EstadoHandler
 	TrackingHandler   *handlers.TrackingHandler
+	// Sprint 3
+	OperacionesHandler *handlers.OperacionesHandler
+	ReportesHandler    *handlers.ReportesHandler
 }
 
 // New arma el router HTTP completo de la API.
@@ -65,6 +68,8 @@ func New(deps Deps) http.Handler {
 		protected.Get("/envios/{id}/confirmacion/foto", deps.EstadoHandler.DescargarFoto)
 		protected.Get("/rutas", deps.RutaHandler.List)
 		protected.Get("/rutas/{id}", deps.RutaHandler.Detail)
+		// HU-12: los tres roles; el repartidor solo ve sus rutas (lo valida el service).
+		protected.Get("/rutas/{id}/mapa", deps.OperacionesHandler.MapaRuta)
 
 		protected.Group(func(operativo chi.Router) {
 			operativo.Use(middleware.RequireRole(domain.RolOperador, domain.RolSupervisor))
@@ -73,6 +78,11 @@ func New(deps Deps) http.Handler {
 			operativo.Put("/rutas/{id}", deps.RutaHandler.Update)
 			operativo.Post("/rutas/{id}/envios", deps.RutaHandler.AsignarEnvios)
 			operativo.Delete("/rutas/{id}/envios/{envioId}", deps.RutaHandler.DesasignarEnvio)
+			// Sprint 3: panel en vivo (HU-11) y reportes (HU-13/14/15).
+			operativo.Get("/operaciones/dashboard", deps.OperacionesHandler.Dashboard)
+			operativo.Get("/reportes/envios", deps.ReportesHandler.Envios)
+			operativo.Get("/reportes/repartidores", deps.ReportesHandler.Repartidores)
+			operativo.Get("/reportes/incidencias", deps.ReportesHandler.Incidencias)
 		})
 
 		protected.Group(func(repartidorOnly chi.Router) {

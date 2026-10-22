@@ -43,6 +43,8 @@ func main() {
 	repartidorService := services.NewRepartidorService(envioRepo)
 	estadoService := services.NewEstadoService(pool, envioRepo, eventoRepo, confirmacionRepo)
 	trackingService := services.NewTrackingService(repository.NewTrackingRepo(pool))
+	operacionesService := services.NewOperacionesService(repository.NewOperacionesRepo(pool))
+	reportesService := services.NewReportesService(repository.NewReportesRepo(pool))
 
 	router := httprouter.New(httprouter.Deps{
 		CORSOrigins:       cfg.CORSOrigins,
@@ -54,6 +56,8 @@ func main() {
 		RepartidorHandler: handlers.NewRepartidorHandler(repartidorService),
 		EstadoHandler:     handlers.NewEstadoHandler(estadoService),
 		TrackingHandler:   handlers.NewTrackingHandler(trackingService),
+		OperacionesHandler: handlers.NewOperacionesHandler(operacionesService),
+		ReportesHandler:    handlers.NewReportesHandler(reportesService),
 	})
 
 	log.Printf("API escuchando en :%s (env=%s)", cfg.Port, cfg.Env)

@@ -122,7 +122,7 @@ func TestRutaHandler_AsignarYDesasignarEnvios(t *testing.T) {
 	ctx := context.Background()
 
 	rutaRepo := repository.NewRutaRepo(pool)
-	ruta, err := rutaRepo.Create(ctx, domain.Ruta{Nombre: "Ruta Asig Handler", Zona: "Centro", Fecha: time.Now().Format("2006-01-02"), RepartidorID: repartidorID})
+	ruta, err := rutaRepo.Create(ctx, domain.Ruta{Nombre: "Ruta Asig Handler", Zona: "Centro", Fecha: time.Now().UTC().Format("2006-01-02"), RepartidorID: repartidorID})
 	require.NoError(t, err)
 	t.Cleanup(func() { _, _ = pool.Exec(ctx, "DELETE FROM rutas WHERE id = $1", ruta.ID) })
 
