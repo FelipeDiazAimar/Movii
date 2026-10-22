@@ -11,6 +11,8 @@ interface NavItem {
 const NAV_ITEMS: NavItem[] = [
   { to: "/envios", label: "Envíos" },
   { to: "/rutas", label: "Rutas" },
+  { to: "/dashboard", label: "Panel en vivo" },
+  { to: "/reportes", label: "Reportes" },
   { to: "/usuarios", label: "Usuarios", roles: ["supervisor"] },
 ];
 

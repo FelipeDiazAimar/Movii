@@ -1,21 +1,68 @@
-import { useState } from "react";
-import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { useEffect, useState } from "react";
+import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { router } from "expo-router";
+import MapView, { Callout, Marker, Polyline } from "react-native-maps";
 
 import { AppHeader } from "@/components/app-header";
 import { AuroraBackground } from "@/components/aurora-background";
 import { GlassCard, PrimaryButton } from "@/components/ui/movii-ui";
+import { obtenerMapaRuta, type MapaRutaAPI } from "@/lib/api-client";
+import { colorEstado, paradasConUbicacion, paradasSinUbicacion, regionInicial } from "@/lib/mapa-ruta";
 import { useMovii } from "@/lib/movii-context";
+import { esNoEncontrado, mensajeDeError } from "@/lib/seguimiento";
 
 function RouteArtwork({ full = false }: { full?: boolean }) {
   return <View style={full ? styles.mapFull : styles.mapGrid}><View style={styles.roadVertical} /><View style={styles.roadHorizontal} /><View style={styles.routeLine}><View style={styles.routeLineBend} /></View><View style={[styles.pin, styles.pinStart]}><Text style={styles.pinText}>A</Text></View><View style={[styles.pin, styles.pinMid]}><Text style={styles.pinText}>3</Text></View><View style={[styles.pin, styles.pinEnd]}><Text style={styles.pinText}>7</Text></View><View style={styles.car}><Text style={styles.carText}>▰</Text></View><View style={styles.mapLabel}><Text style={styles.mapLabelText}>MARTÍNEZ</Text></View></View>;
 }
 
-export default function RouteMapScreen() {
+function RouteMapMock() {
   const { shipments, activeDriverId } = useMovii();
   const [expanded, setExpanded] = useState(false);
   const stops = shipments.filter((shipment) => shipment.driverId === activeDriverId && shipment.code <= "MOV-2026-000780").slice(0, 5);
   return <View style={styles.page}><AuroraBackground style={StyleSheet.absoluteFill} /><AppHeader title="Ruta Norte 02" subtitle="10 paradas · 23,4 km" /><ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}><GlassCard style={styles.mapCard}><Pressable onPress={() => setExpanded(true)} style={({ pressed }) => [styles.mapPressable, pressed && styles.pressed]} accessibilityRole="button" accessibilityLabel="Ampliar mapa de ruta"><RouteArtwork /><View style={styles.expandPill}><Text style={styles.expandIcon}>⛶</Text><Text style={styles.expandText}>Ampliar mapa</Text></View></Pressable><View style={styles.legend}><View style={styles.legendItem}><View style={[styles.legendDot, { backgroundColor: "#1C1C1E" }]} /><Text style={styles.legendText}>Tu ubicación</Text></View><View style={styles.legendItem}><View style={[styles.legendDot, { backgroundColor: "#FFD60A" }]} /><Text style={styles.legendText}>Próxima parada</Text></View></View></GlassCard><Text style={styles.section}>Orden de paradas</Text><GlassCard style={styles.stopsCard}>{stops.map((shipment, index) => <Pressable key={shipment.id} onPress={() => router.push({ pathname: "/stop/[id]", params: { id: shipment.id } })} style={({ pressed }) => [styles.stopRow, pressed && styles.pressed]}><View style={[styles.order, index === 0 && styles.orderActive]}><Text style={styles.orderText}>{shipment.stopOrder}</Text></View><View style={styles.stopCopy}><Text style={styles.stopName}>{shipment.recipient.name}</Text><Text style={styles.stopAddress}>{shipment.recipient.address}, {shipment.recipient.locality}</Text></View><Text style={styles.chevron}>›</Text></Pressable>)}</GlassCard><PrimaryButton label="Volver a mi ruta" onPress={() => router.back()} /></ScrollView><Modal visible={expanded} animationType="fade" onRequestClose={() => setExpanded(false)}><View style={styles.modal}><RouteArtwork full /><View style={styles.modalTop}><Pressable onPress={() => setExpanded(false)} style={({ pressed }) => [styles.closeButton, pressed && styles.pressed]} accessibilityRole="button" accessibilityLabel="Cerrar mapa ampliado"><Text style={styles.closeText}>×</Text></Pressable><View style={styles.modalTitle}><Text style={styles.modalEyebrow}>RUTA NORTE 02</Text><Text style={styles.modalName}>Mapa de ruta</Text></View><View style={styles.modalDistance}><Text style={styles.modalDistanceText}>23,4 km</Text></View></View><View style={styles.modalBottom}><Text style={styles.modalNext}>Próxima parada</Text><Text style={styles.modalAddress}>{stops[0]?.recipient.address}, {stops[0]?.recipient.locality}</Text><PrimaryButton label="Ver detalle" onPress={() => { setExpanded(false); if (stops[0]) router.push({ pathname: "/stop/[id]", params: { id: stops[0].id } }); }} /></View></View></Modal></View>;
+}
+
+const irAParada = (envioId: string) => router.push({ pathname: "/stop/[id]", params: { id: envioId } });
+
+type EstadoMapa = { rutaId: string; mapa: MapaRutaAPI | null; error: string | null };
+
+function RouteMapReal({ rutas }: { rutas: { rutaId: string; rutaNombre: string }[] }) {
+  const [rutaId, setRutaId] = useState(rutas[0].rutaId);
+  const [resultado, setResultado] = useState<EstadoMapa | null>(null);
+
+  useEffect(() => {
+    let vigente = true;
+    obtenerMapaRuta(rutaId)
+      .then((mapa) => vigente && setResultado({ rutaId, mapa, error: null }))
+      .catch((e) => vigente && setResultado({ rutaId, mapa: null, error: esNoEncontrado(e) ? "La ruta no existe o no es tuya." : mensajeDeError(e, "No se pudo cargar el mapa.") }));
+    return () => { vigente = false; };
+  }, [rutaId]);
+
+  const actual = resultado?.rutaId === rutaId ? resultado : null;
+  const mapa = actual?.mapa ?? null;
+  const conUbicacion = mapa ? paradasConUbicacion(mapa) : [];
+  const region = regionInicial(conUbicacion);
+  const nombre = rutas.find((r) => r.rutaId === rutaId)?.rutaNombre ?? "Ruta";
+  return <View style={styles.page}><AuroraBackground style={StyleSheet.absoluteFill} /><AppHeader title={mapa?.nombre ?? nombre} subtitle={mapa ? `${mapa.paradas.length} paradas` : "Mapa de ruta"} /><ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+    {rutas.length > 1 && <View style={styles.legend}>{rutas.map((r) => <Pressable key={r.rutaId} onPress={() => setRutaId(r.rutaId)} style={[styles.order, { width: undefined, paddingHorizontal: 12 }, r.rutaId === rutaId && styles.orderActive]} accessibilityRole="button"><Text style={styles.orderText}>{r.rutaNombre}</Text></Pressable>)}</View>}
+    {!actual && <ActivityIndicator />}
+    {actual?.error && <GlassCard style={styles.mapCard}><Text style={styles.stopName}>{actual.error}</Text></GlassCard>}
+    {mapa && <>
+      <GlassCard style={styles.mapCard}>{region ? <MapView style={styles.mapGrid} initialRegion={region}>
+        <Polyline coordinates={conUbicacion.map((p) => ({ latitude: p.coordenadas.lat, longitude: p.coordenadas.lng }))} strokeColor="#FFD60A" strokeWidth={4} />
+        {conUbicacion.map((p) => <Marker key={p.envio_id} coordinate={{ latitude: p.coordenadas.lat, longitude: p.coordenadas.lng }} pinColor={colorEstado(p.estado)} title={`${p.orden}. ${p.destinatario_nombre}`} description={p.direccion} onCalloutPress={() => irAParada(p.envio_id)} onPress={() => irAParada(p.envio_id)}><View style={[styles.pin, { position: "relative", backgroundColor: colorEstado(p.estado) }]}><Text style={styles.pinText}>{p.orden}</Text></View><Callout tooltip={false}><Text style={styles.stopName}>{p.codigo_guia}</Text></Callout></Marker>)}
+      </MapView> : <Text style={styles.stopAddress}>Ninguna parada tiene ubicación geográfica.</Text>}</GlassCard>
+      <Text style={styles.section}>Orden de paradas</Text>
+      <GlassCard style={styles.stopsCard}>{mapa.paradas.map((p) => <Pressable key={p.envio_id} onPress={() => irAParada(p.envio_id)} style={({ pressed }) => [styles.stopRow, pressed && styles.pressed]}><View style={[styles.order, { backgroundColor: colorEstado(p.estado) }]}><Text style={styles.orderText}>{p.orden}</Text></View><View style={styles.stopCopy}><Text style={styles.stopName}>{p.codigo_guia} · {p.destinatario_nombre}</Text><Text style={styles.stopAddress}>{p.direccion}, {p.localidad}</Text>{paradasSinUbicacion(mapa).includes(p) && <Text style={styles.stopAddress}>Sin ubicación geográfica</Text>}</View><Text style={styles.chevron}>›</Text></Pressable>)}</GlassCard>
+    </>}
+    <PrimaryButton label="Volver a mi ruta" onPress={() => router.back()} /></ScrollView></View>;
+}
+
+export default function RouteMapScreen() {
+  const { rutasDelDia } = useMovii();
+  const reales = rutasDelDia.filter((r) => r.rutaId !== "ruta-demo-local");
+  // Sin backend (modo demo) se conserva la maqueta.
+  return reales.length > 0 ? <RouteMapReal rutas={reales} /> : <RouteMapMock />;
 }
 
 const styles = StyleSheet.create({

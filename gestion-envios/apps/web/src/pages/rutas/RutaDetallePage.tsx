@@ -67,6 +67,9 @@ export function RutaDetallePage() {
         <div className="mt-1 flex items-center gap-3">
           <h1 className="text-xl font-semibold text-gray-900">{ruta.nombre || "(sin nombre)"}</h1>
           <EstadoRutaBadge estado={ruta.estado} />
+          <Link to={`/rutas/${rutaId}/mapa`} className="text-sm text-movii-600 hover:underline">
+            Ver en mapa
+          </Link>
         </div>
       </div>
 
