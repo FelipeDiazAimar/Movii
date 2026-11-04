@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { obtenerEnvio } from "@/features/envios/api";
-import { AccionesEnvio } from "@/features/envios/AccionesEnvio";
+import { AccionesEnvio, accionesDisponibles } from "@/features/envios/AccionesEnvio";
 import { HistorialTimeline } from "@/features/envios/HistorialTimeline";
 import { formatearFecha } from "@/utils/fechas";
 import { Dato } from "@/components/ui/Dato";
@@ -13,7 +13,7 @@ import { Spinner } from "@/components/ui/Spinner";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { apiClient, getApiErrorMessage } from "@/services/api-client";
-import { PageHeader, PAGE_NARROW } from "@/components/ui/PageHeader";
+import { PageHeader, PAGE_WIDE } from "@/components/ui/PageHeader";
 
 const FRANJA_LABELS: Record<string, string> = {
   manana: "mañana",
@@ -107,9 +107,10 @@ export function EnvioDetallePage() {
   if (!envio) return null;
 
   return (
-    <div className={PAGE_NARROW}>
+    <div className={PAGE_WIDE}>
       <PageHeader back={{ to: "/envios", label: "Volver a envíos" }} title={envio.codigo_guia} badge={<EstadoEnvioBadge estado={envio.estado} />} />
 
+      <div className="grid gap-4 lg:grid-cols-3">
       <Card>
         <h2 className="mb-3 text-sm font-semibold text-gray-900">Destinatario</h2>
         <dl className="grid grid-cols-2 gap-4">
@@ -136,25 +137,11 @@ export function EnvioDetallePage() {
         </dl>
       </Card>
 
-      {envio.reprogramado_para && (
-        <Card>
-          <h2 className="mb-3 text-sm font-semibold text-gray-900">Reprogramación</h2>
-          <dl>
-            <Dato
-              label="Nuevo compromiso"
-              value={`Comprometido para ${envio.reprogramado_para} (${FRANJA_LABELS[envio.franja ?? ""] ?? envio.franja ?? "—"})`}
-            />
-          </dl>
-        </Card>
-      )}
-
       <AsignacionCard envio={envio} />
+      </div>
 
-      <Card>
-        <h2 className="mb-3 text-sm font-semibold text-gray-900">Acciones</h2>
-        <AccionesEnvio envioId={envio.id} estado={envio.estado} />
-      </Card>
-
+      <div className="grid items-start gap-4 lg:grid-cols-3">
+        <div className="flex flex-col gap-4 lg:col-span-2">
       <Card>
         <h2 className="mb-3 text-sm font-semibold text-gray-900">Historial</h2>
         <HistorialTimeline eventos={envio.historial} envioId={envio.id} />
@@ -171,6 +158,28 @@ export function EnvioDetallePage() {
           <EvidenciaEntrega firmaUrl={envio.confirmacion.firma_url} fotoUrl={envio.confirmacion.foto_url} />
         </Card>
       )}
+        </div>
+        <div className="flex flex-col gap-4">
+      {envio.reprogramado_para && (
+        <Card>
+          <h2 className="mb-3 text-sm font-semibold text-gray-900">Reprogramación</h2>
+          <dl>
+            <Dato
+              label="Nuevo compromiso"
+              value={`Comprometido para ${envio.reprogramado_para} (${FRANJA_LABELS[envio.franja ?? ""] ?? envio.franja ?? "—"})`}
+            />
+          </dl>
+        </Card>
+      )}
+
+      {accionesDisponibles(envio.estado).length > 0 && (
+        <Card>
+          <h2 className="mb-3 text-sm font-semibold text-gray-900">Acciones</h2>
+          <AccionesEnvio envioId={envio.id} estado={envio.estado} />
+        </Card>
+      )}
+        </div>
+      </div>
     </div>
   );
 }

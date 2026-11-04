@@ -4,9 +4,11 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 
+	"movii/api/internal/domain"
 	httpx "movii/api/internal/platform/http"
 	"movii/api/internal/repository"
 	"movii/api/internal/services"
@@ -114,7 +116,7 @@ func (h *EnvioHandler) List(w http.ResponseWriter, r *http.Request) {
 		resp = append(resp, envioListItemResponse{
 			ID: e.ID, CodigoGuia: e.CodigoGuia, Estado: e.Estado, Peso: e.Peso, Tamano: e.Tamano,
 			Destinatario:  e.Destinatario.Nombre,
-			Direccion:     e.Destinatario.Calle + " " + e.Destinatario.Numero + ", " + e.Destinatario.Localidad,
+			Direccion:     direccionLegible(e.Destinatario),
 			FechaCreacion: e.FechaCreacion,
 			RutaID:        e.RutaID,
 			RutaNombre:    e.RutaNombre, RepartidorNombre: e.RepartidorNombre,
@@ -136,4 +138,14 @@ func (h *EnvioHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 	default:
 		httpx.WriteError(w, http.StatusInternalServerError, "error_interno", "no se pudo obtener el envío")
 	}
+}
+
+// direccionLegible arma "Calle 123, Localidad" salteando las partes vacías
+// (el número es opcional y dejaba "Mitre , San Francisco").
+func direccionLegible(d domain.Destinatario) string {
+	calle := strings.TrimSpace(d.Calle + " " + d.Numero)
+	if d.Localidad == "" {
+		return calle
+	}
+	return calle + ", " + d.Localidad
 }

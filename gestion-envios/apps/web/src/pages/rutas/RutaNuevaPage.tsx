@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { RutaForm } from "@/features/rutas/RutaForm";
 import { crearRuta } from "@/features/rutas/api";
@@ -10,6 +10,8 @@ import { PageHeader, PAGE_NARROW } from "@/components/ui/PageHeader";
 
 export function RutaNuevaPage() {
   const navigate = useNavigate();
+  const [params] = useSearchParams();
+  const repartidorInicial = params.get("repartidor") ?? "";
   const queryClient = useQueryClient();
   const [enviando, setEnviando] = useState(false);
   const [errorServidor, setErrorServidor] = useState<string | null>(null);
@@ -32,7 +34,9 @@ export function RutaNuevaPage() {
     <div className={PAGE_NARROW}>
       <PageHeader title="Nueva ruta" description="La ruta se crea en estado planificada." />
       <Card>
-        <RutaForm onSubmit={handleSubmit} enviando={enviando} errorServidor={errorServidor} textoBoton="Crear ruta" />
+        <RutaForm
+          valoresIniciales={{ nombre: "", zona: "", fecha: "", repartidor_id: repartidorInicial }}
+          onSubmit={handleSubmit} enviando={enviando} errorServidor={errorServidor} textoBoton="Crear ruta" />
       </Card>
     </div>
   );

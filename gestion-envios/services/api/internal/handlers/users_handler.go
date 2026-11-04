@@ -45,3 +45,26 @@ func (h *UsuariosHandler) List(w http.ResponseWriter, r *http.Request) {
 	}
 	httpx.WriteJSON(w, http.StatusOK, resp)
 }
+
+type repartidorResponse struct {
+	ID     string `json:"id"`
+	Nombre string `json:"nombre"`
+}
+
+// Repartidores maneja GET /repartidores: repartidores activos (solo id y nombre)
+// para armar rutas. A diferencia de GET /users, lo pueden ver operadores.
+func (h *UsuariosHandler) Repartidores(w http.ResponseWriter, r *http.Request) {
+	usuarios, err := h.repo.List(r.Context())
+	if err != nil {
+		httpx.WriteError(w, http.StatusInternalServerError, "error_interno", "no se pudo obtener la lista de repartidores")
+		return
+	}
+
+	resp := make([]repartidorResponse, 0)
+	for _, u := range usuarios {
+		if u.Rol == domain.RolRepartidor && u.Activo {
+			resp = append(resp, repartidorResponse{ID: u.ID, Nombre: u.Nombre})
+		}
+	}
+	httpx.WriteJSON(w, http.StatusOK, resp)
+}

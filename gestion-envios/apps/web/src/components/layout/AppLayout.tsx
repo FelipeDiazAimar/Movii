@@ -11,6 +11,7 @@ interface NavItem {
 const NAV_ITEMS: NavItem[] = [
   { to: "/envios", label: "Envíos" },
   { to: "/rutas", label: "Rutas" },
+{ to: "/repartidores", label: "Repartidores" },
   { to: "/usuarios", label: "Usuarios", roles: ["supervisor"] },
 ];
 
@@ -22,7 +23,7 @@ export function AppLayout() {
 
   return (
     <div className="flex min-h-screen">
-      <aside className="flex w-44 shrink-0 md:w-60 flex-col border-r border-gray-200 bg-movii-900 text-white">
+      <aside className="sticky top-0 flex h-screen w-44 shrink-0 md:w-60 flex-col border-r border-gray-200 bg-movii-900 text-white">
         <div className="flex items-center gap-2 px-5 py-5">
           <span className="flex h-8 w-8 items-center justify-center rounded-md bg-movii-500 font-bold text-movii-900">M</span>
           <span className="text-lg font-semibold">Movii</span>
@@ -47,15 +48,18 @@ export function AppLayout() {
             href={import.meta.env.VITE_REPARTIDOR_URL ?? "/app/"}
             target="_blank"
             rel="noreferrer"
-            className="block rounded-md px-3 py-2 text-sm font-medium text-gray-200 transition-colors hover:bg-white/10"
+            className="flex items-center justify-between rounded-md px-3 py-2 text-sm font-medium text-gray-200 transition-colors hover:bg-white/10"
           >
-            Panel del repartidor ↗
+            Panel del repartidor
+            <svg className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+              <path d="M11 3h6v6M17 3l-8 8M8 5H4v11h11v-4" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
           </a>
         </div>
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex items-center justify-between border-b border-gray-200 bg-white px-6 py-3">
+        <header className="sticky top-0 z-10 flex items-center justify-between border-b border-gray-200 bg-white px-6 py-3">
           <div className="text-sm text-gray-500">
             Panel del operador logístico
           </div>

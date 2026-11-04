@@ -69,6 +69,7 @@ func New(deps Deps) http.Handler {
 
 		protected.Group(func(operativo chi.Router) {
 			operativo.Use(middleware.RequireRole(domain.RolOperador, domain.RolSupervisor))
+			operativo.Get("/repartidores", deps.UsuariosHandler.Repartidores)
 			operativo.Post("/envios", deps.EnvioHandler.Create)
 			operativo.Post("/rutas", deps.RutaHandler.Create)
 			operativo.Put("/rutas/{id}", deps.RutaHandler.Update)

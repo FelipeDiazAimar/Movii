@@ -12,6 +12,8 @@ import { EnvioDetallePage } from "@/pages/envios/EnvioDetallePage";
 import { RutasListPage } from "@/pages/rutas/RutasListPage";
 import { RutaNuevaPage } from "@/pages/rutas/RutaNuevaPage";
 import { RutaDetallePage } from "@/pages/rutas/RutaDetallePage";
+import { RepartidoresListPage } from "@/pages/repartidores/RepartidoresListPage";
+import { RepartidorDetallePage } from "@/pages/repartidores/RepartidorDetallePage";
 import { UsuariosListPage } from "@/pages/usuarios/UsuariosListPage";
 import { UsuarioNuevoPage } from "@/pages/usuarios/UsuarioNuevoPage";
 
@@ -36,6 +38,9 @@ export function App() {
               <Route path="rutas" element={<RutasListPage />} />
               <Route path="rutas/nueva" element={<RutaNuevaPage />} />
               <Route path="rutas/:id" element={<RutaDetallePage />} />
+
+              <Route path="repartidores" element={<RepartidoresListPage />} />
+              <Route path="repartidores/:id" element={<RepartidorDetallePage />} />
 
               <Route element={<ProtectedRoute allow={["supervisor"]} />}>
                 <Route path="usuarios" element={<UsuariosListPage />} />

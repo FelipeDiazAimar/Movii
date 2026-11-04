@@ -3,21 +3,27 @@ import { router } from "expo-router";
 
 import { AuroraBackground } from "@/components/aurora-background";
 import { GlassCard, PrimaryButton } from "@/components/ui/movii-ui";
-import { getDriver } from "@/mock/shipments";
+import { contadoresDelDia } from "@/lib/envios-del-dia";
 import { useMovii } from "@/lib/movii-context";
 
 export default function ProfileScreen() {
-  const { activeDriverId, logout } = useMovii();
-  const driver = getDriver(activeDriverId);
+  const { driverName, rutasDelDia, resumenDelDia, logout } = useMovii();
+  const partes = driverName.trim().split(/\s+/).filter(Boolean);
+  const nombreCompleto = partes.map((p) => p.charAt(0).toUpperCase() + p.slice(1)).join(" ");
+  const iniciales = partes.slice(0, 2).map((p) => p.charAt(0).toUpperCase()).join("");
+  const { total, entregados, noEntregados, pendientes } = contadoresDelDia(resumenDelDia);
+  const cerrados = entregados + noEntregados;
+  const efectividad = cerrados > 0 ? Math.round((entregados / cerrados) * 100) : 0;
+  const rutaTexto = rutasDelDia.length === 0 ? "Sin ruta hoy" : rutasDelDia.length === 1 ? rutasDelDia[0].rutaNombre : `${rutasDelDia.length} rutas hoy`;
+  const driver = { initials: iniciales, name: nombreCompleto, zone: rutaTexto, deliveriesToday: entregados, successRate: efectividad };
   return (
     <View style={styles.page}>
       <AuroraBackground style={StyleSheet.absoluteFill} />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <Text style={styles.eyebrow}>TU CUENTA</Text><Text style={styles.title}>Perfil</Text>
-        <GlassCard style={styles.profileCard}><View style={styles.avatar}><Text style={styles.avatarText}>{driver.initials}</Text></View><View style={styles.profileCopy}><Text style={styles.name}>{driver.name}</Text><Text style={styles.detail}>Repartidor · {driver.zone}</Text><View style={styles.online}><View style={styles.onlineDot} /><Text style={styles.onlineText}>En ruta</Text></View></View></GlassCard>
+        <GlassCard style={styles.profileCard}><View style={styles.avatar}><Text style={styles.avatarText}>{driver.initials}</Text></View><View style={styles.profileCopy}><Text style={styles.name}>{driver.name}</Text><Text style={styles.detail}>Repartidor · {driver.zone}</Text><View style={styles.online}><View style={styles.onlineDot} /><Text style={styles.onlineText}>{pendientes} pendientes de {total}</Text></View></View></GlassCard>
         <Text style={styles.section}>Rendimiento de hoy</Text>
         <View style={styles.metrics}><GlassCard style={styles.metric}><Text style={styles.metricNumber}>{driver.deliveriesToday}</Text><Text style={styles.metricLabel}>entregas</Text></GlassCard><GlassCard style={styles.metric}><Text style={styles.metricNumber}>{driver.successRate}%</Text><Text style={styles.metricLabel}>efectividad</Text></GlassCard></View>
-        <Text style={styles.section}>Preferencias</Text>
         
         <PrimaryButton label="Cerrar sesión" tone="secondary" onPress={() => { logout(); router.replace("/login"); }} />
       </ScrollView>

@@ -13,3 +13,14 @@ export async function listarUsuarios(): Promise<Usuario[]> {
   const { data } = await apiClient.get<Usuario[]>("/users");
   return data;
 }
+
+export interface RepartidorOpcion {
+  id: string;
+  nombre: string;
+}
+
+/** Repartidores activos para elegir en una ruta; disponible para operadores (GET /users es solo supervisor). */
+export async function listarRepartidores(): Promise<RepartidorOpcion[]> {
+  const { data } = await apiClient.get<RepartidorOpcion[]>("/repartidores");
+  return data;
+}

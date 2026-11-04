@@ -11,8 +11,9 @@ const filters: { key: "todos" | ShipmentStatus; label: string }[] = [{ key: "tod
 
 export default function HistoryScreen() {
   const [filter, setFilter] = useState<(typeof filters)[number]["key"]>("todos");
-  const { shipments, activeDriverId } = useMovii();
-  const items = useMemo(() => shipments.filter((shipment) => shipment.driverId === activeDriverId && (filter === "todos" || shipment.status === filter) && shipment.code > "MOV-2026-000800"), [shipments, activeDriverId, filter]);
+  const { enviosDelDia } = useMovii();
+  // Solo lo ya cerrado hoy (entregado / no entregado), con datos reales de la API.
+  const items = useMemo(() => enviosDelDia.filter((shipment) => (shipment.status === "entregado" || shipment.status === "no_entregado") && (filter === "todos" || shipment.status === filter)), [enviosDelDia, filter]);
   return (
     <View style={styles.page}>
       <AuroraBackground style={StyleSheet.absoluteFill} />
@@ -20,9 +21,9 @@ export default function HistoryScreen() {
         data={items}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.content}
-        ListHeaderComponent={<View style={styles.header}><Text style={styles.eyebrow}>JORNADAS ANTERIORES</Text><Text style={styles.title}>Historial</Text><Text style={styles.subtitle}>Tus entregas e incidencias resueltas.</Text><View style={styles.filters}>{filters.map((entry) => <Pressable key={entry.key} onPress={() => setFilter(entry.key)} style={[styles.filter, filter === entry.key && styles.filterActive]}><Text style={[styles.filterText, filter === entry.key && styles.filterTextActive]}>{entry.label}</Text></Pressable>)}</View></View>}
+        ListHeaderComponent={<View style={styles.header}><Text style={styles.eyebrow}>CERRADOS HOY</Text><Text style={styles.title}>Historial</Text><Text style={styles.subtitle}>Entregas e incidencias de tu jornada.</Text><View style={styles.filters}>{filters.map((entry) => <Pressable key={entry.key} onPress={() => setFilter(entry.key)} style={[styles.filter, filter === entry.key && styles.filterActive]}><Text style={[styles.filterText, filter === entry.key && styles.filterTextActive]}>{entry.label}</Text></Pressable>)}</View></View>}
         renderItem={({ item }) => <Pressable onPress={() => router.push({ pathname: "/stop/[id]", params: { id: item.id } })} style={({ pressed }) => [styles.item, pressed && styles.pressed]}><View style={styles.itemHead}><Text style={styles.itemName}>{item.recipient.name}</Text><StatusBadge status={item.status} /></View><Text style={styles.itemAddress}>{item.recipient.address}, {item.recipient.locality}</Text><View style={styles.itemFoot}><Text style={styles.itemCode}>{item.code}</Text><Text style={styles.itemDate}>{item.estimatedDate}</Text></View></Pressable>}
-        ListEmptyComponent={<View style={styles.empty}><Text style={styles.emptyTitle}>No hay resultados</Text><Text style={styles.emptyCopy}>Probá con otro filtro para ver tus entregas.</Text></View>}
+        ListEmptyComponent={<View style={styles.empty}><Text style={styles.emptyTitle}>No hay resultados</Text><Text style={styles.emptyCopy}>Todavía no cerraste ninguna entrega hoy.</Text></View>}
       />
     </View>
   );

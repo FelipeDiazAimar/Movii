@@ -11,7 +11,7 @@ import { Spinner } from "@/components/ui/Spinner";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { getApiErrorMessage } from "@/services/api-client";
-import { PageHeader, PAGE_NARROW } from "@/components/ui/PageHeader";
+import { PageHeader, PAGE_WIDE } from "@/components/ui/PageHeader";
 import { Dato } from "@/components/ui/Dato";
 import { formatearDia } from "@/utils/fechas";
 
@@ -64,10 +64,11 @@ export function RutaDetallePage() {
   const enReparto = ruta.envios.some((e) => e.estado !== "asignado");
 
   return (
-    <div className={PAGE_NARROW}>
+    <div className={PAGE_WIDE}>
       <PageHeader back={{ to: "/rutas", label: "Volver a rutas" }} title={ruta.nombre || "(sin nombre)"} badge={<EstadoRutaBadge estado={ruta.estado} />} />
 
-      <Card>
+      <div className="grid gap-4 lg:grid-cols-4">
+      <Card className="lg:col-span-2">
         {editando ? (
           <RutaForm
             valoresIniciales={{
@@ -97,6 +98,11 @@ export function RutaDetallePage() {
             )}
           </div>
         )}
+        {esPlanificada && enReparto && !editando && (
+          <p className="mt-3 text-xs text-gray-500">
+            Hay envíos en reparto o ya cerrados: no se puede cambiar el repartidor ni quitar esos envíos.
+          </p>
+        )}
         {!esPlanificada && !editando && (
           <p className="mt-3 text-xs text-gray-500">
             La ruta ya no está planificada: no se puede editar ni reasignar envíos.
@@ -104,7 +110,7 @@ export function RutaDetallePage() {
         )}
       </Card>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="contents">
         <Card>
           <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Envíos asignados</p>
           <p className="text-2xl font-semibold text-gray-900">{ruta.cantidad_envios}</p>
@@ -114,8 +120,11 @@ export function RutaDetallePage() {
           <p className="text-2xl font-semibold text-gray-900">{ruta.peso_total} kg</p>
         </Card>
       </div>
+      </div>
 
-      <Card>
+      <div className="grid gap-4 lg:grid-cols-3">
+
+      <Card className={asignando && esPlanificada ? "lg:col-span-2" : "lg:col-span-3"}>
         <div className="mb-3 flex items-center justify-between">
           <h2 className="text-sm font-semibold text-gray-900">Envíos de la ruta</h2>
           {esPlanificada && (
@@ -182,6 +191,7 @@ export function RutaDetallePage() {
           <AsignarEnviosPanel rutaId={rutaId} onAsignado={() => setAsignando(false)} />
         </Card>
       )}
+      </div>
     </div>
   );
 }

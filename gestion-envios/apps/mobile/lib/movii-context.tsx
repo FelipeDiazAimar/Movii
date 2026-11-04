@@ -1,8 +1,8 @@
-import { createContext, useContext, useMemo, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 
 import { allSeedShipments, drivers } from "@/mock/shipments";
 import type { Shipment, ShipmentStatus } from "@/types/logistics";
-import { login as apiLogin, logout as apiLogout, getEnviosDelDia, type EstadoEnvioAPI, type ResumenDelDiaAPI } from "@/lib/api-client";
+import { login as apiLogin, logout as apiLogout, getEnviosDelDia, getToken, decodeJwt, type EstadoEnvioAPI, type ResumenDelDiaAPI } from "@/lib/api-client";
 import { agruparEnviosPorRuta, type RutaDelDia } from "@/lib/envios-del-dia";
 
 type PrototypeRole = "repartidor" | "operador" | null;
@@ -10,6 +10,8 @@ type PrototypeRole = "repartidor" | "operador" | null;
 export type { RutaDelDia };
 
 type MoviiContextValue = {
+  /** false mientras se intenta restaurar la sesión guardada (token) al abrir la app. */
+  sesionLista: boolean;
   role: PrototypeRole;
   driverName: string;
   shipments: Shipment[];
@@ -32,6 +34,7 @@ type MoviiContextValue = {
 const MoviiContext = createContext<MoviiContextValue | undefined>(undefined);
 
 export function MoviiProvider({ children }: { children: ReactNode }) {
+  const [sesionLista, setSesionLista] = useState(false);
   const [role, setRole] = useState<PrototypeRole>(null);
   const [driverName, setDriverName] = useState("");
   const [shipments, setShipments] = useState<Shipment[]>(allSeedShipments);
@@ -62,6 +65,28 @@ export function MoviiProvider({ children }: { children: ReactNode }) {
       setCargandoEnviosDelDia(false);
     }
   };
+
+  // Restaura la sesión si hay un token vigente guardado (al recargar la página o reabrir la app).
+  useEffect(() => {
+    (async () => {
+      try {
+        const token = await getToken();
+        if (token) {
+          const claims = decodeJwt(token);
+          if (claims.exp * 1000 > Date.now() && claims.rol === "repartidor") {
+            setRole("repartidor");
+            setDriverName(claims.nombre ?? "");
+            await recargarEnviosDelDia();
+          }
+        }
+      } catch {
+        // token ilegible: se pide login de nuevo
+      } finally {
+        setSesionLista(true);
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const login = async (email: string, password: string) => {
     const claims = await apiLogin(email, password);
@@ -108,6 +133,7 @@ export function MoviiProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo<MoviiContextValue>(
     () => ({
+      sesionLista,
       role,
       driverName,
       shipments,
@@ -128,7 +154,7 @@ export function MoviiProvider({ children }: { children: ReactNode }) {
       updateShipment,
       setShipmentStatus,
     }),
-    [role, driverName, shipments, enviosDelDia, rutasDelDia, resumenDelDia, filtroEstado, cargandoEnviosDelDia, errorEnviosDelDia],
+    [sesionLista, role, driverName, shipments, enviosDelDia, rutasDelDia, resumenDelDia, filtroEstado, cargandoEnviosDelDia, errorEnviosDelDia],
   );
 
   return <MoviiContext.Provider value={value}>{children}</MoviiContext.Provider>;

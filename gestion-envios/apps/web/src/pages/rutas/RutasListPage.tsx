@@ -52,38 +52,36 @@ export function RutasListPage() {
       )}
 
       {data && data.length > 0 && (
-        <Card className="overflow-x-auto p-0">
-          <table className="min-w-full divide-y divide-gray-200 text-sm">
-            <thead className="bg-gray-50 text-left text-xs font-medium uppercase tracking-wide text-gray-500">
-              <tr>
-                <th className="px-4 py-3">Nombre</th>
-                <th className="px-4 py-3">Zona</th>
-                <th className="px-4 py-3">Fecha</th>
-                <th className="px-4 py-3">Repartidor</th>
-                <th className="px-4 py-3">Envíos</th>
-                <th className="px-4 py-3">Estado</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {data.map((ruta) => (
-                <tr key={ruta.id} className="hover:bg-gray-50">
-                  <td className="px-4 py-3 font-medium text-gray-900">
-                    <Link to={`/rutas/${ruta.id}`} className="hover:text-movii-600 hover:underline">
-                      {ruta.nombre || "(sin nombre)"}
-                    </Link>
-                  </td>
-                  <td className="px-4 py-3 text-gray-700">{ruta.zona || "—"}</td>
-                  <td className="px-4 py-3 text-gray-500">{formatearDia(ruta.fecha)}</td>
-                  <td className="px-4 py-3 text-gray-700">{ruta.repartidor_nombre ?? "—"}</td>
-                  <td className="px-4 py-3 text-gray-700">{ruta.cantidad_envios}</td>
-                  <td className="px-4 py-3">
-                    <EstadoRutaBadge estado={ruta.estado} />
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </Card>
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          {data.map((ruta) => (
+            <Link key={ruta.id} to={`/rutas/${ruta.id}`} className="block">
+              <Card className="flex h-full flex-col gap-4 transition-shadow hover:shadow-md">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <h2 className="text-base font-semibold text-gray-900">{ruta.nombre || "(sin nombre)"}</h2>
+                    <p className="text-sm text-gray-500">
+                      {ruta.zona || "Sin zona"} · {formatearDia(ruta.fecha)}
+                    </p>
+                  </div>
+                  <EstadoRutaBadge estado={ruta.estado} />
+                </div>
+                <div className="flex items-center gap-3 border-t border-gray-100 pt-3">
+                  <span className="flex h-9 w-9 items-center justify-center rounded-full bg-movii-500 text-sm font-bold text-movii-900">
+                    {(ruta.repartidor_nombre ?? "?").charAt(0).toUpperCase()}
+                  </span>
+                  <div className="flex-1">
+                    <p className="text-xs uppercase tracking-wide text-gray-500">Repartidor</p>
+                    <p className="text-sm font-medium text-gray-900">{ruta.repartidor_nombre ?? "Sin asignar"}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-2xl font-semibold text-gray-900">{ruta.cantidad_envios}</p>
+                    <p className="text-xs text-gray-500">{ruta.cantidad_envios === 1 ? "envío" : "envíos"}</p>
+                  </div>
+                </div>
+              </Card>
+            </Link>
+          ))}
+        </div>
       )}
     </div>
   );
