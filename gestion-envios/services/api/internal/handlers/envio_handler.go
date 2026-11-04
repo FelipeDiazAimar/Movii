@@ -85,15 +85,17 @@ func (h *EnvioHandler) Create(w http.ResponseWriter, r *http.Request) {
 }
 
 type envioListItemResponse struct {
-	ID            string  `json:"id"`
-	CodigoGuia    string  `json:"codigo_guia"`
-	Estado        string  `json:"estado"`
-	Peso          float64 `json:"peso"`
-	Tamano        string  `json:"tamano"`
-	Destinatario  string  `json:"destinatario"`
-	Direccion     string  `json:"direccion"`
-	FechaCreacion string  `json:"fecha_creacion"`
-	RutaID        *string `json:"ruta_id"`
+	ID               string  `json:"id"`
+	CodigoGuia       string  `json:"codigo_guia"`
+	Estado           string  `json:"estado"`
+	Peso             float64 `json:"peso"`
+	Tamano           string  `json:"tamano"`
+	Destinatario     string  `json:"destinatario"`
+	Direccion        string  `json:"direccion"`
+	FechaCreacion    string  `json:"fecha_creacion"`
+	RutaID           *string `json:"ruta_id"`
+	RutaNombre       string  `json:"ruta_nombre,omitempty"`
+	RepartidorNombre string  `json:"repartidor_nombre,omitempty"`
 }
 
 // List maneja GET /envios?estado=&fecha=.
@@ -115,6 +117,7 @@ func (h *EnvioHandler) List(w http.ResponseWriter, r *http.Request) {
 			Direccion:     e.Destinatario.Calle + " " + e.Destinatario.Numero + ", " + e.Destinatario.Localidad,
 			FechaCreacion: e.FechaCreacion,
 			RutaID:        e.RutaID,
+			RutaNombre:    e.RutaNombre, RepartidorNombre: e.RepartidorNombre,
 		})
 	}
 	httpx.WriteJSON(w, http.StatusOK, resp)

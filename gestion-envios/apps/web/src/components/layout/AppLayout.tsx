@@ -42,6 +42,16 @@ export function AppLayout() {
             </NavLink>
           ))}
         </nav>
+        <div className="border-t border-white/10 p-3">
+          <a
+            href={import.meta.env.VITE_REPARTIDOR_URL ?? "/app/"}
+            target="_blank"
+            rel="noreferrer"
+            className="block rounded-md px-3 py-2 text-sm font-medium text-gray-200 transition-colors hover:bg-white/10"
+          >
+            Panel del repartidor ↗
+          </a>
+        </div>
       </aside>
 
       <div className="flex flex-1 flex-col">

@@ -137,13 +137,14 @@ export function EnvioDetallePage() {
             value={
               envio.ruta_id ? (
                 <Link to={`/rutas/${envio.ruta_id}`} className="text-movii-600 hover:underline">
-                  Ver ruta asignada
+                  {envio.ruta_nombre || "Ver ruta asignada"}
                 </Link>
               ) : (
                 "Sin asignar"
               )
             }
           />
+          <Dato label="Repartidor" value={envio.repartidor_nombre || (envio.ruta_id ? "—" : "Se define al asignar una ruta")} />
         </dl>
       </Card>
 

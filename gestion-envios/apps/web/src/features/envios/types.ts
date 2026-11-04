@@ -14,6 +14,8 @@ export interface EnvioListItem {
   direccion: string;
   fecha_creacion: string;
   ruta_id: string | null;
+  ruta_nombre?: string;
+  repartidor_nombre?: string;
 }
 
 export interface Destinatario {
@@ -39,6 +41,8 @@ export interface EnvioDetalle {
   remitente_id: string;
   destinatario_id: string;
   ruta_id: string | null;
+  ruta_nombre?: string;
+  repartidor_nombre?: string;
   destinatario: Destinatario;
   fecha_creacion: string;
   historial: EventoEnvio[];

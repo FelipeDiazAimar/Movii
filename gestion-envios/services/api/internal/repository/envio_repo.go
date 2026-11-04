@@ -64,9 +64,12 @@ func (r *EnvioRepo) List(ctx context.Context, estado, fecha string) ([]domain.En
 		SELECT e.id, e.codigo_guia, e.estado, e.peso, e.tamano, e.tipo_contenido, e.fragil, e.urgente,
 		       e.remitente_id, e.destinatario_id, e.ruta_id,
 		       d.id, d.nombre, d.telefono, d.calle, d.numero, COALESCE(d.piso_depto, ''), d.localidad, d.codigo_postal,
-		       to_char(e.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"')
+		       to_char(e.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"'),
+		       COALESCE(ru.nombre, ''), COALESCE(u.nombre, '')
 		FROM envios e
 		JOIN destinatarios d ON d.id = e.destinatario_id
+		LEFT JOIN rutas ru ON ru.id = e.ruta_id
+		LEFT JOIN usuarios u ON u.id = ru.repartidor_id
 		WHERE ($1 = '' OR e.estado::text = $1)
 		  AND ($2 = '' OR e.created_at::date = $2::date OR e.reprogramado_para = $2::date)
 		ORDER BY e.created_at DESC
@@ -84,7 +87,7 @@ func (r *EnvioRepo) List(ctx context.Context, estado, fecha string) ([]domain.En
 			&e.RemitenteID, &e.DestinatarioID, &rutaID,
 			&e.Destinatario.ID, &e.Destinatario.Nombre, &e.Destinatario.Telefono, &e.Destinatario.Calle,
 			&e.Destinatario.Numero, &e.Destinatario.PisoDepto, &e.Destinatario.Localidad, &e.Destinatario.CodigoPostal,
-			&e.FechaCreacion,
+			&e.FechaCreacion, &e.RutaNombre, &e.RepartidorNombre,
 		); err != nil {
 			return nil, err
 		}
@@ -103,9 +106,12 @@ func (r *EnvioRepo) GetByID(ctx context.Context, id string) (domain.EnvioConDeta
 		SELECT e.id, e.codigo_guia, e.estado, e.peso, e.tamano, e.tipo_contenido, e.fragil, e.urgente,
 		       e.remitente_id, e.destinatario_id, e.ruta_id,
 		       d.id, d.nombre, d.telefono, d.calle, d.numero, COALESCE(d.piso_depto, ''), d.localidad, d.codigo_postal,
-		       to_char(e.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"')
+		       to_char(e.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"'),
+		       COALESCE(ru.nombre, ''), COALESCE(u.nombre, '')
 		FROM envios e
 		JOIN destinatarios d ON d.id = e.destinatario_id
+		LEFT JOIN rutas ru ON ru.id = e.ruta_id
+		LEFT JOIN usuarios u ON u.id = ru.repartidor_id
 		WHERE e.id = $1
 	`, id)
 
@@ -115,7 +121,7 @@ func (r *EnvioRepo) GetByID(ctx context.Context, id string) (domain.EnvioConDeta
 		&e.RemitenteID, &e.DestinatarioID, &rutaID,
 		&e.Destinatario.ID, &e.Destinatario.Nombre, &e.Destinatario.Telefono, &e.Destinatario.Calle,
 		&e.Destinatario.Numero, &e.Destinatario.PisoDepto, &e.Destinatario.Localidad, &e.Destinatario.CodigoPostal,
-		&e.FechaCreacion,
+		&e.FechaCreacion, &e.RutaNombre, &e.RepartidorNombre,
 	)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return domain.EnvioConDetalle{}, ErrNoEncontrado

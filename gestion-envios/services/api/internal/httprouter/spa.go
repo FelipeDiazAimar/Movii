@@ -7,25 +7,35 @@ import (
 	"strings"
 )
 
-// WithSPA sirve la web compilada (webDir) desde el mismo proceso Go: la API
-// queda bajo /api y cualquier otra ruta devuelve el archivo estático o, si no
-// existe, index.html (rutas del lado del cliente como /tracking/MOV-...).
-func WithSPA(api http.Handler, webDir string) http.Handler {
-	files := http.FileServer(http.Dir(webDir))
+// WithSPA sirve la web compilada desde el mismo proceso Go:
+//   - /api/*  → la API (con el prefijo removido)
+//   - /app/*  → panel del repartidor (app Expo exportada para web), si appDir != ""
+//   - el resto → panel de operaciones (webDir), con fallback a index.html para
+//     las rutas del lado del cliente (p. ej. /tracking/MOV-...).
+func WithSPA(api http.Handler, webDir, appDir string) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/api" || strings.HasPrefix(r.URL.Path, "/api/") {
+		p := r.URL.Path
+		switch {
+		case p == "/api" || strings.HasPrefix(p, "/api/"):
 			http.StripPrefix("/api", api).ServeHTTP(w, r)
-			return
-		}
-		if r.URL.Path == "/health" {
+		case p == "/health":
 			api.ServeHTTP(w, r)
-			return
+		case appDir != "" && p == "/app":
+			http.Redirect(w, r, "/app/", http.StatusMovedPermanently)
+		case appDir != "" && strings.HasPrefix(p, "/app/"):
+			serveSPA(w, r, appDir, strings.TrimPrefix(p, "/app"))
+		default:
+			serveSPA(w, r, webDir, p)
 		}
-		p := filepath.Join(webDir, filepath.Clean("/"+r.URL.Path))
-		if st, err := os.Stat(p); err != nil || st.IsDir() {
-			http.ServeFile(w, r, filepath.Join(webDir, "index.html"))
-			return
-		}
-		files.ServeHTTP(w, r)
 	})
+}
+
+// serveSPA devuelve el archivo estático pedido o index.html si no existe.
+func serveSPA(w http.ResponseWriter, r *http.Request, dir, urlPath string) {
+	file := filepath.Join(dir, filepath.Clean("/"+urlPath))
+	if st, err := os.Stat(file); err != nil || st.IsDir() {
+		http.ServeFile(w, r, filepath.Join(dir, "index.html"))
+		return
+	}
+	http.ServeFile(w, r, file)
 }

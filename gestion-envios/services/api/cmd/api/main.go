@@ -59,7 +59,7 @@ func main() {
 
 	var handler http.Handler = router
 	if webDir := os.Getenv("WEB_DIR"); webDir != "" {
-		handler = httprouter.WithSPA(router, webDir) // web + API en un solo servicio
+		handler = httprouter.WithSPA(router, webDir, os.Getenv("APP_DIR")) // web + API en un solo servicio
 	}
 
 	log.Printf("API escuchando en :%s (env=%s)", cfg.Port, cfg.Env)

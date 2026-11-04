@@ -85,7 +85,8 @@ const config: ExpoConfig = {
   },
   web: {
     bundler: "metro",
-    output: "static",
+    // Con EXPO_BASE_URL (build servido por la API Go en /app) se exporta como SPA única.
+    output: process.env.EXPO_BASE_URL ? "single" : "static",
     favicon: "./assets/images/favicon.png",
   },
   plugins: [
@@ -142,6 +143,7 @@ const config: ExpoConfig = {
   experiments: {
     typedRoutes: true,
     reactCompiler: true,
+    ...(process.env.EXPO_BASE_URL ? { baseUrl: process.env.EXPO_BASE_URL } : {}),
   },
 };
 

@@ -84,6 +84,8 @@ export function EnviosListPage() {
                 <th className="px-4 py-3">Destinatario</th>
                 <th className="px-4 py-3">Dirección</th>
                 <th className="px-4 py-3">Peso</th>
+                <th className="px-4 py-3">Ruta</th>
+                <th className="px-4 py-3">Repartidor</th>
                 <th className="px-4 py-3">Estado</th>
                 <th className="px-4 py-3">Alta</th>
               </tr>
@@ -99,6 +101,16 @@ export function EnviosListPage() {
                   <td className="px-4 py-3 text-gray-700">{envio.destinatario}</td>
                   <td className="px-4 py-3 text-gray-500">{envio.direccion}</td>
                   <td className="px-4 py-3 text-gray-700">{envio.peso} kg</td>
+                  <td className="px-4 py-3 text-gray-700">
+                    {envio.ruta_id ? (
+                      <Link to={`/rutas/${envio.ruta_id}`} className="hover:text-movii-600 hover:underline">
+                        {envio.ruta_nombre || "Ver ruta"}
+                      </Link>
+                    ) : (
+                      "—"
+                    )}
+                  </td>
+                  <td className="px-4 py-3 text-gray-700">{envio.repartidor_nombre || "—"}</td>
                   <td className="px-4 py-3">
                     <EstadoEnvioBadge estado={envio.estado} />
                   </td>

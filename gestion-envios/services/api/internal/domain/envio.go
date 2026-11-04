@@ -42,6 +42,9 @@ type EnvioConDetalle struct {
 	Envio
 	Destinatario  Destinatario `json:"destinatario"`
 	FechaCreacion string       `json:"fecha_creacion"`
+	// Ruta y repartidor asignados (vacíos si el envío no tiene ruta): envío → ruta → repartidor.
+	RutaNombre       string `json:"ruta_nombre,omitempty"`
+	RepartidorNombre string `json:"repartidor_nombre,omitempty"`
 }
 
 // EnvioDetalle es el detalle extendido del Sprint 2 (Task 5, HU-06/HU-07):
