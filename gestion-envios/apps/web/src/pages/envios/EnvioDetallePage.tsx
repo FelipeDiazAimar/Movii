@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { obtenerEnvio } from "@/features/envios/api";
 import { AccionesEnvio } from "@/features/envios/AccionesEnvio";
 import { HistorialTimeline } from "@/features/envios/HistorialTimeline";
 import { formatearFecha } from "@/utils/fechas";
 import { Dato } from "@/components/ui/Dato";
+import { AsignacionCard } from "@/features/envios/AsignacionCard";
 import { EstadoEnvioBadge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
 import { Spinner } from "@/components/ui/Spinner";
@@ -132,19 +133,6 @@ export function EnvioDetallePage() {
           <Dato label="Contenido" value={envio.tipo_contenido || "—"} />
           <Dato label="Frágil / Urgente" value={`${envio.fragil ? "Sí" : "No"} / ${envio.urgente ? "Sí" : "No"}`} />
           <Dato label="Fecha de alta" value={formatearFecha(envio.fecha_creacion)} />
-          <Dato
-            label="Ruta"
-            value={
-              envio.ruta_id ? (
-                <Link to={`/rutas/${envio.ruta_id}`} className="text-movii-600 hover:underline">
-                  {envio.ruta_nombre || "Ver ruta asignada"}
-                </Link>
-              ) : (
-                "Sin asignar"
-              )
-            }
-          />
-          <Dato label="Repartidor" value={envio.repartidor_nombre || (envio.ruta_id ? "—" : "Se define al asignar una ruta")} />
         </dl>
       </Card>
 
@@ -159,6 +147,8 @@ export function EnvioDetallePage() {
           </dl>
         </Card>
       )}
+
+      <AsignacionCard envio={envio} />
 
       <Card>
         <h2 className="mb-3 text-sm font-semibold text-gray-900">Acciones</h2>

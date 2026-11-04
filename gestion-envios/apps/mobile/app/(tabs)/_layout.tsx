@@ -20,7 +20,6 @@ export default function TabLayout() {
       <Tabs.Screen name="index" options={{ title: "Ruta", tabBarIcon: ({ color, focused }) => <MaterialIcons name="route" size={23} color={focused ? "#B28C00" : color} /> }} />
       <Tabs.Screen name="history" options={{ title: "Historial", tabBarIcon: ({ color, focused }) => <MaterialIcons name="history" size={23} color={focused ? "#B28C00" : color} /> }} />
       <Tabs.Screen name="profile" options={{ title: "Perfil", tabBarIcon: ({ color, focused }) => <MaterialIcons name="person-outline" size={24} color={focused ? "#B28C00" : color} /> }} />
-      <Tabs.Screen name="design" options={{ title: "Sistema", tabBarIcon: ({ color, focused }) => <MaterialIcons name="palette" size={22} color={focused ? "#B28C00" : color} /> }} />
     </Tabs>
   );
 }

@@ -1,4 +1,4 @@
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { router } from "expo-router";
 
 import { AuroraBackground } from "@/components/aurora-background";
@@ -18,7 +18,7 @@ export default function ProfileScreen() {
         <Text style={styles.section}>Rendimiento de hoy</Text>
         <View style={styles.metrics}><GlassCard style={styles.metric}><Text style={styles.metricNumber}>{driver.deliveriesToday}</Text><Text style={styles.metricLabel}>entregas</Text></GlassCard><GlassCard style={styles.metric}><Text style={styles.metricNumber}>{driver.successRate}%</Text><Text style={styles.metricLabel}>efectividad</Text></GlassCard></View>
         <Text style={styles.section}>Preferencias</Text>
-        <GlassCard style={styles.settings}><Pressable onPress={() => router.push("/(tabs)/design")} style={styles.settingRow}><Text style={styles.settingIcon}>◌</Text><View style={styles.settingCopy}><Text style={styles.settingTitle}>Sistema de diseño</Text><Text style={styles.settingSub}>Colores y componentes</Text></View><Text style={styles.chevron}>›</Text></Pressable></GlassCard>
+        
         <PrimaryButton label="Cerrar sesión" tone="secondary" onPress={() => { logout(); router.replace("/login"); }} />
       </ScrollView>
     </View>
