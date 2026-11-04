@@ -3,6 +3,8 @@ import { Link } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { EnvioForm } from "@/features/envios/EnvioForm";
 import { crearEnvio } from "@/features/envios/api";
+import { asignarEnvios } from "@/features/rutas/api";
+import type { RutaListItem } from "@/features/rutas/types";
 import type { CrearEnvioInput, CrearEnvioResponse } from "@/features/envios/types";
 import { getApiErrorMessage } from "@/services/api-client";
 import { Card } from "@/components/ui/Card";
@@ -14,6 +16,7 @@ export function EnvioNuevoPage() {
   const [enviando, setEnviando] = useState(false);
   const [errorServidor, setErrorServidor] = useState<string | null>(null);
   const [creado, setCreado] = useState<CrearEnvioResponse | null>(null);
+  const [rutaAsignada, setRutaAsignada] = useState<string | null>(null);
   const [copiado, setCopiado] = useState<string | null>(null);
 
   async function copiar(texto: string, clave: string) {
@@ -26,13 +29,27 @@ export function EnvioNuevoPage() {
     }
   }
 
-  async function handleSubmit(input: CrearEnvioInput) {
+  async function handleSubmit(input: CrearEnvioInput, rutaId: string) {
     setEnviando(true);
     setErrorServidor(null);
     try {
       const envio = await crearEnvio(input);
-      await queryClient.invalidateQueries({ queryKey: ["envios"] });
+      let asignada: string | null = null;
+      if (rutaId) {
+        try {
+          await asignarEnvios(rutaId, [envio.id]);
+          const ruta = queryClient.getQueryData<RutaListItem[]>(["rutas", { fecha: undefined }])?.find((r) => r.id === rutaId);
+          asignada = ruta ? `${ruta.nombre} (${ruta.repartidor_nombre ?? "sin repartidor"})` : "la ruta elegida";
+        } catch (err) {
+          setErrorServidor(`El envío se registró, pero no se pudo asignar a la ruta: ${getApiErrorMessage(err, "error desconocido")}. Asignalo desde su detalle.`);
+        }
+      }
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["envios"] }),
+        queryClient.invalidateQueries({ queryKey: ["rutas"] }),
+      ]);
       setCreado(envio);
+      setRutaAsignada(asignada);
     } catch (err) {
       setErrorServidor(getApiErrorMessage(err, "No se pudo registrar el envío"));
     } finally {
@@ -50,6 +67,7 @@ export function EnvioNuevoPage() {
             <span>
               Envío registrado. Código de guía para el cliente: <strong data-testid="codigo-creado">{creado.codigo_guia}</strong>
             </span>
+            {rutaAsignada && <span className="text-xs">Asignado a la ruta: {rutaAsignada}</span>}
             <span className="break-all text-xs">
               Seguimiento: {`${window.location.origin}/tracking/${creado.codigo_guia}`}
             </span>
@@ -73,7 +91,7 @@ export function EnvioNuevoPage() {
       )}
 
       <Card>
-        <EnvioForm onSubmit={handleSubmit} enviando={enviando} errorServidor={errorServidor} />
+        <EnvioForm key={creado?.id ?? "nuevo"} onSubmit={handleSubmit} enviando={enviando} errorServidor={errorServidor} />
       </Card>
     </div>
   );

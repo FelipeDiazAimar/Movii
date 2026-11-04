@@ -1,4 +1,7 @@
 import { useState, type FormEvent } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { listarRutas } from "@/features/rutas/api";
+import { formatearDia } from "@/utils/fechas";
 import { Button } from "@/components/ui/Button";
 import { InputField, SelectField } from "@/components/ui/Field";
 import { Alert } from "@/components/ui/Alert";
@@ -7,7 +10,8 @@ import { TAMANOS } from "./types";
 import type { CrearEnvioInput } from "./types";
 
 interface Props {
-  onSubmit: (input: CrearEnvioInput) => Promise<void>;
+  /** rutaId vacío = el envío queda pendiente, sin ruta (la asignación es opcional). */
+  onSubmit: (input: CrearEnvioInput, rutaId: string) => Promise<void>;
   enviando: boolean;
   errorServidor: string | null;
 }
@@ -24,6 +28,9 @@ function valoresIniciales(): RawValues {
 export function EnvioForm({ onSubmit, enviando, errorServidor }: Props) {
   const [valores, setValores] = useState<RawValues>(valoresIniciales());
   const [errores, setErrores] = useState<Record<string, string>>({});
+  const [rutaId, setRutaId] = useState("");
+  const { data: rutas } = useQuery({ queryKey: ["rutas", { fecha: undefined }], queryFn: () => listarRutas({}) });
+  const planificadas = (rutas ?? []).filter((r) => r.estado === "planificada");
 
   function setCampo<K extends keyof RawValues>(campo: K, valor: RawValues[K]) {
     setValores((prev) => ({ ...prev, [campo]: valor }));
@@ -66,7 +73,7 @@ export function EnvioForm({ onSubmit, enviando, errorServidor }: Props) {
         fragil: v.fragil,
         urgente: v.urgente,
       },
-    });
+    }, rutaId);
   }
 
   return (
@@ -218,6 +225,26 @@ export function EnvioForm({ onSubmit, enviando, errorServidor }: Props) {
             />
             Urgente
           </label>
+        </div>
+      </fieldset>
+
+      <fieldset className="flex flex-col gap-3">
+        <legend className="mb-1 text-sm font-semibold text-gray-900">Asignación (opcional)</legend>
+        <div className="max-w-md">
+          <SelectField
+            label="Ruta"
+            name="rutaId"
+            value={rutaId}
+            onChange={(e) => setRutaId(e.target.value)}
+            hint="Si la elegís, el envío queda asignado al repartidor de esa ruta. Si no, queda pendiente y lo asignás después."
+          >
+            <option value="">Sin asignar por ahora</option>
+            {planificadas.map((r) => (
+              <option key={r.id} value={r.id}>
+                {r.nombre} · {formatearDia(r.fecha)} · {r.repartidor_nombre ?? "sin repartidor"}
+              </option>
+            ))}
+          </SelectField>
         </div>
       </fieldset>
 
