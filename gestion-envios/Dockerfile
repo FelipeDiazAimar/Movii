@@ -7,7 +7,7 @@ COPY apps/web/ ./
 ENV VITE_API_URL=/api
 RUN npm run build
 
-FROM golang:1.25-alpine AS api
+FROM golang:1.27-alpine AS api
 WORKDIR /src
 COPY services/api/go.mod services/api/go.sum ./
 RUN go mod download
