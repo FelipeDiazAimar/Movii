@@ -67,7 +67,7 @@ export function MoviiProvider({ children }: { children: ReactNode }) {
     const claims = await apiLogin(email, password);
     const rolValido: PrototypeRole = claims.rol === "repartidor" || claims.rol === "operador" ? claims.rol : null;
     setRole(rolValido);
-    setDriverName(email.split("@")[0]);
+    setDriverName(claims.nombre ?? email.split("@")[0]);
 
     if (rolValido === "repartidor") {
       await recargarEnviosDelDia();

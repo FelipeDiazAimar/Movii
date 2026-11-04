@@ -20,7 +20,7 @@ function run(cmd, args, cwd, env = {}) {
 }
 
 if (!process.argv.includes("--skip-build")) {
-  run(npx, ["vite", "build"], web, { VITE_API_URL: "/api" });
+  run(npx, ["vite", "build"], web, { VITE_API_URL: "/api", VITE_REPARTIDOR_URL: "/app/" });
   run(npx, ["expo", "export", "-p", "web", "--output-dir", "dist-web"], mobile, {
     EXPO_BASE_URL: "/app",
     EXPO_PUBLIC_API_URL: "/api",

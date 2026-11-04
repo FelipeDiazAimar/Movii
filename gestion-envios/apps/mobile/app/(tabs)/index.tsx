@@ -70,8 +70,9 @@ export default function RouteScreen() {
     recargarEnviosDelDia,
     driverName,
   } = useMovii();
-  const nombre = driverName ? driverName.charAt(0).toUpperCase() + driverName.slice(1) : "";
-  const driver = { name: nombre, initials: nombre.slice(0, 2).toUpperCase() };
+  const partes = driverName.trim().split(/\s+/).filter(Boolean);
+  const nombre = partes[0] ? partes[0].charAt(0).toUpperCase() + partes[0].slice(1) : "";
+  const driver = { name: nombre, initials: partes.slice(0, 2).map((p) => p.charAt(0).toUpperCase()).join("") };
 
   // CA-03: una sección por ruta. El filtro de CA-04 se aplica dentro de cada
   // ruta y las rutas que quedan sin envíos no se muestran.

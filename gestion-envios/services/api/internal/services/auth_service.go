@@ -110,6 +110,7 @@ func (s *AuthService) Login(ctx context.Context, email, password string) (string
 	claims := jwt.MapClaims{
 		"sub": u.ID,
 		"rol": u.Rol,
+		"nombre": u.Nombre,
 		"exp": time.Now().Add(24 * time.Hour).Unix(),
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)

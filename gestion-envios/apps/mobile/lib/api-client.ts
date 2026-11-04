@@ -23,6 +23,7 @@ api.interceptors.request.use(async (config) => {
 export type ClaimsJWT = {
   sub: string;
   rol: string;
+  nombre?: string;
   exp: number;
 };
 
