@@ -22,6 +22,7 @@ export function App() {
         <Routes>
           <Route path="/login" element={<LoginPage />} />
           <Route path="/tracking" element={<TrackingPage />} />
+          <Route path="/tracking/:codigo" element={<TrackingPage />} />
           <Route path="/acceso-denegado" element={<AccesoDenegadoPage />} />
 
           <Route element={<ProtectedRoute allow={["operador", "supervisor"]} />}>

@@ -18,8 +18,6 @@ export default function RootLayout() {
           <Stack.Screen name="delivery/[id]" options={{ presentation: "modal" }} />
           <Stack.Screen name="failure/[id]" options={{ presentation: "modal" }} />
           <Stack.Screen name="reschedule/[id]" options={{ presentation: "modal" }} />
-          <Stack.Screen name="tracking" options={{ animation: "slide_from_bottom" }} />
-          <Stack.Screen name="tracking/[code]" options={{ animation: "slide_from_right" }} />
         </Stack>
       </MoviiProvider>
     </ThemeProvider>

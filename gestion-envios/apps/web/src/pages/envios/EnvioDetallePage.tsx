@@ -3,7 +3,7 @@ import { Link, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { obtenerEnvio } from "@/features/envios/api";
 import { AccionesEnvio } from "@/features/envios/AccionesEnvio";
-import { HistorialTimeline } from "@/features/envios/HistorialTimeline";
+import { HistorialTimeline, formatearFecha } from "@/features/envios/HistorialTimeline";
 import { EstadoEnvioBadge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
 import { Spinner } from "@/components/ui/Spinner";
@@ -145,7 +145,7 @@ export function EnvioDetallePage() {
           <Dato label="Tamaño" value={envio.tamano} />
           <Dato label="Contenido" value={envio.tipo_contenido || "—"} />
           <Dato label="Frágil / Urgente" value={`${envio.fragil ? "Sí" : "No"} / ${envio.urgente ? "Sí" : "No"}`} />
-          <Dato label="Fecha de alta" value={envio.fecha_creacion} />
+          <Dato label="Fecha de alta" value={formatearFecha(envio.fecha_creacion)} />
           <Dato
             label="Ruta"
             value={

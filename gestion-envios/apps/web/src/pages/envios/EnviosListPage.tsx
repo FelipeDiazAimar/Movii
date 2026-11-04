@@ -1,3 +1,4 @@
+import { formatearFecha } from "@/features/envios/HistorialTimeline";
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
@@ -100,7 +101,7 @@ export function EnviosListPage() {
                   <td className="px-4 py-3">
                     <EstadoEnvioBadge estado={envio.estado} />
                   </td>
-                  <td className="px-4 py-3 text-gray-500">{envio.fecha_creacion}</td>
+                  <td className="px-4 py-3 text-gray-500">{formatearFecha(envio.fecha_creacion)}</td>
                 </tr>
               ))}
             </tbody>

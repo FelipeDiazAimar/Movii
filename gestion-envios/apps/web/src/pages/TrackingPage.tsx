@@ -1,9 +1,9 @@
 import { useState, type FormEvent } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { obtenerTracking } from "@/features/envios/api";
 import { trackingCodigoSchema } from "@/features/envios/schema";
-import { HistorialTimeline } from "@/features/envios/HistorialTimeline";
+import { HistorialTimeline, formatearFecha } from "@/features/envios/HistorialTimeline";
 import { getApiErrorMessage } from "@/services/api-client";
 import { Button } from "@/components/ui/Button";
 import { InputField } from "@/components/ui/Field";
@@ -13,9 +13,14 @@ import { Card, EmptyState } from "@/components/ui/Card";
 import { EstadoEnvioBadge } from "@/components/ui/Badge";
 
 export function TrackingPage() {
-  const [codigo, setCodigo] = useState("");
+  const { codigo: codigoUrl } = useParams();
+  const navigate = useNavigate();
+  const [codigo, setCodigo] = useState(codigoUrl ?? "");
   const [errorLocal, setErrorLocal] = useState<string | null>(null);
-  const [buscado, setBuscado] = useState<string | null>(null);
+  const [buscado, setBuscado] = useState<string | null>(() => {
+    const parsed = trackingCodigoSchema.safeParse(codigoUrl ?? "");
+    return parsed.success ? parsed.data : null;
+  });
 
   const { data, isLoading, isError, error } = useQuery({
     queryKey: ["tracking", buscado],
@@ -33,12 +38,14 @@ export function TrackingPage() {
     }
     setErrorLocal(null);
     setBuscado(parsed.data);
+    navigate(`/tracking/${parsed.data}`, { replace: true });
   }
 
   function rastrearOtro() {
     setBuscado(null);
     setCodigo("");
     setErrorLocal(null);
+    navigate("/tracking", { replace: true });
   }
 
   return (
@@ -99,7 +106,7 @@ export function TrackingPage() {
                   </div>
                   <div>
                     <dt className="text-xs font-medium uppercase tracking-wide text-gray-500">Actualizado</dt>
-                    <dd className="text-sm text-gray-900">{data.actualizado_en}</dd>
+                    <dd className="text-sm text-gray-900">{formatearFecha(data.actualizado_en)}</dd>
                   </div>
                 </dl>
               </Card>
