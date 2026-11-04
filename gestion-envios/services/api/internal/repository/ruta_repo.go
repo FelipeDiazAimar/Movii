@@ -88,12 +88,14 @@ func (r *RutaRepo) GetByID(ctx context.Context, id string) (domain.Ruta, error) 
 }
 
 // Update edita nombre/zona/fecha/repartidor de una ruta, solo si está en
-// estado "planificada" (CA-03 de HU-03). Devuelve ErrNoEncontrado si la ruta
+// estado "planificada" (CA-03 de HU-03) y sin envíos que ya salieron a reparto
+// (cambiar de repartidor a mitad de ruta dejaría envíos en camino sin dueño). Devuelve ErrNoEncontrado si la ruta
 // no existe, o ErrRutaNoEditable si no está planificada.
 func (r *RutaRepo) Update(ctx context.Context, id string, ruta domain.Ruta) (domain.Ruta, error) {
 	row := r.pool.QueryRow(ctx, `
 		UPDATE rutas SET nombre = $1, zona = $2, fecha = $3::date, repartidor_id = $4
 		WHERE id = $5 AND estado = 'planificada'
+		  AND NOT EXISTS (SELECT 1 FROM envios WHERE ruta_id = $5 AND estado <> 'asignado')
 		RETURNING id, nombre, zona, to_char(fecha, 'YYYY-MM-DD'), estado, repartidor_id
 	`, ruta.Nombre, ruta.Zona, ruta.Fecha, ruta.RepartidorID, id)
 

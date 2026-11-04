@@ -165,6 +165,8 @@ func (h *RutaHandler) DesasignarEnvio(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteError(w, http.StatusNotFound, "no_encontrado", "la ruta o el envío no existen")
 	case errors.Is(err, repository.ErrRutaNoEditable):
 		httpx.WriteError(w, http.StatusConflict, "ruta_no_editable", "la ruta no se puede editar en su estado actual")
+	case errors.Is(err, repository.ErrEnvioYaEnReparto):
+		httpx.WriteError(w, http.StatusConflict, "envio_en_reparto", "el envío ya salió a reparto y no se puede quitar de la ruta")
 	default:
 		httpx.WriteError(w, http.StatusInternalServerError, "error_interno", "no se pudo desasignar el envío")
 	}

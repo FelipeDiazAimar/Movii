@@ -60,6 +60,8 @@ export function RutaDetallePage() {
   if (!ruta) return null;
 
   const esPlanificada = ruta.estado === "planificada";
+  // Con envíos ya en reparto (o entregados) la API no deja cambiar repartidor ni quitar esos envíos.
+  const enReparto = ruta.envios.some((e) => e.estado !== "asignado");
 
   return (
     <div className={PAGE_NARROW}>
@@ -88,7 +90,7 @@ export function RutaDetallePage() {
               <Dato label="Fecha" value={formatearDia(ruta.fecha)} />
               <Dato label="Repartidor" value={ruta.repartidor_nombre ?? ruta.repartidor_id} />
             </dl>
-            {esPlanificada && (
+            {esPlanificada && !enReparto && (
               <Button variant="secondary" onClick={() => setEditando(true)}>
                 Editar
               </Button>
@@ -149,6 +151,7 @@ export function RutaDetallePage() {
                   <td className="px-3 py-2 text-gray-700">{envio.peso} kg</td>
                   {esPlanificada && (
                     <td className="px-3 py-2 text-right">
+                      {envio.estado === "asignado" && (
                       <Button
                         type="button"
                         variant="ghost"
@@ -157,6 +160,7 @@ export function RutaDetallePage() {
                       >
                         Desasignar
                       </Button>
+                      )}
                     </td>
                   )}
                 </tr>

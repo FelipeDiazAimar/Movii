@@ -15,6 +15,10 @@ import (
 
 // ErrEnvioNoDisponible indica que uno o más envíos no están en estado
 // "pendiente" y por lo tanto no se pueden asignar a una ruta.
+// ErrEnvioYaEnReparto indica que el envío ya salió a reparto (o terminó) y
+// por eso no se lo puede quitar de su ruta.
+var ErrEnvioYaEnReparto = errors.New("el envio ya salio a reparto y no se puede quitar de la ruta")
+
 var ErrEnvioNoDisponible = errors.New("uno o mas envios no estan disponibles para asignar")
 
 // EnvioRepo accede a la tabla envios (y datos de destinatario para el detalle).
@@ -211,12 +215,20 @@ func (r *EnvioRepo) DesasignarEnvio(ctx context.Context, envioID, rutaID string)
 
 	tag, err := tx.Exec(ctx, `
 		UPDATE envios SET ruta_id = NULL, estado = 'pendiente'
-		WHERE id = $1 AND ruta_id = $2
+		WHERE id = $1 AND ruta_id = $2 AND estado = 'asignado'
 	`, envioID, rutaID)
 	if err != nil {
 		return err
 	}
 	if tag.RowsAffected() == 0 {
+		// Sin filas: o el envío no está en esa ruta, o ya salió a reparto.
+		var existe bool
+		if err := tx.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM envios WHERE id = $1 AND ruta_id = $2)`, envioID, rutaID).Scan(&existe); err != nil {
+			return err
+		}
+		if existe {
+			return ErrEnvioYaEnReparto
+		}
 		return ErrNoEncontrado
 	}
 	anterior := domain.EstadoEnvioAsignado

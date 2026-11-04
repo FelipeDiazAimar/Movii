@@ -48,6 +48,7 @@ func New(deps Deps) http.Handler {
 
 	r.Group(func(protected chi.Router) {
 		protected.Use(middleware.RequireAuth(deps.JWTSecret))
+		protected.Use(middleware.ValidarUUIDs)
 
 		protected.Group(func(supervisorOnly chi.Router) {
 			supervisorOnly.Use(middleware.RequireRole(domain.RolSupervisor))
