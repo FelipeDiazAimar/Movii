@@ -12,9 +12,6 @@ import { EnvioDetallePage } from "@/pages/envios/EnvioDetallePage";
 import { RutasListPage } from "@/pages/rutas/RutasListPage";
 import { RutaNuevaPage } from "@/pages/rutas/RutaNuevaPage";
 import { RutaDetallePage } from "@/pages/rutas/RutaDetallePage";
-import { DashboardPage } from "@/pages/DashboardPage";
-import { ReportesPage } from "@/pages/ReportesPage";
-import { RutaMapaPage } from "@/pages/rutas/RutaMapaPage";
 import { UsuariosListPage } from "@/pages/usuarios/UsuariosListPage";
 import { UsuarioNuevoPage } from "@/pages/usuarios/UsuarioNuevoPage";
 
@@ -38,10 +35,6 @@ export function App() {
               <Route path="rutas" element={<RutasListPage />} />
               <Route path="rutas/nueva" element={<RutaNuevaPage />} />
               <Route path="rutas/:id" element={<RutaDetallePage />} />
-              <Route path="rutas/:id/mapa" element={<RutaMapaPage />} />
-
-              <Route path="dashboard" element={<DashboardPage />} />
-              <Route path="reportes" element={<ReportesPage />} />
 
               <Route element={<ProtectedRoute allow={["supervisor"]} />}>
                 <Route path="usuarios" element={<UsuariosListPage />} />
