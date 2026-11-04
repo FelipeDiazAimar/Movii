@@ -7,6 +7,7 @@ import type { CrearEnvioInput, CrearEnvioResponse } from "@/features/envios/type
 import { getApiErrorMessage } from "@/services/api-client";
 import { Card } from "@/components/ui/Card";
 import { Alert } from "@/components/ui/Alert";
+import { PageHeader, PAGE_NARROW } from "@/components/ui/PageHeader";
 
 export function EnvioNuevoPage() {
   const queryClient = useQueryClient();
@@ -40,13 +41,8 @@ export function EnvioNuevoPage() {
   }
 
   return (
-    <div className="flex max-w-3xl flex-col gap-6">
-      <div>
-        <h1 className="text-xl font-semibold text-gray-900">Nuevo envío</h1>
-        <p className="text-sm text-gray-500">
-          Se genera automáticamente un código de guía único (MOV-AAAAMMDD-NNNN) y el envío queda en estado pendiente.
-        </p>
-      </div>
+    <div className={PAGE_NARROW}>
+      <PageHeader title="Nuevo envío" description="Se genera automáticamente un código de guía único (MOV-AAAAMMDD-NNNN) y el envío queda en estado pendiente." />
 
       {creado && (
         <Alert variant="success">

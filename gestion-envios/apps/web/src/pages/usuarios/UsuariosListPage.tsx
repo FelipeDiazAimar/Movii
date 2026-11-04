@@ -7,6 +7,7 @@ import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { RolBadge } from "@/components/ui/Badge";
 import { getApiErrorMessage } from "@/services/api-client";
+import { PageHeader, PAGE_WIDE } from "@/components/ui/PageHeader";
 
 export function UsuariosListPage() {
   const { data, isLoading, isError, error } = useQuery({
@@ -15,16 +16,16 @@ export function UsuariosListPage() {
   });
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-semibold text-gray-900">Usuarios</h1>
-          <p className="text-sm text-gray-500">Operadores, supervisores y repartidores del sistema.</p>
-        </div>
-        <Link to="/usuarios/nuevo">
-          <Button type="button">+ Nuevo usuario</Button>
-        </Link>
-      </div>
+    <div className={PAGE_WIDE}>
+      <PageHeader
+        title="Usuarios"
+        description="Operadores, supervisores y repartidores del sistema."
+        action={
+          <Link to="/usuarios/nuevo">
+            <Button type="button">+ Nuevo usuario</Button>
+          </Link>
+        }
+      />
 
       {isLoading && <Spinner label="Cargando usuarios…" />}
       {isError && <Alert variant="error">{getApiErrorMessage(error, "No se pudieron cargar los usuarios")}</Alert>}

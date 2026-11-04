@@ -8,6 +8,8 @@ type Ruta struct {
 	Fecha        string `json:"fecha"` // formato "YYYY-MM-DD"
 	Estado       string `json:"estado"`
 	RepartidorID string `json:"repartidor_id"`
+	// RepartidorNombre solo se completa en lecturas (listado y detalle).
+	RepartidorNombre string `json:"repartidor_nombre,omitempty"`
 }
 
 // RutaConConteo agrega la cantidad de envíos asignados, usada en el listado.

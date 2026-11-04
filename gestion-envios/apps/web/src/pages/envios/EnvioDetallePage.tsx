@@ -1,15 +1,18 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { obtenerEnvio } from "@/features/envios/api";
 import { AccionesEnvio } from "@/features/envios/AccionesEnvio";
-import { HistorialTimeline, formatearFecha } from "@/features/envios/HistorialTimeline";
+import { HistorialTimeline } from "@/features/envios/HistorialTimeline";
+import { formatearFecha } from "@/utils/fechas";
+import { Dato } from "@/components/ui/Dato";
 import { EstadoEnvioBadge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
 import { Spinner } from "@/components/ui/Spinner";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { apiClient, getApiErrorMessage } from "@/services/api-client";
+import { PageHeader, PAGE_NARROW } from "@/components/ui/PageHeader";
 
 const FRANJA_LABELS: Record<string, string> = {
   manana: "mañana",
@@ -89,15 +92,6 @@ function EvidenciaEntrega({ firmaUrl, fotoUrl }: { firmaUrl: string; fotoUrl: st
   );
 }
 
-function Dato({ label, value }: { label: string; value: ReactNode }) {
-  return (
-    <div>
-      <dt className="text-xs font-medium uppercase tracking-wide text-gray-500">{label}</dt>
-      <dd className="text-sm text-gray-900">{value}</dd>
-    </div>
-  );
-}
-
 export function EnvioDetallePage() {
   const { id } = useParams<{ id: string }>();
 
@@ -112,16 +106,8 @@ export function EnvioDetallePage() {
   if (!envio) return null;
 
   return (
-    <div className="flex max-w-2xl flex-col gap-6">
-      <div>
-        <Link to="/envios" className="text-sm text-movii-600 hover:underline">
-          ← Volver a envíos
-        </Link>
-        <div className="mt-1 flex items-center gap-3">
-          <h1 className="text-xl font-semibold text-gray-900">{envio.codigo_guia}</h1>
-          <EstadoEnvioBadge estado={envio.estado} />
-        </div>
-      </div>
+    <div className={PAGE_NARROW}>
+      <PageHeader back={{ to: "/envios", label: "Volver a envíos" }} title={envio.codigo_guia} badge={<EstadoEnvioBadge estado={envio.estado} />} />
 
       <Card>
         <h2 className="mb-3 text-sm font-semibold text-gray-900">Destinatario</h2>

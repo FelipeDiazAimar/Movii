@@ -65,15 +65,16 @@ func (h *RutaHandler) List(w http.ResponseWriter, r *http.Request) {
 }
 
 type detalleRutaResponse struct {
-	ID             string         `json:"id"`
-	Nombre         string         `json:"nombre"`
-	Zona           string         `json:"zona"`
-	Fecha          string         `json:"fecha"`
-	Estado         string         `json:"estado"`
-	RepartidorID   string         `json:"repartidor_id"`
-	Envios         []domain.Envio `json:"envios"`
-	PesoTotal      float64        `json:"peso_total"`
-	CantidadEnvios int            `json:"cantidad_envios"`
+	ID               string         `json:"id"`
+	Nombre           string         `json:"nombre"`
+	Zona             string         `json:"zona"`
+	Fecha            string         `json:"fecha"`
+	Estado           string         `json:"estado"`
+	RepartidorID     string         `json:"repartidor_id"`
+	RepartidorNombre string         `json:"repartidor_nombre,omitempty"`
+	Envios           []domain.Envio `json:"envios"`
+	PesoTotal        float64        `json:"peso_total"`
+	CantidadEnvios   int            `json:"cantidad_envios"`
 }
 
 // Detail maneja GET /rutas/{id}.
@@ -85,7 +86,7 @@ func (h *RutaHandler) Detail(w http.ResponseWriter, r *http.Request) {
 	case err == nil:
 		httpx.WriteJSON(w, http.StatusOK, detalleRutaResponse{
 			ID: detalle.Ruta.ID, Nombre: detalle.Ruta.Nombre, Zona: detalle.Ruta.Zona,
-			Fecha: detalle.Ruta.Fecha, Estado: detalle.Ruta.Estado, RepartidorID: detalle.Ruta.RepartidorID,
+			Fecha: detalle.Ruta.Fecha, Estado: detalle.Ruta.Estado, RepartidorID: detalle.Ruta.RepartidorID, RepartidorNombre: detalle.Ruta.RepartidorNombre,
 			Envios: detalle.Envios, PesoTotal: detalle.PesoTotal, CantidadEnvios: detalle.CantidadEnvios,
 		})
 	case errors.Is(err, repository.ErrNoEncontrado):

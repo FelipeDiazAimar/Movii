@@ -8,6 +8,7 @@ export interface RutaListItem {
   fecha: string;
   estado: EstadoRuta;
   repartidor_id: string;
+  repartidor_nombre?: string;
   cantidad_envios: number;
 }
 
@@ -33,6 +34,7 @@ export interface RutaDetalle {
   fecha: string;
   estado: EstadoRuta;
   repartidor_id: string;
+  repartidor_nombre?: string;
   envios: EnvioEnRuta[];
   peso_total: number;
   cantidad_envios: number;

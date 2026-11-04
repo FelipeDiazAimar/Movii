@@ -9,6 +9,8 @@ import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { InputField } from "@/components/ui/Field";
 import { getApiErrorMessage } from "@/services/api-client";
+import { PageHeader, PAGE_WIDE } from "@/components/ui/PageHeader";
+import { formatearDia } from "@/utils/fechas";
 
 export function RutasListPage() {
   const [fecha, setFecha] = useState("");
@@ -19,16 +21,16 @@ export function RutasListPage() {
   });
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-semibold text-gray-900">Rutas</h1>
-          <p className="text-sm text-gray-500">Rutas de reparto diarias y sus envíos asignados.</p>
-        </div>
-        <Link to="/rutas/nueva">
-          <Button type="button">+ Nueva ruta</Button>
-        </Link>
-      </div>
+    <div className={PAGE_WIDE}>
+      <PageHeader
+        title="Rutas"
+        description="Rutas de reparto diarias y sus envíos asignados."
+        action={
+          <Link to="/rutas/nueva">
+            <Button type="button">+ Nueva ruta</Button>
+          </Link>
+        }
+      />
 
       <Card>
         <div className="flex flex-wrap items-end gap-4">
@@ -57,6 +59,7 @@ export function RutasListPage() {
                 <th className="px-4 py-3">Nombre</th>
                 <th className="px-4 py-3">Zona</th>
                 <th className="px-4 py-3">Fecha</th>
+                <th className="px-4 py-3">Repartidor</th>
                 <th className="px-4 py-3">Envíos</th>
                 <th className="px-4 py-3">Estado</th>
               </tr>
@@ -70,7 +73,8 @@ export function RutasListPage() {
                     </Link>
                   </td>
                   <td className="px-4 py-3 text-gray-700">{ruta.zona || "—"}</td>
-                  <td className="px-4 py-3 text-gray-500">{ruta.fecha}</td>
+                  <td className="px-4 py-3 text-gray-500">{formatearDia(ruta.fecha)}</td>
+                  <td className="px-4 py-3 text-gray-700">{ruta.repartidor_nombre ?? "—"}</td>
                   <td className="px-4 py-3 text-gray-700">{ruta.cantidad_envios}</td>
                   <td className="px-4 py-3">
                     <EstadoRutaBadge estado={ruta.estado} />

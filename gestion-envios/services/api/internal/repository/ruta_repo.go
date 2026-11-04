@@ -43,11 +43,12 @@ func (r *RutaRepo) Create(ctx context.Context, ruta domain.Ruta) (domain.Ruta, e
 // cantidad de envíos asignados a cada una.
 func (r *RutaRepo) List(ctx context.Context, fecha string) ([]domain.RutaConConteo, error) {
 	rows, err := r.pool.Query(ctx, `
-		SELECT r.id, r.nombre, r.zona, to_char(r.fecha, 'YYYY-MM-DD'), r.estado, r.repartidor_id, COUNT(e.id)
+		SELECT r.id, r.nombre, r.zona, to_char(r.fecha, 'YYYY-MM-DD'), r.estado, r.repartidor_id, u.nombre, COUNT(e.id)
 		FROM rutas r
+		JOIN usuarios u ON u.id = r.repartidor_id
 		LEFT JOIN envios e ON e.ruta_id = r.id
 		WHERE ($1 = '' OR r.fecha = $1::date)
-		GROUP BY r.id
+		GROUP BY r.id, u.nombre
 		ORDER BY r.fecha
 	`, fecha)
 	if err != nil {
@@ -60,7 +61,7 @@ func (r *RutaRepo) List(ctx context.Context, fecha string) ([]domain.RutaConCont
 	lista := make([]domain.RutaConConteo, 0)
 	for rows.Next() {
 		var rc domain.RutaConConteo
-		if err := rows.Scan(&rc.ID, &rc.Nombre, &rc.Zona, &rc.Fecha, &rc.Estado, &rc.RepartidorID, &rc.CantidadEnvios); err != nil {
+		if err := rows.Scan(&rc.ID, &rc.Nombre, &rc.Zona, &rc.Fecha, &rc.Estado, &rc.RepartidorID, &rc.RepartidorNombre, &rc.CantidadEnvios); err != nil {
 			return nil, err
 		}
 		lista = append(lista, rc)
@@ -71,12 +72,12 @@ func (r *RutaRepo) List(ctx context.Context, fecha string) ([]domain.RutaConCont
 // GetByID devuelve una ruta por id. Devuelve ErrNoEncontrado si no existe.
 func (r *RutaRepo) GetByID(ctx context.Context, id string) (domain.Ruta, error) {
 	row := r.pool.QueryRow(ctx, `
-		SELECT id, nombre, zona, to_char(fecha, 'YYYY-MM-DD'), estado, repartidor_id
-		FROM rutas WHERE id = $1
+		SELECT r.id, r.nombre, r.zona, to_char(r.fecha, 'YYYY-MM-DD'), r.estado, r.repartidor_id, u.nombre
+		FROM rutas r JOIN usuarios u ON u.id = r.repartidor_id WHERE r.id = $1
 	`, id)
 
 	var ruta domain.Ruta
-	err := row.Scan(&ruta.ID, &ruta.Nombre, &ruta.Zona, &ruta.Fecha, &ruta.Estado, &ruta.RepartidorID)
+	err := row.Scan(&ruta.ID, &ruta.Nombre, &ruta.Zona, &ruta.Fecha, &ruta.Estado, &ruta.RepartidorID, &ruta.RepartidorNombre)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return domain.Ruta{}, ErrNoEncontrado
 	}

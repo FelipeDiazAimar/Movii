@@ -8,6 +8,7 @@ import { Card } from "@/components/ui/Card";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { InputField, SelectField } from "@/components/ui/Field";
+import { PageHeader, PAGE_NARROW } from "@/components/ui/PageHeader";
 
 export function UsuarioNuevoPage() {
   const navigate = useNavigate();
@@ -42,11 +43,8 @@ export function UsuarioNuevoPage() {
   }
 
   return (
-    <div className="flex max-w-md flex-col gap-6">
-      <div>
-        <h1 className="text-xl font-semibold text-gray-900">Nuevo usuario</h1>
-        <p className="text-sm text-gray-500">Creá una cuenta de operador, supervisor o repartidor.</p>
-      </div>
+    <div className={PAGE_NARROW}>
+      <PageHeader title="Nuevo usuario" description="Creá una cuenta de operador, supervisor o repartidor." />
 
       <Card>
         <form onSubmit={handleSubmit} className="flex flex-col gap-4" noValidate>

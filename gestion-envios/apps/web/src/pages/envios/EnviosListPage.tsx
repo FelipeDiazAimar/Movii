@@ -1,4 +1,4 @@
-import { formatearFecha } from "@/features/envios/HistorialTimeline";
+import { formatearFecha } from "@/utils/fechas";
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
@@ -11,6 +11,7 @@ import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { SelectField, InputField } from "@/components/ui/Field";
 import { getApiErrorMessage } from "@/services/api-client";
+import { PageHeader, PAGE_WIDE } from "@/components/ui/PageHeader";
 
 export function EnviosListPage() {
   const [estado, setEstado] = useState<EstadoEnvio | "">("");
@@ -22,16 +23,16 @@ export function EnviosListPage() {
   });
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-semibold text-gray-900">Envíos</h1>
-          <p className="text-sm text-gray-500">Listado de envíos registrados en el sistema.</p>
-        </div>
-        <Link to="/envios/nuevo">
-          <Button type="button">+ Nuevo envío</Button>
-        </Link>
-      </div>
+    <div className={PAGE_WIDE}>
+      <PageHeader
+        title="Envíos"
+        description="Listado de envíos registrados en el sistema."
+        action={
+          <Link to="/envios/nuevo">
+            <Button type="button">+ Nuevo envío</Button>
+          </Link>
+        }
+      />
 
       <Card>
         <div className="flex flex-wrap items-end gap-4">

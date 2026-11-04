@@ -6,6 +6,7 @@ import { crearRuta } from "@/features/rutas/api";
 import type { RutaInput } from "@/features/rutas/types";
 import { getApiErrorMessage } from "@/services/api-client";
 import { Card } from "@/components/ui/Card";
+import { PageHeader, PAGE_NARROW } from "@/components/ui/PageHeader";
 
 export function RutaNuevaPage() {
   const navigate = useNavigate();
@@ -28,11 +29,8 @@ export function RutaNuevaPage() {
   }
 
   return (
-    <div className="flex max-w-lg flex-col gap-6">
-      <div>
-        <h1 className="text-xl font-semibold text-gray-900">Nueva ruta</h1>
-        <p className="text-sm text-gray-500">La ruta se crea en estado planificada.</p>
-      </div>
+    <div className={PAGE_NARROW}>
+      <PageHeader title="Nueva ruta" description="La ruta se crea en estado planificada." />
       <Card>
         <RutaForm onSubmit={handleSubmit} enviando={enviando} errorServidor={errorServidor} textoBoton="Crear ruta" />
       </Card>

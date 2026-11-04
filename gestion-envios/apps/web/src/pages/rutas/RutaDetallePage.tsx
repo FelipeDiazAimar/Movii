@@ -11,6 +11,9 @@ import { Spinner } from "@/components/ui/Spinner";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { getApiErrorMessage } from "@/services/api-client";
+import { PageHeader, PAGE_NARROW } from "@/components/ui/PageHeader";
+import { Dato } from "@/components/ui/Dato";
+import { formatearDia } from "@/utils/fechas";
 
 export function RutaDetallePage() {
   const { id } = useParams<{ id: string }>();
@@ -59,16 +62,8 @@ export function RutaDetallePage() {
   const esPlanificada = ruta.estado === "planificada";
 
   return (
-    <div className="flex max-w-3xl flex-col gap-6">
-      <div>
-        <Link to="/rutas" className="text-sm text-movii-600 hover:underline">
-          ← Volver a rutas
-        </Link>
-        <div className="mt-1 flex items-center gap-3">
-          <h1 className="text-xl font-semibold text-gray-900">{ruta.nombre || "(sin nombre)"}</h1>
-          <EstadoRutaBadge estado={ruta.estado} />
-        </div>
-      </div>
+    <div className={PAGE_NARROW}>
+      <PageHeader back={{ to: "/rutas", label: "Volver a rutas" }} title={ruta.nombre || "(sin nombre)"} badge={<EstadoRutaBadge estado={ruta.estado} />} />
 
       <Card>
         {editando ? (
@@ -88,19 +83,10 @@ export function RutaDetallePage() {
           />
         ) : (
           <div className="flex items-center justify-between">
-            <dl className="grid grid-cols-3 gap-4 text-sm">
-              <div>
-                <dt className="text-xs font-medium uppercase tracking-wide text-gray-500">Zona</dt>
-                <dd className="text-gray-900">{ruta.zona || "—"}</dd>
-              </div>
-              <div>
-                <dt className="text-xs font-medium uppercase tracking-wide text-gray-500">Fecha</dt>
-                <dd className="text-gray-900">{ruta.fecha}</dd>
-              </div>
-              <div>
-                <dt className="text-xs font-medium uppercase tracking-wide text-gray-500">Repartidor</dt>
-                <dd className="break-all text-gray-900">{ruta.repartidor_id}</dd>
-              </div>
+            <dl className="grid grid-cols-3 gap-4">
+              <Dato label="Zona" value={ruta.zona || "—"} />
+              <Dato label="Fecha" value={formatearDia(ruta.fecha)} />
+              <Dato label="Repartidor" value={ruta.repartidor_nombre ?? ruta.repartidor_id} />
             </dl>
             {esPlanificada && (
               <Button variant="secondary" onClick={() => setEditando(true)}>

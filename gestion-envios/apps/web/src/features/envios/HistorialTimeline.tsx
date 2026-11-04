@@ -5,6 +5,7 @@ import { getApiErrorMessage } from "@/services/api-client";
 import { EmptyState } from "@/components/ui/Card";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
+import { formatearFecha } from "@/utils/fechas";
 
 /**
  * Textos legibles del historial. Espejan `describirEvento` /
@@ -85,11 +86,7 @@ function dotClassForDescripcion(descripcion: string): string {
   return dotClassForEstado("pendiente");
 }
 
-export function formatearFecha(fecha: string): string {
-  const d = new Date(fecha);
-  if (Number.isNaN(d.getTime())) return fecha;
-  return d.toLocaleString("es-UY", { dateStyle: "medium", timeStyle: "short" });
-}
+export { formatearFecha };
 
 function esTrackingEvento(e: EventoEnvio | TrackingEvento): e is TrackingEvento {
   return "descripcion" in e;
