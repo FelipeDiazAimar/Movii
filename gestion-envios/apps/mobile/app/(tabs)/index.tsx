@@ -5,7 +5,6 @@ import { router } from "expo-router";
 import { AuroraBackground } from "@/components/aurora-background";
 import { GlassCard, IconAction, SectionHeading } from "@/components/ui/movii-ui";
 import { StatusBadge } from "@/components/ui/status-badge";
-import { getDriver } from "@/mock/shipments";
 import { useMovii } from "@/lib/movii-context";
 import { contadoresDelDia, filtrarPorEstado, type EstadoEnvioAPI } from "@/lib/envios-del-dia";
 import { type Shipment } from "@/types/logistics";
@@ -69,9 +68,10 @@ export default function RouteScreen() {
     cargandoEnviosDelDia,
     errorEnviosDelDia,
     recargarEnviosDelDia,
-    activeDriverId,
+    driverName,
   } = useMovii();
-  const driver = getDriver(activeDriverId);
+  const nombre = driverName ? driverName.charAt(0).toUpperCase() + driverName.slice(1) : "";
+  const driver = { name: nombre, initials: nombre.slice(0, 2).toUpperCase() };
 
   // CA-03: una sección por ruta. El filtro de CA-04 se aplica dentro de cada
   // ruta y las rutas que quedan sin envíos no se muestran.

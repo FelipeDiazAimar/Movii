@@ -189,7 +189,7 @@ export function EnvioDetallePage() {
           <dl className="mb-3 grid grid-cols-2 gap-4">
             <Dato label="Recibido por" value={envio.confirmacion.receptor_nombre} />
             <Dato label="Relación" value={envio.confirmacion.receptor_relacion} />
-            <Dato label="Confirmada" value={envio.confirmacion.confirmada_at} />
+            <Dato label="Confirmada" value={formatearFecha(envio.confirmacion.confirmada_at)} />
           </dl>
           <EvidenciaEntrega firmaUrl={envio.confirmacion.firma_url} fotoUrl={envio.confirmacion.foto_url} />
         </Card>

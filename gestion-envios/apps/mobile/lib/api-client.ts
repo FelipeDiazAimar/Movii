@@ -38,7 +38,9 @@ export function decodeJwt(token: string): ClaimsJWT {
     throw new Error("decodeJwt: el token no tiene el formato de un JWT (header.payload.signature)");
   }
   const payloadBase64 = partes[1].replace(/-/g, "+").replace(/_/g, "/");
-  const payloadJson = Buffer.from(payloadBase64, "base64").toString("utf-8");
+  // atob existe en Hermes (RN), web y Node 16+; Buffer no existe en el navegador.
+  const binario = atob(payloadBase64.padEnd(Math.ceil(payloadBase64.length / 4) * 4, "="));
+  const payloadJson = decodeURIComponent(binario.replace(/[\s\S]/g, (c) => "%" + c.charCodeAt(0).toString(16).padStart(2, "0")));
   return JSON.parse(payloadJson) as ClaimsJWT;
 }
 
