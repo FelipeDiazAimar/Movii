@@ -1,6 +1,7 @@
 package main
 
 import (
+	"os"
 	"context"
 	"log"
 	"net/http"
@@ -56,8 +57,13 @@ func main() {
 		TrackingHandler:   handlers.NewTrackingHandler(trackingService),
 	})
 
+	var handler http.Handler = router
+	if webDir := os.Getenv("WEB_DIR"); webDir != "" {
+		handler = httprouter.WithSPA(router, webDir) // web + API en un solo servicio
+	}
+
 	log.Printf("API escuchando en :%s (env=%s)", cfg.Port, cfg.Env)
-	if err := http.ListenAndServe(":"+cfg.Port, router); err != nil {
+	if err := http.ListenAndServe(":"+cfg.Port, handler); err != nil {
 		log.Fatalf("server: %v", err)
 	}
 }
