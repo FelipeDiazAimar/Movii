@@ -18,9 +18,9 @@ type Props = {
  */
 export const REGION_CARGA: Record<TipoVehiculo, { left: string; top: string; width: string; height: string }> = {
   camion: { left: "4.9%", top: "10.9%", width: "59.8%", height: "62.4%" },
-  furgon: { left: "9%", top: "27%", width: "55%", height: "45%" },
-  utilitario: { left: "9.5%", top: "33%", width: "46%", height: "38%" },
-  moto: { left: "9.5%", top: "18%", width: "26%", height: "28%" },
+  furgon: { left: "9%", top: "29%", width: "54%", height: "44%" },
+  utilitario: { left: "17%", top: "34%", width: "34%", height: "37%" },
+  moto: { left: "10%", top: "16%", width: "25%", height: "28%" },
 };
 
 const FUENTE = { fontFamily: "Archivo, system-ui, sans-serif", fontVariationSettings: '"wdth" 125' } as const;
@@ -120,169 +120,134 @@ function Piso({ id, cx = 410, rx = 380 }: { id: string; cx?: number; rx?: number
   );
 }
 
-/** Furgón de reparto: carrocería de una pieza con el frente inclinado. */
+/** Arco de rueda: media luna oscura sobre la rueda. */
+function Arco({ x, y, r }: { x: number; y: number; r: number }) {
+  return <path d={`M ${x - r} ${y} A ${r} ${r} 0 0 1 ${x + r} ${y} Z`} fill="#1d2125" />;
+}
+
+/** Furgón de reparto (tipo Sprinter): caja alta de una pieza, parabrisas inclinado y trompa corta. */
 function Furgon({ codigo, color }: { codigo: string; color: string }) {
   const id = useId().replace(/:/g, "");
   const c = paletaCarroceria(color);
-  const nervios = Array.from({ length: 20 }, (_, i) => 78 + i * 24);
+  const cuerpo = "M72 74 Q72 62 86 62 L568 62 Q598 62 616 82 L684 152 Q700 158 726 164 Q778 172 780 204 L780 236 Q780 250 766 250 L86 250 Q72 250 72 236 Z";
   return (
     <svg viewBox="0 0 820 330" className="h-auto w-full" role="img" aria-label={`Furgón ${codigo}`}>
       <DefsBase id={id} c={c} />
       <Piso id={id} />
-      <rect x="62" y="240" width="716" height="14" rx="3" fill={`url(#${id}-chasis)`} />
-
       {/* Carrocería */}
-      <path d="M60 84 Q60 66 80 66 L548 66 Q590 66 618 90 L690 148 Q722 158 750 170 Q778 182 778 208 L778 238 Q778 250 766 250 L72 250 Q60 250 60 238 Z" fill={`url(#${id}-caja)`} />
-      {nervios.map((x) => (
-        <g key={x}>
-          <rect x={x} y="78" width="6" height="150" fill={c.nervio} opacity="0.4" />
-          <rect x={x + 6} y="78" width="2" height="150" fill={c.claro} opacity="0.5" />
-        </g>
-      ))}
-      <path d="M60 84 Q60 66 80 66 L548 66 Q590 66 618 90 L690 148 Q722 158 750 170 Q778 182 778 208 L778 238 Q778 250 766 250 L72 250 Q60 250 60 238 Z" fill={`url(#${id}-brillo-caja)`} />
-      {/* Riel de techo y zócalo */}
-      <rect x="60" y="66" width="500" height="9" rx="4" fill={`url(#${id}-cromo)`} opacity="0.85" />
-      <rect x="60" y="232" width="718" height="18" rx="4" fill={`url(#${id}-chasis)`} opacity="0.85" />
-      {/* Puertas traseras */}
-      <rect x="62" y="78" width="4" height="150" fill="#000" opacity="0.18" />
-      <rect x="74" y="90" width="3" height="130" rx="1.5" fill={`url(#${id}-cromo)`} />
-      <rect x="64" y="148" width="9" height="22" rx="3" fill={`url(#${id}-cromo)`} />
-      <Marca x={112} y={104} codigo={codigo} />
-
-      {/* Cabina: ventanillas y parabrisas */}
-      <path d="M560 92 L592 92 Q604 92 614 102 L664 148 L560 148 Z" fill={`url(#${id}-vidrio)`} />
-      <path d="M574 96 L598 96 L620 130 L604 130 Z" fill={`url(#${id}-reflejo)`} opacity="0.7" />
-      <path d="M548 80 L548 238" stroke="#000" strokeOpacity="0.28" strokeWidth="2" />
-      <rect x="560" y="170" width="26" height="6" rx="3" fill={`url(#${id}-cromo)`} />
+      <path d={cuerpo} fill={`url(#${id}-caja)`} />
+      <path d={cuerpo} fill={`url(#${id}-brillo-caja)`} />
+      <path d="M86 62 L568 62 Q598 62 616 82 L626 94 L72 94 L72 74 Q72 62 86 62 Z" fill="#fff" opacity="0.18" />
+      {/* Zócalo */}
+      <path d="M72 226 L780 226 L780 236 Q780 250 766 250 L86 250 Q72 250 72 236 Z" fill="#000" opacity="0.22" />
+      {/* Puerta corrediza y puerta del conductor */}
+      <path d="M330 84 L330 226 M556 84 L556 226 M330 84 L556 84" stroke="#000" strokeOpacity="0.28" strokeWidth="2.5" fill="none" />
+      <rect x="520" y="150" width="22" height="6" rx="3" fill={`url(#${id}-cromo)`} />
+      <path d="M572 84 L572 226" stroke="#000" strokeOpacity="0.28" strokeWidth="2.5" />
+      <rect x="578" y="160" width="20" height="6" rx="3" fill={`url(#${id}-cromo)`} />
+      {/* Vidrio de la cabina */}
+      <path d="M580 86 L606 86 Q616 86 624 96 L668 148 L580 148 Z" fill={`url(#${id}-vidrio)`} />
+      <path d="M590 90 L604 90 L634 126 L620 126 Z" fill="#fff" opacity="0.25" />
+      {/* Marca pintada en el lateral */}
+      <Marca x={92} y={110} ancho={210} codigo={codigo} />
       {/* Espejo */}
-      <rect x="716" y="118" width="6" height="30" rx="3" fill="#2a2f34" />
-      <rect x="710" y="112" width="18" height="10" rx="3" fill="#2a2f34" />
-      {/* Parrilla, paragolpes y faro */}
-      <rect x="766" y="190" width="14" height="38" rx="3" fill="#2a2f34" />
-      {[196, 204, 212, 220].map((y) => (
-        <rect key={y} x="768" y={y} width="10" height="3" rx="1" fill="#59616a" />
-      ))}
-      <rect x="738" y="232" width="52" height="18" rx="6" fill={`url(#${id}-cromo)`} />
-      <circle cx="778" cy="192" r="28" fill={`url(#${id}-faro)`} opacity="0.85" />
-      <rect x="764" y="184" width="14" height="14" rx="4" fill="#fffbe6" stroke="#c9ced5" strokeWidth="1" />
-      <rect x="60" y="196" width="8" height="14" rx="3" fill="#dc2626" />
-
-      {/* Pasarruedas y ruedas */}
-      <path d="M142 252 a50 50 0 0 1 96 0" fill="#1d2125" />
-      <path d="M584 252 a50 50 0 0 1 96 0" fill="#1d2125" />
-      <Rueda x={190} y={258} r={40} id={id} />
-      <Rueda x={632} y={258} r={40} id={id} />
+      <rect x="686" y="124" width="8" height="22" rx="3" fill="#2a2f34" />
+      <rect x="680" y="116" width="20" height="12" rx="4" fill="#2a2f34" />
+      {/* Luces y paragolpes */}
+      <path d="M752 176 L778 186 L778 204 L760 204 Z" fill="#fffbe6" stroke="#c9ced5" strokeWidth="1" />
+      <circle cx="776" cy="190" r="26" fill={`url(#${id}-faro)`} opacity="0.7" />
+      <rect x="776" y="210" width="8" height="22" rx="3" fill="#2a2f34" />
+      <rect x="742" y="232" width="52" height="16" rx="6" fill={`url(#${id}-cromo)`} />
+      <rect x="64" y="236" width="40" height="12" rx="4" fill={`url(#${id}-cromo)`} />
+      <rect x="72" y="170" width="8" height="34" rx="3" fill="#dc2626" />
+      {/* Ruedas */}
+      <Arco x={190} y={250} r={52} />
+      <Arco x={640} y={250} r={52} />
+      <Rueda x={190} y={256} r={42} id={id} />
+      <Rueda x={640} y={256} r={42} id={id} />
     </svg>
   );
 }
 
-/** Utilitario: pickup con cúpula de carga del color elegido y cabina blanca. */
+/** Utilitario compacto (tipo Kangoo/Berlingo): techo redondeado, cabina y caja integradas. */
 function Utilitario({ codigo, color }: { codigo: string; color: string }) {
   const id = useId().replace(/:/g, "");
   const c = paletaCarroceria(color);
+  const cuerpo = "M132 232 L132 122 Q132 96 160 92 L470 86 Q520 84 548 104 L628 154 L712 166 Q748 172 750 202 L750 234 Q750 250 734 250 L150 250 Q132 250 132 232 Z";
   return (
     <svg viewBox="0 0 820 330" className="h-auto w-full" role="img" aria-label={`Utilitario ${codigo}`}>
       <DefsBase id={id} c={c} />
-      <Piso id={id} />
-      <rect x="62" y="238" width="716" height="14" rx="3" fill={`url(#${id}-chasis)`} />
-
-      {/* Caja abierta (batea) y cúpula */}
-      <rect x="64" y="170" width="420" height="72" rx="6" fill={`url(#${id}-caja)`} />
-      <rect x="64" y="166" width="420" height="10" rx="4" fill={`url(#${id}-cromo)`} opacity="0.85" />
-      <path d="M84 170 L84 118 Q84 106 96 106 L446 106 Q460 106 464 120 L476 170 Z" fill={`url(#${id}-caja)`} />
-      <path d="M84 170 L84 118 Q84 106 96 106 L446 106 Q460 106 464 120 L476 170 Z" fill={`url(#${id}-brillo-caja)`} />
-      <rect x="84" y="106" width="392" height="8" rx="4" fill={`url(#${id}-cromo)`} opacity="0.7" />
-      <Marca x={122} y={126} ancho={210} codigo={codigo} />
-      <rect x="64" y="226" width="420" height="16" rx="4" fill={`url(#${id}-chasis)`} opacity="0.85" />
-      <rect x="64" y="196" width="7" height="14" rx="3" fill="#dc2626" />
-
-      {/* Cabina */}
-      <path
-        d="M484 170 L484 152 Q496 110 540 98 L640 92 Q672 92 690 122 L716 164 Q770 170 782 196 L782 236 Q782 248 770 248 L484 248 Z"
-        fill={`url(#${id}-cabina)`}
-        stroke="#9aa3ab"
-        strokeWidth="1.2"
-      />
-      <path d="M606 108 Q640 106 652 126 L688 160 L606 160 Z" fill={`url(#${id}-vidrio)`} />
-      <path d="M622 112 L640 114 L666 150 L648 150 Z" fill={`url(#${id}-reflejo)`} opacity="0.8" />
-      <path d="M520 114 L592 108 L592 160 L506 160 Q498 160 500 150 Z" fill={`url(#${id}-vidrio)`} />
-      <path d="M500 168 L592 168 L592 236 L500 236" fill="none" stroke="#8a939b" strokeWidth="1.3" opacity="0.8" />
-      <rect x="566" y="184" width="20" height="6" rx="3" fill={`url(#${id}-cromo)`} />
-      {/* Franja del color de la cúpula */}
-      <rect x="484" y="226" width="298" height="8" fill={c.base} opacity="0.9" />
-      {/* Espejo, parrilla, paragolpes y faro */}
-      <rect x="698" y="124" width="6" height="30" rx="3" fill="#2a2f34" />
-      <rect x="692" y="118" width="18" height="10" rx="3" fill="#2a2f34" />
-      <rect x="772" y="190" width="12" height="34" rx="3" fill="#2a2f34" />
-      {[196, 204, 212].map((y) => (
-        <rect key={y} x="774" y={y} width="8" height="3" rx="1" fill="#59616a" />
-      ))}
-      <rect x="740" y="230" width="52" height="18" rx="6" fill={`url(#${id}-cromo)`} />
-      <circle cx="780" cy="192" r="28" fill={`url(#${id}-faro)`} opacity="0.85" />
-      <rect x="768" y="184" width="14" height="14" rx="4" fill="#fffbe6" stroke="#c9ced5" strokeWidth="1" />
-
-      <path d="M130 252 a50 50 0 0 1 96 0" fill="#1d2125" />
-      <path d="M586 252 a50 50 0 0 1 96 0" fill="#1d2125" />
-      <Rueda x={178} y={258} r={40} id={id} />
-      <Rueda x={634} y={258} r={40} id={id} />
+      <Piso id={id} cx={440} rx={310} />
+      <path d={cuerpo} fill={`url(#${id}-caja)`} />
+      <path d={cuerpo} fill={`url(#${id}-brillo-caja)`} />
+      <path d="M160 92 L470 86 Q520 84 548 104 L560 112 L132 112 L132 122 Q132 96 160 92 Z" fill="#fff" opacity="0.2" />
+      <path d="M132 230 L750 230 L750 234 Q750 250 734 250 L150 250 Q132 250 132 232 Z" fill="#000" opacity="0.22" />
+      {/* Puertas */}
+      <path d="M420 108 L420 228 M510 108 L510 228" stroke="#000" strokeOpacity="0.28" strokeWidth="2.5" />
+      <rect x="486" y="160" width="18" height="6" rx="3" fill={`url(#${id}-cromo)`} />
+      <rect x="436" y="160" width="18" height="6" rx="3" fill={`url(#${id}-cromo)`} />
+      {/* Vidrio de la cabina */}
+      <path d="M520 108 L544 108 Q556 108 566 116 L616 154 L520 154 Z" fill={`url(#${id}-vidrio)`} />
+      <path d="M530 112 L544 112 L574 138 L560 138 Z" fill="#fff" opacity="0.25" />
+      <Marca x={160} y={122} ancho={200} codigo={codigo} />
+      {/* Espejo */}
+      <rect x="632" y="132" width="8" height="20" rx="3" fill="#2a2f34" />
+      <rect x="626" y="126" width="20" height="11" rx="4" fill="#2a2f34" />
+      {/* Luces y paragolpes */}
+      <path d="M720 176 L748 184 L748 202 L728 202 Z" fill="#fffbe6" stroke="#c9ced5" strokeWidth="1" />
+      <circle cx="746" cy="190" r="24" fill={`url(#${id}-faro)`} opacity="0.7" />
+      <rect x="746" y="208" width="8" height="20" rx="3" fill="#2a2f34" />
+      <rect x="712" y="232" width="50" height="16" rx="6" fill={`url(#${id}-cromo)`} />
+      <rect x="124" y="236" width="40" height="12" rx="4" fill={`url(#${id}-cromo)`} />
+      <rect x="132" y="170" width="8" height="30" rx="3" fill="#dc2626" />
+      <Arco x={250} y={250} r={50} />
+      <Arco x={600} y={250} r={50} />
+      <Rueda x={250} y={258} r={40} id={id} />
+      <Rueda x={600} y={258} r={40} id={id} />
     </svg>
   );
 }
 
-/** Moto de reparto con baúl trasero del color elegido. */
+/** Moto scooter de reparto con baúl trasero. */
 function Moto({ codigo, color }: { codigo: string; color: string }) {
   const id = useId().replace(/:/g, "");
   const c = paletaCarroceria(color);
   return (
     <svg viewBox="0 0 820 330" className="h-auto w-full" role="img" aria-label={`Moto ${codigo}`}>
       <DefsBase id={id} c={c} />
-      <Piso id={id} cx={410} rx={330} />
-
-      {/* Baúl */}
-      <rect x="96" y="160" width="190" height="10" rx="3" fill="#2a2f34" />
-      <rect x="150" y="168" width="14" height="42" fill="#2a2f34" />
-      <rect x="78" y="62" width="226" height="102" rx="18" fill={`url(#${id}-caja)`} />
-      <rect x="78" y="62" width="226" height="102" rx="18" fill={`url(#${id}-brillo-caja)`} />
-      <rect x="78" y="62" width="226" height="16" rx="8" fill="#fff" opacity="0.22" />
-      <rect x="78" y="136" width="226" height="28" rx="12" fill="#000" opacity="0.1" />
-      <Marca x={104} y={86} ancho={174} codigo={codigo} />
-      <rect x="82" y="122" width="10" height="14" rx="3" fill="#dc2626" />
-
-      {/* Rueda trasera, guardabarros y amortiguador */}
-      <path d="M140 236 a70 70 0 0 1 140 0" fill="none" stroke="#2a2f34" strokeWidth="10" strokeLinecap="round" />
-      <path d="M214 236 L368 224" stroke={`url(#${id}-chasis)`} strokeWidth="16" strokeLinecap="round" />
-      <path d="M322 168 L296 220" stroke={`url(#${id}-cromo)`} strokeWidth="9" strokeLinecap="round" />
-      <path d="M322 168 L296 220" stroke="#dc2626" strokeWidth="4" strokeDasharray="5 4" />
-
-      {/* Motor y escape */}
-      <rect x="340" y="196" width="130" height="62" rx="18" fill={`url(#${id}-chasis)`} />
-      <rect x="352" y="206" width="52" height="38" rx="10" fill={`url(#${id}-cromo)`} opacity="0.85" />
-      <path d="M470 248 L260 252 Q236 252 228 240" fill="none" stroke={`url(#${id}-cromo)`} strokeWidth="14" strokeLinecap="round" />
-
-      {/* Asiento y carenado */}
-      <path d="M296 164 Q300 144 330 144 L424 144 Q440 144 442 160 L442 172 L296 172 Z" fill="#23272b" />
-      <path d="M424 152 L478 150 Q512 150 528 176 L548 232 L458 232 Q440 208 424 182 Z" fill={`url(#${id}-cabina)`} stroke="#9aa3ab" strokeWidth="1.2" />
-      <path d="M486 166 L512 168 L526 200" fill="none" stroke={c.base} strokeWidth="8" strokeLinecap="round" />
-      <rect x="440" y="226" width="86" height="8" rx="4" fill="#2a2f34" />
-
-      {/* Horquilla delantera, manubrio y faro */}
-      <path d="M610 236 L548 118" stroke={`url(#${id}-cromo)`} strokeWidth="14" strokeLinecap="round" />
-      <path d="M600 218 L560 142" stroke="#59616a" strokeWidth="4" strokeLinecap="round" opacity="0.6" />
-      <path d="M548 112 L492 100" stroke="#2a2f34" strokeWidth="9" strokeLinecap="round" />
-      <rect x="474" y="92" width="26" height="14" rx="5" fill="#1a1a1a" />
-      <path d="M546 108 L534 78" stroke="#2a2f34" strokeWidth="5" strokeLinecap="round" />
-      <ellipse cx="528" cy="72" rx="16" ry="9" fill="#2a2f34" />
-      <circle cx="590" cy="142" r="44" fill={`url(#${id}-faro)`} opacity="0.85" />
-      <path d="M552 124 Q582 112 600 132 Q604 154 580 160 Q552 154 552 124 Z" fill="#23272b" stroke="#59616a" strokeWidth="1.5" />
-      <ellipse cx="584" cy="138" rx="11" ry="13" fill="#fffbe6" stroke="#c9ced5" strokeWidth="1" />
-      {/* Guardabarros delantero */}
-      <path d="M568 212 Q612 178 660 214" fill="none" stroke={c.base} strokeWidth="10" strokeLinecap="round" />
-
-      <Rueda x={210} y={236} r={62} id={id} />
-      <Rueda x={610} y={236} r={62} id={id} />
+      <Piso id={id} cx={420} rx={300} />
+      {/* Rueda trasera (queda tapada por la carrocería) */}
+      <Rueda x={250} y={258} r={40} id={id} />
+      {/* Parrilla y baúl */}
+      <rect x="110" y="148" width="190" height="12" rx="3" fill="#2a2f34" />
+      <rect x="82" y="52" width="210" height="98" rx="16" fill={`url(#${id}-caja)`} />
+      <rect x="82" y="52" width="210" height="98" rx="16" fill={`url(#${id}-brillo-caja)`} />
+      <rect x="82" y="52" width="210" height="18" rx="9" fill="#fff" opacity="0.2" />
+      <Marca x={106} y={74} ancho={166} codigo={codigo} />
+      {/* Carrocería trasera y asiento */}
+      <path d="M176 240 Q164 176 200 162 L440 158 Q462 162 464 190 L464 232 Q464 246 450 246 L192 246 Q178 246 176 240 Z" fill={`url(#${id}-caja)`} />
+      <path d="M300 160 Q304 140 334 140 L426 140 Q452 142 458 160 Z" fill="#23272b" />
+      <rect x="168" y="176" width="9" height="22" rx="3" fill="#dc2626" />
+      {/* Estribo y escudo delantero */}
+      <rect x="456" y="228" width="80" height="16" rx="6" fill={`url(#${id}-chasis)`} />
+      <path d="M526 244 L548 112 Q552 100 566 102 L586 106 L572 232 Q570 244 556 244 Z" fill={`url(#${id}-caja)`} />
+      {/* Horquilla, manubrio y faro */}
+      <path d="M586 112 L624 258" stroke={`url(#${id}-cromo)`} strokeWidth="12" strokeLinecap="round" />
+      <path d="M578 104 L540 90" stroke="#2a2f34" strokeWidth="9" strokeLinecap="round" />
+      <rect x="520" y="82" width="26" height="14" rx="6" fill="#1a1a1a" />
+      <path d="M548 90 L536 68" stroke="#2a2f34" strokeWidth="5" strokeLinecap="round" />
+      <ellipse cx="528" cy="64" rx="16" ry="9" fill="#2a2f34" />
+      <circle cx="604" cy="132" r="40" fill={`url(#${id}-faro)`} opacity="0.7" />
+      <ellipse cx="598" cy="134" rx="14" ry="17" fill="#fffbe6" stroke="#c9ced5" strokeWidth="1.5" />
+      {/* Escape */}
+      <rect x="236" y="226" width="150" height="18" rx="9" fill={`url(#${id}-cromo)`} />
+      {/* Rueda delantera y guardabarros */}
+      <Rueda x={632} y={258} r={40} id={id} />
+      <path d="M594 232 Q630 198 672 232" fill="none" stroke={c.base} strokeWidth="10" strokeLinecap="round" />
     </svg>
   );
 }
+
 
 /**
  * Ilustración del vehículo según su tipo (camión, furgón, utilitario o moto),
