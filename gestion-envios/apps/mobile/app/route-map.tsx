@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Linking, Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -10,6 +10,7 @@ import { GlassCard, PrimaryButton } from "@/components/ui/movii-ui";
 import { obtenerMapaRuta, obtenerTrayecto, type MapaRutaAPI, type TrayectoAPI } from "@/lib/api-client";
 import type { DatosMapaApp } from "@/lib/mapa-html";
 import { useMovii } from "@/lib/movii-context";
+import { urlGoogleMaps, type ModoMaps } from "@/lib/google-maps";
 
 const ESTADO_TEXTO: Record<string, string> = {
   asignado: "Pendiente",
@@ -38,6 +39,7 @@ export default function RouteMapScreen() {
   const [elegida, setElegida] = useState<string | null>(null);
   const [trayecto, setTrayecto] = useState<TrayectoAPI | null>(null);
   const [expanded, setExpanded] = useState(false);
+  const [modoMaps, setModoMaps] = useState<ModoMaps>("proximo");
 
   const cargar = useCallback(async () => {
     if (!rutaId) return;
@@ -76,6 +78,35 @@ export default function RouteMapScreen() {
 
   const paradas = useMemo(() => [...(mapa?.paradas ?? [])].sort((a, b) => a.orden - b.orden), [mapa]);
   const proxima = paradas.find((p) => p.estado === "en_camino") ?? paradas.find((p) => p.estado === "asignado");
+
+  const paradasPendientes = useMemo(() => {
+    return paradas
+      .filter((p) => p.estado !== "entregado" && p.estado !== "no_entregado")
+      .map((p) =>
+        p.coordenadas
+          ? { lat: p.coordenadas.lat, lng: p.coordenadas.lng }
+          : `${p.direccion}, ${p.localidad}`,
+      );
+  }, [paradas]);
+
+  const abrirEnGoogleMaps = () => {
+    const origen = datos.camion
+      ? { lat: datos.camion.lat, lng: datos.camion.lng }
+      : (datos.deposito ?? undefined);
+    const paradasMapear =
+      modoMaps === "proximo"
+        ? (proxima
+            ? [
+                proxima.coordenadas
+                  ? { lat: proxima.coordenadas.lat, lng: proxima.coordenadas.lng }
+                  : `${proxima.direccion}, ${proxima.localidad}`,
+              ]
+            : paradasPendientes.slice(0, 1))
+        : paradasPendientes;
+
+    const url = urlGoogleMaps({ origen, paradas: paradasMapear, modo: modoMaps });
+    if (url) Linking.openURL(url);
+  };
 
   const datos = useMemo<DatosMapaApp>(
     () => ({
@@ -151,6 +182,47 @@ export default function RouteMapScreen() {
           )}
         </GlassCard>
 
+        <GlassCard style={styles.mapsCard}>
+          <View style={styles.mapsTop}>
+            <Text style={styles.mapsTitle}>Navegación en Google Maps</Text>
+            <View style={styles.modoSelector}>
+              <Pressable
+                onPress={() => setModoMaps("proximo")}
+                style={[styles.modoChip, modoMaps === "proximo" && styles.modoChipActivo]}
+                accessibilityRole="button"
+                accessibilityLabel="Modo próxima parada"
+              >
+                <Text style={[styles.modoChipText, modoMaps === "proximo" && styles.modoChipTextActivo]}>
+                  Próxima
+                </Text>
+              </Pressable>
+              <Pressable
+                onPress={() => setModoMaps("completo")}
+                style={[styles.modoChip, modoMaps === "completo" && styles.modoChipActivo]}
+                accessibilityRole="button"
+                accessibilityLabel="Modo ruta completa"
+              >
+                <Text style={[styles.modoChipText, modoMaps === "completo" && styles.modoChipTextActivo]}>
+                  Completa ({paradasPendientes.length})
+                </Text>
+              </Pressable>
+            </View>
+          </View>
+          <PrimaryButton
+            label={
+              modoMaps === "completo"
+                ? `Abrir ruta completa en Maps (${paradasPendientes.length} paradas)`
+                : proxima
+                  ? `Abrir próxima parada: ${proxima.destinatario_nombre}`
+                  : "Abrir en Maps"
+            }
+            tone="secondary"
+            icon="⌖"
+            onPress={abrirEnGoogleMaps}
+            disabled={paradasPendientes.length === 0}
+          />
+        </GlassCard>
+
         <Text style={styles.section}>Orden de paradas</Text>
         <GlassCard style={styles.stopsCard}>
           {paradas.map((p) => {
@@ -217,6 +289,14 @@ const styles = StyleSheet.create({
   page: { flex: 1, backgroundColor: "#F7F7F8" },
   content: { padding: 16, paddingTop: 11, gap: 18, maxWidth: 620, width: "100%", alignSelf: "center" },
   mapCard: { padding: 10, gap: 12 },
+  mapsCard: { gap: 10, padding: 14 },
+  mapsTop: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8 },
+  mapsTitle: { color: "#1C1C1E", fontSize: 13, fontWeight: "800" },
+  modoSelector: { flexDirection: "row", gap: 6 },
+  modoChip: { minHeight: 30, paddingHorizontal: 10, borderRadius: 999, backgroundColor: "rgba(255,255,255,0.8)", borderWidth: 1, borderColor: "#E5E5EA", alignItems: "center", justifyContent: "center" },
+  modoChipActivo: { backgroundColor: "#1C1C1E", borderColor: "#1C1C1E" },
+  modoChipText: { color: "#59595F", fontSize: 11, fontWeight: "700" },
+  modoChipTextActivo: { color: "#FFD60A" },
   map: { height: 320 },
   loading: { alignItems: "center", justifyContent: "center", borderRadius: 16, backgroundColor: "#E9EDEF" },
   expandPill: { position: "absolute", right: 11, bottom: 11, minHeight: 35, paddingHorizontal: 11, borderRadius: 18, backgroundColor: "rgba(28,28,30,0.9)", flexDirection: "row", alignItems: "center", gap: 6 },
