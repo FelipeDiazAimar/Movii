@@ -101,7 +101,7 @@ export default function RouteMapScreen() {
   if (!rutaId) {
     return (
       <View style={styles.page}>
-        <AuroraBackground style={StyleSheet.absoluteFill} />
+        <AuroraBackground barra="light" style={StyleSheet.absoluteFill} />
         <AppHeader title="Mapa de ruta" subtitle="Sin ruta asignada hoy" />
         <View style={styles.content}>
           <GlassCard>
@@ -115,7 +115,7 @@ export default function RouteMapScreen() {
 
   return (
     <View style={styles.page}>
-      <AuroraBackground style={StyleSheet.absoluteFill} />
+      <AuroraBackground barra="light" style={StyleSheet.absoluteFill} />
       <AppHeader title={mapa?.nombre ?? "Mapa de ruta"} subtitle={subtitulo} />
       <ScrollView contentContainerStyle={[styles.content, { paddingBottom: 24 + insets.bottom }]} showsVerticalScrollIndicator={false}>
         <GlassCard style={styles.mapCard}>
@@ -215,7 +215,7 @@ export default function RouteMapScreen() {
 
 const styles = StyleSheet.create({
   page: { flex: 1, backgroundColor: "#EEF0F2" },
-  content: { padding: 16, paddingTop: 11, gap: 18, maxWidth: 620, width: "100%", alignSelf: "center" },
+  content: { padding: 16, paddingTop: 16, gap: 18, maxWidth: 760, width: "100%", alignSelf: "center" },
   mapCard: { padding: 10, gap: 12 },
   map: { height: 320 },
   loading: { alignItems: "center", justifyContent: "center", borderRadius: 16, backgroundColor: "#E9EDEF" },
@@ -230,7 +230,7 @@ const styles = StyleSheet.create({
   trayecto: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8, backgroundColor: "#FFF4CC", borderRadius: 12, paddingHorizontal: 12, paddingVertical: 9 },
   trayectoTitulo: { flex: 1, color: "#1C1C1E", fontSize: 13, fontWeight: "700" },
   trayectoLink: { color: "#806700", fontSize: 12, fontWeight: "800" },
-  section: { color: "#6E6E73", fontSize: 12, fontWeight: "800", letterSpacing: 0.75, textTransform: "uppercase" },
+  section: { color: "#6E6E73", fontSize: 11, fontWeight: "900", letterSpacing: 1.1, textTransform: "uppercase", paddingHorizontal: 4 },
   stopsCard: { paddingVertical: 4 },
   stopRow: { minHeight: 64, flexDirection: "row", alignItems: "center", gap: 11, paddingHorizontal: 13, borderRadius: 12 },
   stopRowActive: { backgroundColor: "#FFF4CC" },

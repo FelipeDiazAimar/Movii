@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Animated, Easing, Pressable, RefreshControl, ScrollView, SectionList, StyleSheet, Text, View, type LayoutChangeEvent } from "react-native";
+import { Animated, Easing, Platform, Pressable, RefreshControl, ScrollView, SectionList, StyleSheet, Text, TextInput, View, type LayoutChangeEvent } from "react-native";
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -9,7 +9,7 @@ import { Aparecer, Carril, NumeroAnimado, Presionable, PuntoVivo } from "@/compo
 import { StatusBadge } from "@/components/ui/status-badge";
 import { M, SOMBRA } from "@/constants/movii-design";
 import { useMovii } from "@/lib/movii-context";
-import { contadoresDelDia, filtrarPorEstado, type EstadoEnvioAPI } from "@/lib/envios-del-dia";
+import { buscarEnRutas, contadoresDelDia, filtrarPorEstado, type EstadoEnvioAPI } from "@/lib/envios-del-dia";
 import { type Shipment, type ShipmentStatus } from "@/types/logistics";
 
 /**
@@ -27,28 +27,25 @@ const FILTROS: { valor: EstadoEnvioAPI | null; etiqueta: string }[] = [
 
 const COLOR_ESTADO: Record<ShipmentStatus, string> = { pendiente: "#6B7280", en_camino: M.naranja, entregado: M.verde, no_entregado: M.rojo };
 
-/** Parada con su riel: el círculo (número o tilde) y la línea que la une con la siguiente. */
-function Parada({ shipment, indice, ultima, onPress }: { shipment: Shipment; indice: number; ultima: boolean; onPress: () => void }) {
+/** Tarjeta de parada a todo el ancho: número (o tilde si ya se entregó), destinatario, dirección y estado. */
+function Parada({ shipment, indice, onPress }: { shipment: Shipment; indice: number; onPress: () => void }) {
   const color = COLOR_ESTADO[shipment.status];
   const hecha = shipment.status === "entregado";
   const activa = shipment.status === "en_camino";
   return (
     <Aparecer indice={indice} style={styles.paradaFila}>
-      <View style={styles.rail}>
-        <View style={[styles.railNumero, { borderColor: color, backgroundColor: hecha ? color : "#FFFFFF" }]}>
-          {hecha ? <Text style={styles.railCheck}>✓</Text> : <Text style={[styles.railNumeroTexto, { color }]}>{shipment.stopOrder}</Text>}
-        </View>
-        {!ultima ? <View style={[styles.railLinea, hecha && { backgroundColor: color }]} /> : null}
-      </View>
       <Presionable
         accessibilityRole="button"
         accessibilityLabel={`Ver parada ${shipment.stopOrder}, ${shipment.recipient.name}`}
         onPress={onPress}
-        escala={0.975}
+        escala={0.98}
         style={[styles.parada, activa && styles.paradaActiva]}
       >
         {activa ? <View style={styles.paradaBarra} /> : null}
         <View style={styles.paradaCabeza}>
+          <View style={[styles.numero, { borderColor: color, backgroundColor: hecha ? color : "#FFFFFF" }]}>
+            {hecha ? <Text style={styles.numeroCheck}>✓</Text> : <Text style={[styles.numeroTexto, { color }]}>{shipment.stopOrder}</Text>}
+          </View>
           <Text numberOfLines={1} style={styles.paradaNombre}>{shipment.recipient.name}</Text>
           <Text style={styles.paradaPeso}>{shipment.weight}</Text>
         </View>
@@ -112,14 +109,15 @@ export default function RouteScreen() {
 
   // CA-03: una sección por ruta. El filtro de CA-04 se aplica dentro de cada
   // ruta y las rutas que quedan sin envíos no se muestran.
+  const [busqueda, setBusqueda] = useState("");
   const secciones = useMemo(
     () =>
-      filtrarPorEstado(rutasDelDia, filtroEstado).map((ruta) => ({
+      buscarEnRutas(filtrarPorEstado(rutasDelDia, filtroEstado), busqueda).map((ruta) => ({
         rutaId: ruta.rutaId,
         title: ruta.rutaNombre,
         data: ruta.envios,
       })),
-    [rutasDelDia, filtroEstado],
+    [rutasDelDia, filtroEstado, busqueda],
   );
 
   // CA-05: el resumen cuenta el día completo, no lo que quedó a la vista tras
@@ -138,6 +136,7 @@ export default function RouteScreen() {
   const mostrarEncabezadosDeRuta = rutasDelDia.length > 1;
 
   const vacioPorFiltro = total > 0 && secciones.length === 0;
+  const hayBusqueda = busqueda.trim().length > 0;
 
   // El camión recorre la calzada según el avance del día.
   const [pista, setPista] = useState(0);
@@ -212,6 +211,25 @@ export default function RouteScreen() {
               <View style={styles.eyebrowFila}><View style={styles.eyebrowBarra} /><Text style={styles.eyebrow}>PRÓXIMAS PARADAS</Text></View>
               <Text style={styles.listaTitulo}>Tu recorrido</Text>
             </View>
+            <View style={styles.buscador}>
+              <Text style={styles.buscadorLupa}>⌕</Text>
+              <TextInput
+                value={busqueda}
+                onChangeText={setBusqueda}
+                placeholder="Buscar por nombre, dirección o código"
+                placeholderTextColor={M.grisClaro}
+                autoCapitalize="none"
+                autoCorrect={false}
+                returnKeyType="search"
+                accessibilityLabel="Buscar envío"
+                style={[styles.buscadorInput, Platform.OS === "web" && ({ outlineStyle: "none" } as object)]}
+              />
+              {hayBusqueda ? (
+                <Pressable onPress={() => setBusqueda("")} accessibilityRole="button" accessibilityLabel="Borrar búsqueda" style={styles.buscadorX}>
+                  <Text style={styles.buscadorXTexto}>×</Text>
+                </Pressable>
+              ) : null}
+            </View>
             <FiltroEstado activo={filtroEstado} onChange={setFiltroEstado} />
           </View>
         }
@@ -223,13 +241,13 @@ export default function RouteScreen() {
             </View>
           ) : null
         }
-        renderItem={({ item, index, section }) => (
-          <Parada shipment={item} indice={index} ultima={index === section.data.length - 1} onPress={() => router.push({ pathname: "/stop/[id]", params: { id: item.id } })} />
+        renderItem={({ item, index }) => (
+          <Parada shipment={item} indice={index} onPress={() => router.push({ pathname: "/stop/[id]", params: { id: item.id } })} />
         )}
         ListEmptyComponent={
           cargandoEnviosDelDia ? null : (
             <Text style={styles.emptyText}>
-              {vacioPorFiltro ? "Ningún envío coincide con el filtro seleccionado." : "No tenés envíos asignados para hoy."}
+              {vacioPorFiltro ? (hayBusqueda ? "Ningún envío coincide con la búsqueda." : "Ningún envío coincide con el filtro seleccionado.") : "No tenés envíos asignados para hoy."}
             </Text>
           )
         }
@@ -241,7 +259,7 @@ export default function RouteScreen() {
 
 const styles = StyleSheet.create({
   page: { flex: 1, backgroundColor: M.hormigon100 },
-  content: { paddingBottom: 130, maxWidth: 620, width: "100%", alignSelf: "center" },
+  content: { paddingBottom: 130, maxWidth: 760, width: "100%", alignSelf: "center" },
   hero: { backgroundColor: M.asfalto, borderBottomLeftRadius: 34, borderBottomRightRadius: 34, paddingHorizontal: 20, paddingBottom: 20, gap: 14, overflow: "hidden", ...SOMBRA.lift },
   heroGlow: { position: "absolute", top: -90, right: -70, width: 260, height: 260, borderRadius: 130, backgroundColor: M.amarillo, opacity: 0.16 },
   topBar: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
@@ -286,13 +304,16 @@ const styles = StyleSheet.create({
   rutaHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 20, paddingTop: 18, paddingBottom: 4 },
   rutaHeaderTitulo: { flex: 1, color: M.texto, fontSize: 14, fontWeight: "900", letterSpacing: -0.2 },
   rutaHeaderConteo: { color: M.gris, fontSize: 11, fontWeight: "800" },
-  paradaFila: { flexDirection: "row", paddingLeft: 16, paddingRight: 16, marginTop: 10, gap: 10 },
-  rail: { width: 34, alignItems: "center" },
-  railNumero: { width: 32, height: 32, borderRadius: 16, borderWidth: 2.5, alignItems: "center", justifyContent: "center", marginTop: 14, zIndex: 1 },
-  railNumeroTexto: { fontSize: 13, fontWeight: "900" },
-  railCheck: { color: "#FFFFFF", fontSize: 14, fontWeight: "900", marginTop: -1 },
-  railLinea: { position: "absolute", top: 46, bottom: -22, width: 3, borderRadius: 2, backgroundColor: M.hormigon300, opacity: 0.8 },
-  parada: { flex: 1, gap: 5, padding: 15, borderRadius: 22, backgroundColor: "#FFFFFF", borderWidth: 1, borderColor: M.hormigon200, overflow: "hidden", ...SOMBRA.panel },
+  paradaFila: { paddingHorizontal: 16, marginTop: 12 },
+  numero: { width: 30, height: 30, borderRadius: 15, borderWidth: 2.5, alignItems: "center", justifyContent: "center" },
+  numeroTexto: { fontSize: 13, fontWeight: "900" },
+  numeroCheck: { color: "#FFFFFF", fontSize: 14, fontWeight: "900", marginTop: -1 },
+  buscador: { flexDirection: "row", alignItems: "center", gap: 8, marginHorizontal: 20, marginBottom: 12, minHeight: 50, paddingHorizontal: 14, borderRadius: 16, backgroundColor: "#FFFFFF", borderWidth: 1.5, borderColor: M.hormigon200, ...SOMBRA.panel },
+  buscadorLupa: { color: M.gris, fontSize: 22, fontWeight: "700", marginTop: -3 },
+  buscadorInput: { flex: 1, minHeight: 46, color: M.texto, fontSize: 15, fontWeight: "600" },
+  buscadorX: { width: 26, height: 26, borderRadius: 13, backgroundColor: M.hormigon100, alignItems: "center", justifyContent: "center" },
+  buscadorXTexto: { color: M.gris, fontSize: 18, fontWeight: "700", marginTop: -2 },
+  parada: { gap: 6, padding: 16, borderRadius: 22, backgroundColor: "#FFFFFF", borderWidth: 1, borderColor: M.hormigon200, overflow: "hidden", ...SOMBRA.panel },
   paradaActiva: { borderColor: M.amarillo, borderWidth: 1.5 },
   paradaBarra: { position: "absolute", left: 0, top: 0, bottom: 0, width: 5, backgroundColor: M.amarillo },
   paradaCabeza: { flexDirection: "row", alignItems: "center", gap: 8 },

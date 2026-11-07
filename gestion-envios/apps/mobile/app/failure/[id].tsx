@@ -75,7 +75,7 @@ export default function FailureScreen() {
 
   return (
     <View style={styles.page}>
-      <AuroraBackground style={StyleSheet.absoluteFill} />
+      <AuroraBackground barra="light" style={StyleSheet.absoluteFill} />
       <AppHeader title="Registrar incidencia" subtitle={shipment.code} />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <GlassCard>

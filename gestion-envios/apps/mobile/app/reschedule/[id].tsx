@@ -58,7 +58,7 @@ export default function RescheduleScreen() {
 
   return (
     <View style={styles.page}>
-      <AuroraBackground style={StyleSheet.absoluteFill} />
+      <AuroraBackground barra="light" style={StyleSheet.absoluteFill} />
       <AppHeader title="Reprogramar visita" subtitle={shipment.code} />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <GlassCard>

@@ -54,6 +54,27 @@ export function filtrarPorEstado(rutas: RutaDelDia[], estado: EstadoEnvioAPI | n
     .filter((ruta) => ruta.envios.length > 0);
 }
 
+const sinTildes = (t: string) => t.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+
+/**
+ * buscarEnRutas deja solo los envíos que coinciden con el texto (destinatario,
+ * dirección, localidad, código de guía o remitente, sin distinguir mayúsculas ni
+ * tildes) y descarta las rutas que quedan sin ninguno. Texto vacío = todo.
+ */
+export function buscarEnRutas(rutas: RutaDelDia[], texto: string): RutaDelDia[] {
+  const q = sinTildes(texto.trim());
+  if (!q) return rutas;
+
+  return rutas
+    .map((ruta) => ({
+      ...ruta,
+      envios: ruta.envios.filter((e) =>
+        [e.recipient.name, e.recipient.address, e.recipient.locality, e.code, e.sender].some((campo) => sinTildes(String(campo ?? "")).includes(q)),
+      ),
+    }))
+    .filter((ruta) => ruta.envios.length > 0);
+}
+
 /**
  * contadoresDelDia calcula el resumen del día (CA-05 de HU-05) sobre el total
  * de envíos, no sobre lo que quedó a la vista después de aplicar un filtro: el
