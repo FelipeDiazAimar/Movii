@@ -8,6 +8,7 @@ import { getApiErrorMessage } from "@/services/api-client";
 import { Card } from "@/components/ui/Card";
 import { PageHeader, PAGE_NARROW } from "@/components/ui/PageHeader";
 
+import { Route } from "lucide-react";
 export function RutaNuevaPage() {
   const navigate = useNavigate();
   const [params] = useSearchParams();
@@ -32,7 +33,7 @@ export function RutaNuevaPage() {
 
   return (
     <div className={PAGE_NARROW}>
-      <PageHeader title="Nueva ruta" description="La ruta se crea en estado planificada." />
+      <PageHeader title="Nueva ruta" icon={Route} description="La ruta se crea en estado planificada." />
       <Card>
         <RutaForm
           valoresIniciales={{ nombre: "", zona: "", fecha: "", repartidor_id: repartidorInicial }}

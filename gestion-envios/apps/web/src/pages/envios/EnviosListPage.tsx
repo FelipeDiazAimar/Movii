@@ -3,16 +3,27 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { listarEnvios } from "@/features/envios/api";
-import { ESTADOS_ENVIO, type EstadoEnvio } from "@/features/envios/types";
+import { type EstadoEnvio } from "@/features/envios/types";
 import { EstadoEnvioBadge } from "@/components/ui/Badge";
 import { Card, EmptyState } from "@/components/ui/Card";
 import { Spinner } from "@/components/ui/Spinner";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
-import { SelectField, InputField } from "@/components/ui/Field";
+import { InputField } from "@/components/ui/Field";
 import { getApiErrorMessage } from "@/services/api-client";
 import { PageHeader, PAGE_WIDE } from "@/components/ui/PageHeader";
 
+import { CircleCheck, CircleDashed, Clock, Package, Plus, Truck, TriangleAlert, type LucideIcon } from "lucide-react";
+
+/** Filtro rápido por estado: cada opción con su ícono y su contador. */
+const FILTROS: { valor: EstadoEnvio | ""; etiqueta: string; icono: LucideIcon }[] = [
+  { valor: "", etiqueta: "Todos", icono: Package },
+  { valor: "pendiente", etiqueta: "Pendientes", icono: CircleDashed },
+  { valor: "asignado", etiqueta: "Asignados", icono: Clock },
+  { valor: "en_camino", etiqueta: "En camino", icono: Truck },
+  { valor: "entregado", etiqueta: "Entregados", icono: CircleCheck },
+  { valor: "no_entregado", etiqueta: "No entregados", icono: TriangleAlert },
+];
 export function EnviosListPage() {
   const [estado, setEstado] = useState<EstadoEnvio | "">("");
   const [fecha, setFecha] = useState("");
@@ -21,35 +32,47 @@ export function EnviosListPage() {
     queryKey: ["envios", { estado, fecha }],
     queryFn: () => listarEnvios({ estado: estado || undefined, fecha: fecha || undefined }),
   });
+  // Contadores por estado (misma fecha, sin filtrar por estado).
+  const todos = useQuery({ queryKey: ["envios", { fecha }], queryFn: () => listarEnvios({ fecha: fecha || undefined }) });
+  const contar = (e: EstadoEnvio | "") => (todos.data ?? []).filter((x) => !e || x.estado === e).length;
 
   return (
     <div className={PAGE_WIDE}>
       <PageHeader
-        title="Envíos"
+        title="Envíos" icon={Package}
         description="Listado de envíos registrados en el sistema."
         action={
           <Link to="/envios/nuevo">
-            <Button type="button">+ Nuevo envío</Button>
+            <Button type="button"><Plus className="h-4 w-4" strokeWidth={2.5} aria-hidden />
+Nuevo envío</Button>
           </Link>
         }
       />
 
+      <div className="flex gap-2 overflow-x-auto pb-1" role="tablist" aria-label="Filtrar por estado">
+        {FILTROS.map((f) => {
+          const activo = estado === f.valor;
+          return (
+            <button
+              key={f.valor || "todos"}
+              type="button"
+              role="tab"
+              aria-selected={activo}
+              onClick={() => setEstado(f.valor)}
+              className={`flex shrink-0 items-center gap-2 rounded-2xl border px-3.5 py-2 text-sm font-semibold transition-colors ${
+                activo ? "border-asfalto-900 bg-asfalto-900 text-white" : "border-hormigon-200 bg-white text-gray-700 hover:border-hormigon-300"
+              }`}
+            >
+              <f.icono className={`h-4 w-4 ${activo ? "text-movii-500" : "text-gray-400"}`} aria-hidden />
+              {f.etiqueta}
+              <span className={`tabular rounded-full px-2 py-0.5 text-xs ${activo ? "bg-white/15 text-white" : "bg-hormigon-100 text-gray-600"}`}>{contar(f.valor)}</span>
+            </button>
+          );
+        })}
+      </div>
+
       <Card>
         <div className="flex flex-wrap items-end gap-4">
-          <div className="w-48">
-            <SelectField
-              label="Estado"
-              value={estado}
-              onChange={(e) => setEstado(e.target.value as EstadoEnvio | "")}
-            >
-              <option value="">Todos</option>
-              {ESTADOS_ENVIO.map((e) => (
-                <option key={e} value={e}>
-                  {e}
-                </option>
-              ))}
-            </SelectField>
-          </div>
           <div className="w-48">
             <InputField label="Fecha" type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} />
           </div>
@@ -77,8 +100,8 @@ export function EnviosListPage() {
 
       {data && data.length > 0 && (
         <Card className="overflow-x-auto p-0">
-          <table className="min-w-full divide-y divide-gray-200 text-sm">
-            <thead className="bg-gray-50 text-left text-xs font-medium uppercase tracking-wide text-gray-500">
+          <table className="min-w-full divide-y divide-hormigon-200 text-sm">
+            <thead className="bg-hormigon-50 text-left text-xs font-semibold text-gray-500">
               <tr>
                 <th className="px-4 py-3">Código de guía</th>
                 <th className="px-4 py-3">Destinatario</th>
@@ -90,17 +113,20 @@ export function EnviosListPage() {
                 <th className="px-4 py-3">Alta</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
+            <tbody className="divide-y divide-hormigon-100">
               {data.map((envio) => (
-                <tr key={envio.id} className="hover:bg-gray-50">
+                <tr key={envio.id} className="transition-colors hover:bg-movii-50/40">
                   <td className="px-4 py-3 font-medium text-gray-900">
-                    <Link to={`/envios/${envio.id}`} className="hover:text-movii-600 hover:underline">
-                      {envio.codigo_guia}
+                    <Link to={`/envios/${envio.id}`} className="inline-flex items-center gap-2 hover:text-movii-700">
+                      <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-hormigon-100 text-gray-600">
+                        <Package className="h-4 w-4" aria-hidden />
+                      </span>
+                      <span className="tabular whitespace-nowrap font-semibold">{envio.codigo_guia}</span>
                     </Link>
                   </td>
                   <td className="px-4 py-3 text-gray-700">{envio.destinatario}</td>
                   <td className="px-4 py-3 text-gray-500">{envio.direccion}</td>
-                  <td className="px-4 py-3 text-gray-700">{envio.peso} kg</td>
+                  <td className="whitespace-nowrap px-4 py-3 text-gray-700">{envio.peso} kg</td>
                   <td className="px-4 py-3 text-gray-700">
                     {envio.ruta_id ? (
                       <Link to={`/rutas/${envio.ruta_id}`} className="hover:text-movii-600 hover:underline">

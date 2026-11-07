@@ -16,6 +16,7 @@ import { PageHeader, PAGE_WIDE } from "@/components/ui/PageHeader";
 import { Dato } from "@/components/ui/Dato";
 import { formatearDia } from "@/utils/fechas";
 
+import { Route } from "lucide-react";
 export function RutaDetallePage() {
   const { id } = useParams<{ id: string }>();
   const rutaId = id as string;
@@ -66,7 +67,7 @@ export function RutaDetallePage() {
 
   return (
     <div className={PAGE_WIDE}>
-      <PageHeader back={{ to: "/rutas", label: "Volver a rutas" }} title={ruta.nombre || "(sin nombre)"} badge={<EstadoRutaBadge estado={ruta.estado} />} />
+      <PageHeader back={{ to: "/rutas", label: "Volver a rutas" }} title={ruta.nombre || "(sin nombre)"} icon={Route} badge={<EstadoRutaBadge estado={ruta.estado} />} />
 
       <div className="grid gap-4 lg:grid-cols-4">
       <Card className="lg:col-span-2">
@@ -113,11 +114,11 @@ export function RutaDetallePage() {
 
       <div className="flex flex-col gap-4">
         <Card>
-          <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Envíos asignados</p>
+          <p className="text-xs font-medium text-gray-500">Envíos asignados</p>
           <p className="text-2xl font-semibold text-gray-900">{ruta.cantidad_envios}</p>
         </Card>
         <Card>
-          <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Peso total</p>
+          <p className="text-xs font-medium text-gray-500">Peso total</p>
           <p className="text-2xl font-semibold text-gray-900">{ruta.peso_total} kg</p>
         </Card>
       </div>
@@ -139,8 +140,8 @@ export function RutaDetallePage() {
         {ruta.envios.length === 0 ? (
           <EmptyState title="Sin envíos asignados" description="Asigná envíos pendientes desde el botón de arriba." />
         ) : (
-          <table className="min-w-full divide-y divide-gray-200 text-sm">
-            <thead className="bg-gray-50 text-left text-xs font-medium uppercase tracking-wide text-gray-500">
+          <table className="min-w-full divide-y divide-hormigon-200 text-sm">
+            <thead className="bg-hormigon-50 text-left text-xs font-semibold text-gray-500">
               <tr>
                 <th className="px-3 py-2">Código de guía</th>
                 <th className="px-3 py-2">Estado</th>
@@ -148,7 +149,7 @@ export function RutaDetallePage() {
                 {esPlanificada && <th className="px-3 py-2" />}
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
+            <tbody className="divide-y divide-hormigon-100">
               {ruta.envios.map((envio) => (
                 <tr key={envio.id}>
                   <td className="px-3 py-2 font-medium text-gray-900">

@@ -7,10 +7,13 @@ import { InputField } from "@/components/ui/Field";
 import { Alert } from "@/components/ui/Alert";
 import { reenviarCodigo } from "@/features/auth/api";
 import type { DesafioLogin, Sesion } from "@/features/auth/types";
+import { useBordesNavegador } from "@/hooks/useBordesNavegador";
+import { ShieldCheck } from "lucide-react";
 
 export function LoginPage() {
   const { sesion, login, verificarCodigo } = useAuth();
   const navigate = useNavigate();
+  useBordesNavegador("#1a1a1a");
   const location = useLocation();
 
   // Credenciales del supervisor de la demo (migrations/0002_seed.up.sql)
@@ -104,11 +107,21 @@ export function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-movii-900 px-4">
-      <div className="w-full max-w-sm rounded-2xl bg-white p-8 shadow-lg">
+    <div className="pt-safe pb-safe relative flex min-h-screen items-center justify-center overflow-hidden bg-asfalto-900 bg-[radial-gradient(90%_60%_at_50%_0%,rgba(244,180,0,0.14),transparent_70%)] px-4">
+      {/* Línea de carril de fondo */}
+      <div aria-hidden className="pointer-events-none absolute inset-y-0 left-1/2 w-1 -translate-x-1/2 bg-[repeating-linear-gradient(180deg,rgba(244,180,0,0.18)_0_36px,transparent_36px_72px)]" />
+      <div className="relative w-full max-w-sm rounded-[1.75rem] bg-white p-8 shadow-2xl">
         <div className="mb-6 flex flex-col items-center gap-2">
-          <span className="flex h-10 w-10 items-center justify-center rounded-md bg-movii-500 text-lg font-bold text-movii-900">M</span>
-          <h1 className="text-lg font-semibold text-gray-900">Movii — Panel de operaciones</h1>
+          <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-movii-500 text-movii-900 shadow-[inset_0_-3px_0_rgba(0,0,0,0.15)]">
+            {desafio ? (
+              <ShieldCheck className="h-6 w-6" strokeWidth={2.2} aria-hidden />
+            ) : (
+              <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                <path d="M9 6l6 6-6 6" />
+              </svg>
+            )}
+          </span>
+          <h1 className="font-expandida text-xl font-black text-gray-900">movii</h1>
           <p className="text-center text-sm text-gray-500">
             {desafio ? "Verificá que sos vos" : "Ingresá con tu cuenta de operador o supervisor"}
           </p>

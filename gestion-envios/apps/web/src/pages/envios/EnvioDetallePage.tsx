@@ -17,6 +17,7 @@ import { PageHeader, PAGE_WIDE } from "@/components/ui/PageHeader";
 import { SeguimientoEnvioCard } from "@/features/flota/SeguimientoEnvioCard";
 import { AvisosEnvioCard } from "@/features/whatsapp/AvisosEnvioCard";
 
+import { Package } from "lucide-react";
 const FRANJA_LABELS: Record<string, string> = {
   manana: "mañana",
   tarde: "tarde",
@@ -81,13 +82,13 @@ function EvidenciaEntrega({ firmaUrl, fotoUrl }: { firmaUrl: string; fotoUrl: st
       </div>
       {firmaSrc && (
         <figure className="flex flex-col gap-1">
-          <figcaption className="text-xs font-medium uppercase tracking-wide text-gray-500">Firma</figcaption>
+          <figcaption className="text-xs font-medium text-gray-500">Firma</figcaption>
           <img src={firmaSrc} alt="Firma de recepción" className="max-w-full rounded border border-gray-200" />
         </figure>
       )}
       {fotoSrc && (
         <figure className="flex flex-col gap-1">
-          <figcaption className="text-xs font-medium uppercase tracking-wide text-gray-500">Foto</figcaption>
+          <figcaption className="text-xs font-medium text-gray-500">Foto</figcaption>
           <img src={fotoSrc} alt="Foto de entrega" className="max-w-full rounded border border-gray-200" />
         </figure>
       )}
@@ -110,7 +111,7 @@ export function EnvioDetallePage() {
 
   return (
     <div className={PAGE_WIDE}>
-      <PageHeader back={{ to: "/envios", label: "Volver a envíos" }} title={envio.codigo_guia} badge={<EstadoEnvioBadge estado={envio.estado} />} />
+      <PageHeader back={{ to: "/envios", label: "Volver a envíos" }} title={envio.codigo_guia} icon={Package} badge={<EstadoEnvioBadge estado={envio.estado} />} />
 
       <div className="grid gap-4 lg:grid-cols-3">
       <Card>

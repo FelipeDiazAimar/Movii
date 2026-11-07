@@ -18,6 +18,9 @@ import { InputField, SelectField } from "@/components/ui/Field";
 import { PageHeader, PAGE_WIDE } from "@/components/ui/PageHeader";
 import { getApiErrorMessage } from "@/services/api-client";
 
+import { Box, Gauge, Package, Pencil, Plus, Route, Truck, Weight } from "lucide-react";
+import { SpotlightCard } from "@/components/ui/Efectos";
+import { TruckIllustration } from "@/features/flota/TruckIllustration";
 const VACIO: VehiculoInput = { patente: "", modelo: "", tipo: "camion", capacidad_peso: 3500, capacidad_volumen: 20, estado: "en_base" };
 
 const PUNTO_ESTADO: Record<EstadoVehiculo, string> = { activo: "bg-green-500", en_base: "bg-gray-400", mantenimiento: "bg-red-500" };
@@ -108,12 +111,13 @@ export function VehiculosPage() {
   return (
     <div className={PAGE_WIDE}>
       <PageHeader
-        title="Vehículos"
+        title="Vehículos" icon={Truck}
         description="La flota: capacidad, estado y la ruta que tiene asignada hoy."
         action={
           !nuevo && (
             <Button type="button" onClick={() => setNuevo(true)}>
-              + Nuevo vehículo
+              <Plus className="h-4 w-4" strokeWidth={2.5} aria-hidden />
+              Nuevo vehículo
             </Button>
           )
         }
@@ -130,52 +134,84 @@ export function VehiculosPage() {
       {data && data.length > 0 && (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
           {data.map((v) => (
-            <Card key={v.id} className="flex flex-col gap-3">
+            <SpotlightCard key={v.id} className="flex flex-col">
               {editando === v.id ? (
-                <FormVehiculo inicial={aInput(v)} editando={v.id} onListo={() => setEditando(null)} />
+                <div className="p-5">
+                  <FormVehiculo inicial={aInput(v)} editando={v.id} onListo={() => setEditando(null)} />
+                </div>
               ) : (
                 <>
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <p className="text-lg font-black text-gray-900">{v.patente}</p>
-                      <p className="text-sm text-gray-500">
-                        {ETIQUETA_TIPO_VEHICULO[v.tipo]} · {v.modelo}
-                      </p>
-                    </div>
-                    <span className="inline-flex items-center gap-1.5 rounded-full bg-gray-50 px-2.5 py-1 text-xs font-medium text-gray-700">
-                      <span className={`h-2 w-2 rounded-full ${PUNTO_ESTADO[v.estado]}`} />
-                      {ETIQUETA_ESTADO_VEHICULO[v.estado]}
-                    </span>
-                  </div>
-                  <div>
-                    <div className="flex justify-between text-xs text-gray-500">
-                      <span>Carga</span>
-                      <span>
-                        {v.carga_actual_peso} / {v.capacidad_peso} kg
+                  <div className="relative bg-[radial-gradient(120%_100%_at_70%_0%,#ffffff_0%,#f1f3f5_60%,#e4e7ea_100%)] px-5 pt-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="font-expandida text-xl font-black text-gray-900">{v.patente}</p>
+                        <p className="text-sm text-gray-500">
+                          {ETIQUETA_TIPO_VEHICULO[v.tipo]}, {v.modelo}
+                        </p>
+                      </div>
+                      <span className="inline-flex items-center gap-1.5 rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-gray-700 shadow-panel">
+                        <span className={`h-2 w-2 rounded-full ${PUNTO_ESTADO[v.estado]}`} />
+                        {ETIQUETA_ESTADO_VEHICULO[v.estado]}
                       </span>
                     </div>
-                    <div className="mt-1 h-2 overflow-hidden rounded-full bg-gray-100">
-                      <div className="h-full rounded-full bg-movii-500" style={{ width: `${Math.min(100, v.capacidad_porcentaje)}%` }} />
-                    </div>
+                    <TruckIllustration
+                      containerCode={v.patente}
+                      color={v.estado === "mantenimiento" ? "blanco" : "amarillo"}
+                      className={`-mb-2 mt-1 ${v.estado === "mantenimiento" ? "opacity-70 grayscale" : ""}`}
+                    />
                   </div>
-                  <p className="text-sm text-gray-700">
-                    {v.ruta_id ? (
-                      <>
-                        Hoy: <Link to={`/rutas/${v.ruta_id}`} className="font-medium text-movii-600 hover:underline">{v.ruta_nombre}</Link> ·{" "}
-                        {v.repartidor_nombre} · {v.total_paquetes} paquetes
-                      </>
-                    ) : (
-                      <span className="text-gray-400">Sin ruta asignada hoy</span>
-                    )}
-                  </p>
-                  <div className="mt-auto flex justify-end">
-                    <Button type="button" variant="secondary" onClick={() => setEditando(v.id)}>
-                      Editar
-                    </Button>
+                  <div className="flex flex-1 flex-col gap-4 p-5">
+                    <div>
+                      <div className="flex items-center justify-between text-xs text-gray-500">
+                        <span className="inline-flex items-center gap-1.5">
+                          <Weight className="h-3.5 w-3.5" aria-hidden />
+                          Carga
+                        </span>
+                        <span className="tabular font-medium text-gray-700">
+                          {v.carga_actual_peso} de {v.capacidad_peso} kg
+                        </span>
+                      </div>
+                      <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-hormigon-100">
+                        <div className="h-full rounded-full bg-movii-500 transition-[width] duration-700" style={{ width: `${Math.min(100, v.capacidad_porcentaje)}%` }} />
+                      </div>
+                    </div>
+                    <dl className="grid grid-cols-3 gap-2 text-center">
+                      <div className="rounded-xl bg-hormigon-50 py-2">
+                        <dt className="flex items-center justify-center gap-1 text-[11px] text-gray-500"><Package className="h-3 w-3" aria-hidden />Paquetes</dt>
+                        <dd className="font-expandida text-lg font-black text-gray-900">{v.total_paquetes}</dd>
+                      </div>
+                      <div className="rounded-xl bg-hormigon-50 py-2">
+                        <dt className="flex items-center justify-center gap-1 text-[11px] text-gray-500"><Box className="h-3 w-3" aria-hidden />Volumen</dt>
+                        <dd className="font-expandida text-lg font-black text-gray-900">{v.capacidad_volumen}<span className="text-xs font-semibold text-gray-400"> m³</span></dd>
+                      </div>
+                      <div className="rounded-xl bg-hormigon-50 py-2">
+                        <dt className="flex items-center justify-center gap-1 text-[11px] text-gray-500"><Gauge className="h-3 w-3" aria-hidden />Velocidad</dt>
+                        <dd className="font-expandida text-lg font-black text-gray-900">{Math.round(v.velocidad)}<span className="text-xs font-semibold text-gray-400"> km/h</span></dd>
+                      </div>
+                    </dl>
+                    <div className="flex items-center gap-3 rounded-xl border border-hormigon-200 p-3 text-sm">
+                      <Route className="h-4 w-4 shrink-0 text-movii-600" aria-hidden />
+                      {v.ruta_id ? (
+                        <p className="min-w-0 flex-1 truncate text-gray-700">
+                          <Link to={`/rutas/${v.ruta_id}`} className="font-semibold text-gray-900 hover:underline">
+                            {v.ruta_nombre}
+                          </Link>
+                          <span className="text-gray-500"> con {v.repartidor_nombre}</span>
+                        </p>
+                      ) : (
+                        <p className="flex-1 text-gray-400">Sin ruta asignada hoy</p>
+                      )}
+                    </div>
+                    <div className="mt-auto flex justify-end">
+                      <Button type="button" variant="secondary" onClick={() => setEditando(v.id)}>
+                        <Pencil className="h-4 w-4" aria-hidden />
+                        Editar
+                      </Button>
+                    </div>
                   </div>
                 </>
               )}
-            </Card>
+            </SpotlightCard>
           ))}
         </div>
       )}

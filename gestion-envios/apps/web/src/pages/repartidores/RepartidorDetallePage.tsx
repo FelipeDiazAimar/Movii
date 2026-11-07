@@ -14,6 +14,7 @@ import { PageHeader, PAGE_WIDE } from "@/components/ui/PageHeader";
 import { Spinner } from "@/components/ui/Spinner";
 import { formatearDia } from "@/utils/fechas";
 
+import { Plus } from "lucide-react";
 export function RepartidorDetallePage() {
   const { id } = useParams<{ id: string }>();
   const queryClient = useQueryClient();
@@ -51,7 +52,8 @@ export function RepartidorDetallePage() {
         title={repartidor.nombre}
         action={
           <Link to={`/rutas/nueva?repartidor=${repartidor.id}`}>
-            <Button type="button">+ Nueva ruta</Button>
+            <Button type="button"><Plus className="h-4 w-4" strokeWidth={2.5} aria-hidden />
+Nueva ruta</Button>
           </Link>
         }
       />
@@ -65,8 +67,8 @@ export function RepartidorDetallePage() {
             <EmptyState title="Sin rutas" description="Creá una ruta nueva o asignale una existente." />
           </div>
         ) : (
-          <table className="min-w-full divide-y divide-gray-200 text-sm">
-            <thead className="bg-gray-50 text-left text-xs font-medium uppercase tracking-wide text-gray-500">
+          <table className="min-w-full divide-y divide-hormigon-200 text-sm">
+            <thead className="bg-hormigon-50 text-left text-xs font-semibold text-gray-500">
               <tr>
                 <th className="px-4 py-2">Ruta</th>
                 <th className="px-4 py-2">Fecha</th>
@@ -74,9 +76,9 @@ export function RepartidorDetallePage() {
                 <th className="px-4 py-2">Estado</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
+            <tbody className="divide-y divide-hormigon-100">
               {suyas.map((r) => (
-                <tr key={r.id} className="hover:bg-gray-50">
+                <tr key={r.id} className="transition-colors hover:bg-movii-50/40">
                   <td className="px-4 py-2 font-medium text-gray-900">
                     <Link to={`/rutas/${r.id}`} className="hover:text-movii-600 hover:underline">
                       {r.nombre || "(sin nombre)"}

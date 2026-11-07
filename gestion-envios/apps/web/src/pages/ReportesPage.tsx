@@ -1,3 +1,5 @@
+import { BarChart3, CalendarRange } from "lucide-react";
+import { PageHeader } from "@/components/ui/PageHeader";
 import { useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import {
@@ -60,8 +62,8 @@ function TabEnvios({ desde, hasta }: { desde: string; hasta: string }) {
         ) : (
           <>
             <p className="text-xs text-gray-500">Total: {q.data.total}</p>
-            <table className="min-w-full divide-y divide-gray-200 text-sm">
-              <thead className="bg-gray-50 text-left text-xs font-medium uppercase tracking-wide text-gray-500">
+            <table className="min-w-full divide-y divide-hormigon-200 text-sm">
+              <thead className="bg-hormigon-50 text-left text-xs font-semibold text-gray-500">
                 <tr>
                   <th className="px-3 py-2">Guía</th>
                   <th className="px-3 py-2">Destinatario</th>
@@ -70,7 +72,7 @@ function TabEnvios({ desde, hasta }: { desde: string; hasta: string }) {
                   <th className="px-3 py-2">Motivo de fallo</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody className="divide-y divide-hormigon-100">
                 {q.data.envios.map((e) => (
                   <tr key={e.codigo_guia}>
                     <td className="px-3 py-2 font-medium text-gray-900">{e.codigo_guia}</td>
@@ -112,8 +114,8 @@ function TabRepartidores({ desde, hasta }: { desde: string; hasta: string }) {
                 </div>
               ))}
             </div>
-            <table className="min-w-full divide-y divide-gray-200 text-sm">
-              <thead className="bg-gray-50 text-left text-xs font-medium uppercase tracking-wide text-gray-500">
+            <table className="min-w-full divide-y divide-hormigon-200 text-sm">
+              <thead className="bg-hormigon-50 text-left text-xs font-semibold text-gray-500">
                 <tr>
                   <th className="px-3 py-2">Pos.</th>
                   <th className="px-3 py-2">Nombre</th>
@@ -124,7 +126,7 @@ function TabRepartidores({ desde, hasta }: { desde: string; hasta: string }) {
                   <th className="px-3 py-2">Prom. min</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody className="divide-y divide-hormigon-100">
                 {ranking.map((r) => (
                   <tr key={r.repartidor_id}>
                     <td className="px-3 py-2 text-gray-700">{r.posicion}</td>
@@ -188,9 +190,10 @@ export function ReportesPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <h1 className="text-xl font-semibold text-gray-900">Reportes</h1>
+      <PageHeader title="Reportes" icon={BarChart3} description="Envíos, desempeño de repartidores e incidencias del período elegido." />
 
-      <div className="flex items-start gap-3">
+      <div className="flex flex-wrap items-start gap-3 rounded-panel border border-hormigon-200 bg-white p-4 shadow-panel">
+        <CalendarRange className="mt-8 h-5 w-5 text-gray-400" aria-hidden />
         <InputField label="Desde" type="date" value={desde} onChange={(e) => setDesde(e.target.value)} />
         <InputField label="Hasta" type="date" value={hasta} onChange={(e) => setHasta(e.target.value)} error={errorPeriodo} />
       </div>

@@ -6,6 +6,7 @@ import { trackingCodigoSchema } from "@/features/envios/schema";
 import { HistorialTimeline } from "@/features/envios/HistorialTimeline";
 import { formatearFecha } from "@/utils/fechas";
 import { getApiErrorMessage } from "@/services/api-client";
+import { useBordesNavegador } from "@/hooks/useBordesNavegador";
 import { Button } from "@/components/ui/Button";
 import { InputField } from "@/components/ui/Field";
 import { Alert } from "@/components/ui/Alert";
@@ -16,6 +17,8 @@ import { EstadoEnvioBadge } from "@/components/ui/Badge";
 export function TrackingPage() {
   const { codigo: codigoUrl } = useParams();
   const navigate = useNavigate();
+  // Página oscura: las barras del navegador del celular, también oscuras.
+  useBordesNavegador("#1a1a1a");
   const [codigo, setCodigo] = useState(codigoUrl ?? "");
   const [errorLocal, setErrorLocal] = useState<string | null>(null);
   const [buscado, setBuscado] = useState<string | null>(() => {
@@ -50,7 +53,7 @@ export function TrackingPage() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col items-center bg-movii-900 px-4 py-10">
+    <div className="pt-safe pb-safe flex min-h-screen flex-col items-center bg-asfalto-900 bg-[radial-gradient(90%_60%_at_50%_0%,rgba(244,180,0,0.14),transparent_70%)] px-4 py-10">
       <div className="w-full max-w-2xl">
         <div className="mb-6 flex flex-col items-center gap-2">
           <span className="flex h-10 w-10 items-center justify-center rounded-md bg-movii-500 text-lg font-bold text-movii-900">
@@ -102,11 +105,11 @@ export function TrackingPage() {
                 </div>
                 <dl className="mt-3 grid grid-cols-2 gap-4">
                   <div>
-                    <dt className="text-xs font-medium uppercase tracking-wide text-gray-500">Destino</dt>
+                    <dt className="text-xs font-medium text-gray-500">Destino</dt>
                     <dd className="text-sm text-gray-900">{data.localidad}</dd>
                   </div>
                   <div>
-                    <dt className="text-xs font-medium uppercase tracking-wide text-gray-500">Actualizado</dt>
+                    <dt className="text-xs font-medium text-gray-500">Actualizado</dt>
                     <dd className="text-sm text-gray-900">{formatearFecha(data.actualizado_en)}</dd>
                   </div>
                 </dl>

@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/Button";
 import { InputField, SelectField } from "@/components/ui/Field";
 import { PageHeader, PAGE_NARROW } from "@/components/ui/PageHeader";
 
+import { UserPlus } from "lucide-react";
 export function UsuarioNuevoPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -45,7 +46,7 @@ export function UsuarioNuevoPage() {
 
   return (
     <div className={PAGE_NARROW}>
-      <PageHeader title="Nuevo usuario" description="Creá una cuenta de operador, supervisor o repartidor." />
+      <PageHeader title="Nuevo usuario" icon={UserPlus} description="Creá una cuenta de operador, supervisor o repartidor." />
 
       <Card>
         <form onSubmit={handleSubmit} className="flex flex-col gap-4" noValidate>

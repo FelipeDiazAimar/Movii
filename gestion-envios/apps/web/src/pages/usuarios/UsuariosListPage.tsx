@@ -10,6 +10,7 @@ import { getApiErrorMessage } from "@/services/api-client";
 import { PageHeader, PAGE_WIDE } from "@/components/ui/PageHeader";
 import { TelefonoEditable } from "@/features/whatsapp/TelefonoEditable";
 
+import { Plus, Users } from "lucide-react";
 export function UsuariosListPage() {
   const { data, isLoading, isError, error } = useQuery({
     queryKey: ["usuarios"],
@@ -19,11 +20,12 @@ export function UsuariosListPage() {
   return (
     <div className={PAGE_WIDE}>
       <PageHeader
-        title="Usuarios"
+        title="Usuarios" icon={Users}
         description="Operadores, supervisores y repartidores del sistema."
         action={
           <Link to="/usuarios/nuevo">
-            <Button type="button">+ Nuevo usuario</Button>
+            <Button type="button"><Plus className="h-4 w-4" strokeWidth={2.5} aria-hidden />
+Nuevo usuario</Button>
           </Link>
         }
       />
@@ -34,8 +36,8 @@ export function UsuariosListPage() {
 
       {data && data.length > 0 && (
         <Card className="overflow-x-auto p-0">
-          <table className="min-w-full divide-y divide-gray-200 text-sm">
-            <thead className="bg-gray-50 text-left text-xs font-medium uppercase tracking-wide text-gray-500">
+          <table className="min-w-full divide-y divide-hormigon-200 text-sm">
+            <thead className="bg-hormigon-50 text-left text-xs font-semibold text-gray-500">
               <tr>
                 <th className="px-4 py-3">Nombre</th>
                 <th className="px-4 py-3">Email</th>
@@ -44,9 +46,9 @@ export function UsuariosListPage() {
                 <th className="px-4 py-3">Estado</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
+            <tbody className="divide-y divide-hormigon-100">
               {data.map((usuario) => (
-                <tr key={usuario.id} className="hover:bg-gray-50">
+                <tr key={usuario.id} className="transition-colors hover:bg-movii-50/40">
                   <td className="px-4 py-3 font-medium text-gray-900">{usuario.nombre}</td>
                   <td className="px-4 py-3 text-gray-700">{usuario.email}</td>
                   <td className="px-4 py-3 text-gray-700">

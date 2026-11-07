@@ -16,36 +16,55 @@ import { Spinner } from "@/components/ui/Spinner";
 import { Alert } from "@/components/ui/Alert";
 import { getApiErrorMessage } from "@/services/api-client";
 import { formatearFecha, formatearHora } from "@/utils/fechas";
+import { CountUp, PuntoVivo, SpotlightCard } from "@/components/ui/Efectos";
+import {
+  AlertTriangle,
+  CircleCheck,
+  Gauge,
+  LayoutDashboard,
+  MapPinned,
+  Package,
+  PackageOpen,
+  Phone,
+  Route,
+  Thermometer,
+  TrendingUp,
+  Truck,
+  UserRound,
+  Wrench,
+  type LucideIcon,
+} from "lucide-react";
 
-function Kpi({ titulo, valor, detalle, icono }: { titulo: string; valor: string | number; detalle?: string; icono: string }) {
+function Kpi({ titulo, valor, sufijo, detalle, icono: Icono, tono = "neutro" }: { titulo: string; valor: number; sufijo?: string; detalle?: string; icono: LucideIcon; tono?: "neutro" | "alerta" | "marca" }) {
+  const fondo = tono === "marca" ? "bg-movii-500 text-movii-900" : tono === "alerta" ? "bg-red-50 text-red-600" : "bg-hormigon-100 text-gray-700";
   return (
-    <div className="flex items-center gap-3 rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
-      <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gray-50 text-xl" aria-hidden>
-        {icono}
-      </span>
-      <div className="min-w-0">
-        <p className="truncate text-xs font-medium text-gray-500">{titulo}</p>
-        <p className="text-2xl font-black leading-tight text-gray-900">{valor}</p>
-        {detalle && <p className="truncate text-[11px] text-gray-400">{detalle}</p>}
+    <SpotlightCard className="p-4">
+      <div className="flex items-start justify-between gap-3">
+        <p className="text-sm font-medium text-gray-500">{titulo}</p>
+        <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${fondo}`}>
+          <Icono className="h-[18px] w-[18px]" strokeWidth={2.2} aria-hidden />
+        </span>
       </div>
-    </div>
+      <p className="font-expandida mt-3 text-3xl font-black leading-none text-gray-900">
+        <CountUp value={valor} suffix={sufijo} />
+      </p>
+      {detalle && <p className="mt-2 truncate text-xs text-gray-500">{detalle}</p>}
+    </SpotlightCard>
   );
 }
 
-function Tile({ titulo, valor, unidad, icono }: { titulo: string; valor: string | number; unidad?: string; icono: string }) {
+function Tile({ titulo, valor, unidad, icono: Icono }: { titulo: string; valor: number; unidad?: string; icono: LucideIcon }) {
   return (
-    <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
+    <SpotlightCard className="p-4">
       <div className="flex items-start justify-between">
-        <p className="text-xs font-medium text-gray-500">{titulo}</p>
-        <span aria-hidden className="text-base">
-          {icono}
-        </span>
+        <p className="text-sm font-medium text-gray-500">{titulo}</p>
+        <Icono className="h-[18px] w-[18px] text-gray-400" aria-hidden />
       </div>
-      <p className="mt-3 text-3xl font-black text-gray-900">
-        {valor}
-        {unidad && <span className="ml-0.5 text-sm font-semibold text-gray-400">{unidad}</span>}
+      <p className="font-expandida mt-3 text-3xl font-black text-gray-900">
+        <CountUp value={valor} />
+        {unidad && <span className="ml-1 text-sm font-semibold text-gray-400">{unidad}</span>}
       </p>
-    </div>
+    </SpotlightCard>
   );
 }
 
@@ -132,30 +151,32 @@ export function OperacionesPage() {
   return (
     <div className="flex flex-col gap-5">
       <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-black tracking-tight text-gray-900">Centro de operaciones</h1>
-          <p className="text-sm text-gray-500">La flota del día, su carga y dónde está cada camión.</p>
+        <div className="flex items-center gap-3">
+          <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-asfalto-900 text-movii-500 shadow-panel">
+            <LayoutDashboard className="h-5 w-5" strokeWidth={2.2} aria-hidden />
+          </span>
+          <div>
+            <h1 className="font-expandida text-2xl font-extrabold text-gray-900">Centro de operaciones</h1>
+            <p className="text-sm text-gray-500">La flota del día, su carga y dónde está cada camión.</p>
+          </div>
         </div>
-        <span
-          className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold ${
-            conexion === "en_vivo" ? "border-green-200 bg-green-50 text-green-700" : "border-amber-200 bg-amber-50 text-amber-700"
-          }`}
-        >
-          <span className={`h-2 w-2 rounded-full ${conexion === "en_vivo" ? "animate-pulse bg-green-500" : "bg-amber-500"}`} />
+        <span className="inline-flex items-center gap-2 rounded-full border border-hormigon-200 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 shadow-panel">
+          <PuntoVivo activo={conexion === "en_vivo"} />
           {conexion === "en_vivo" ? "En vivo" : "Conectando…"}
         </span>
       </div>
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Kpi titulo="Vehículos en servicio" valor={enServicio} detalle={`de ${vehiculos.length} en la flota`} icono="🚚" />
-        <Kpi titulo="En mantenimiento" valor={enTaller} detalle="fuera de servicio" icono="🔧" />
+        <Kpi titulo="Vehículos en servicio" valor={enServicio} detalle={`de ${vehiculos.length} en la flota`} icono={Truck} tono="marca" />
+        <Kpi titulo="En mantenimiento" valor={enTaller} detalle="Fuera de servicio" icono={Wrench} tono={enTaller > 0 ? "alerta" : "neutro"} />
         <Kpi
           titulo="Efectividad del día"
-          valor={`${Math.round(m?.porcentaje_efectividad ?? 0)}%`}
-          detalle={`${m?.entregados ?? 0} entregados · ${m?.no_entregados ?? 0} fallidos`}
-          icono="📈"
+          valor={Math.round(m?.porcentaje_efectividad ?? 0)}
+          sufijo="%"
+          detalle={`${m?.entregados ?? 0} entregados, ${m?.no_entregados ?? 0} fallidos`}
+          icono={TrendingUp}
         />
-        <Kpi titulo="Envíos en tránsito" valor={(m?.en_camino ?? 0) + (m?.asignados ?? 0)} detalle={`${m?.en_camino ?? 0} en camino`} icono="📦" />
+        <Kpi titulo="Envíos en tránsito" valor={(m?.en_camino ?? 0) + (m?.asignados ?? 0)} detalle={`${m?.en_camino ?? 0} en camino ahora`} icono={Package} />
       </div>
 
       {vehiculos.length === 0 ? (
@@ -165,9 +186,11 @@ export function OperacionesPage() {
           <div className="grid grid-cols-1 gap-5 xl:grid-cols-3">
             <div className="flex min-w-0 flex-col gap-4 xl:col-span-2">
               {/* Camión protagonista */}
-              <section className="relative overflow-hidden rounded-3xl border border-gray-100 bg-gradient-to-br from-gray-50 via-white to-amber-50/60 p-4 shadow-sm sm:p-6">
+              <section className="relative overflow-hidden rounded-[1.75rem] border border-hormigon-200 bg-[radial-gradient(120%_90%_at_70%_10%,#ffffff_0%,#f3f4f6_55%,#e6e8eb_100%)] p-4 shadow-lift sm:p-6">
+                {/* Ruta bajo el camión: asfalto con línea de carril */}
+                <div aria-hidden className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-b from-transparent to-black/[0.06]" />
                 <div className="grid grid-cols-1 items-center gap-4 md:grid-cols-5">
-                  <div className="rounded-2xl border border-white/80 bg-white/90 p-4 shadow-md backdrop-blur md:col-span-2">
+                  <div className="rounded-2xl border border-white bg-white/85 p-4 shadow-lift backdrop-blur md:col-span-2">
                     <p className="text-xs font-medium text-gray-500">Detalle de carga</p>
                     <p className="mt-1 text-[11px] uppercase tracking-wider text-gray-400">Patente</p>
                     <p className="text-2xl font-black text-gray-900">#{seleccionado.patente}</p>
@@ -205,8 +228,9 @@ export function OperacionesPage() {
                       </div>
                     </dl>
                   </div>
-                  <div className="md:col-span-3">
-                    <TruckIllustration containerCode={`#${seleccionado.patente}`} />
+                  <div className="relative md:col-span-3">
+                    <TruckIllustration containerCode={seleccionado.patente} color={seleccionado.estado === "mantenimiento" ? "blanco" : "amarillo"} />
+                    <div aria-hidden className="mx-4 -mt-3 h-1 rounded-full bg-[repeating-linear-gradient(90deg,#f4b400_0_28px,transparent_28px_52px)] opacity-70" />
                   </div>
                 </div>
               </section>
@@ -214,16 +238,16 @@ export function OperacionesPage() {
               <VehicleSlider vehiculos={vehiculos} selectedId={seleccionado.id} onSelect={(v) => setSeleccionadoId(v.id)} />
 
               <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-                <Tile titulo="Paquetes a bordo" valor={aBordo} unidad={`/${seleccionado.total_paquetes}`} icono="📦" />
-                <Tile titulo="Entregados" valor={seleccionado.paquetes_entregados} unidad={seleccionado.paquetes_fallidos ? ` · ${seleccionado.paquetes_fallidos} fallidos` : ""} icono="✅" />
-                <Tile titulo="Temperatura de carga" valor={seleccionado.temperatura} unidad="°C" icono="🌡️" />
-                <Tile titulo="Velocidad" valor={velocidad} unidad="km/h" icono="⏱️" />
+                <Tile titulo="Paquetes a bordo" valor={aBordo} unidad={`/ ${seleccionado.total_paquetes}`} icono={PackageOpen} />
+                <Tile titulo="Entregados" valor={seleccionado.paquetes_entregados} unidad={seleccionado.paquetes_fallidos ? `${seleccionado.paquetes_fallidos} fallidos` : undefined} icono={CircleCheck} />
+                <Tile titulo="Temperatura de carga" valor={seleccionado.temperatura} unidad="°C" icono={Thermometer} />
+                <Tile titulo="Velocidad" valor={velocidad} unidad="km/h" icono={Gauge} />
               </div>
 
-              <section className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
+              <section className="rounded-panel border border-hormigon-200 bg-white p-5 shadow-panel">
                 <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                   <div>
-                    <h2 className="text-sm font-bold text-gray-900">Seguimiento en vivo</h2>
+                    <h2 className="flex items-center gap-2 text-sm font-bold text-gray-900"><MapPinned className="h-4 w-4 text-movii-600" aria-hidden />Seguimiento en vivo</h2>
                     <p className="text-xs text-gray-500">
                       Tocá un camión para inspeccionarlo o un paquete de la lista para ver el camino por las calles hasta su destino.
                     </p>
@@ -261,11 +285,11 @@ export function OperacionesPage() {
             </div>
 
             <aside className="flex min-w-0 flex-col gap-4">
-              <section className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
-                <h2 className="text-sm font-bold text-gray-900">Información del camión</h2>
+              <section className="rounded-panel border border-hormigon-200 bg-white p-5 shadow-panel">
+                <h2 className="flex items-center gap-2 text-sm font-bold text-gray-900"><Truck className="h-4 w-4 text-movii-600" aria-hidden />Información del camión</h2>
                 <div className="mt-3 flex items-center gap-3">
-                  <span className="flex h-11 w-11 items-center justify-center rounded-full bg-movii-900 text-sm font-bold text-movii-500">
-                    {(seleccionado.repartidor_nombre || "—").slice(0, 1)}
+                  <span className="flex h-11 w-11 items-center justify-center rounded-full bg-asfalto-900 text-movii-500">
+                    {seleccionado.repartidor_nombre ? <span className="text-sm font-bold">{seleccionado.repartidor_nombre.slice(0, 1)}</span> : <UserRound className="h-5 w-5" aria-hidden />}
                   </span>
                   <div className="min-w-0 flex-1">
                     <p className="text-xs text-gray-500">Chofer</p>
@@ -274,9 +298,11 @@ export function OperacionesPage() {
                   {seleccionado.repartidor_id && (
                     <Link
                       to={`/repartidores/${seleccionado.repartidor_id}`}
-                      className="rounded-full border border-gray-200 px-3 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50"
+                      title="Ver perfil del chofer"
+                      className="flex h-9 w-9 items-center justify-center rounded-full border border-hormigon-200 text-gray-700 transition-colors hover:bg-hormigon-50"
                     >
-                      Perfil
+                      <Phone className="h-4 w-4" aria-hidden />
+                      <span className="sr-only">Ver perfil del chofer</span>
                     </Link>
                   )}
                 </div>
@@ -315,8 +341,8 @@ export function OperacionesPage() {
                 maxCapacityKg={seleccionado.capacidad_peso}
               />
 
-              <section className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
-                <h2 className="mb-2 text-sm font-bold text-gray-900">Paquetes del camión</h2>
+              <section className="rounded-panel border border-hormigon-200 bg-white p-5 shadow-panel">
+                <h2 className="mb-2 flex items-center gap-2 text-sm font-bold text-gray-900"><Package className="h-4 w-4 text-movii-600" aria-hidden />Paquetes del camión</h2>
                 {detalle.isLoading ? (
                   <Spinner label="Cargando paquetes…" />
                 ) : paquetes.length === 0 ? (
@@ -359,8 +385,8 @@ export function OperacionesPage() {
 
       {dashboard.data && (
         <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
-          <section className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
-            <h2 className="mb-3 text-sm font-bold text-gray-900">Rutas del día</h2>
+          <section className="rounded-panel border border-hormigon-200 bg-white p-5 shadow-panel">
+            <h2 className="mb-3 flex items-center gap-2 text-sm font-bold text-gray-900"><Route className="h-4 w-4 text-movii-600" aria-hidden />Rutas del día</h2>
             {dashboard.data.rutas_activas.length === 0 ? (
               <EmptyState title="Sin rutas para hoy" />
             ) : (
@@ -375,7 +401,7 @@ export function OperacionesPage() {
                         {r.repartidor_nombre} · {r.completadas}/{r.total_paradas}
                       </span>
                     </div>
-                    <div className="mt-1 h-2 overflow-hidden rounded-full bg-gray-100">
+                    <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-hormigon-100">
                       <div className="h-full rounded-full bg-movii-500" style={{ width: `${r.porcentaje_avance}%` }} />
                     </div>
                   </li>
@@ -383,8 +409,8 @@ export function OperacionesPage() {
               </ul>
             )}
           </section>
-          <section className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
-            <h2 className="mb-3 text-sm font-bold text-gray-900">Últimas incidencias</h2>
+          <section className="rounded-panel border border-hormigon-200 bg-white p-5 shadow-panel">
+            <h2 className="mb-3 flex items-center gap-2 text-sm font-bold text-gray-900"><AlertTriangle className="h-4 w-4 text-red-500" aria-hidden />Últimas incidencias</h2>
             {dashboard.data.ultimas_alertas.length === 0 ? (
               <EmptyState title="Sin incidencias hoy" />
             ) : (

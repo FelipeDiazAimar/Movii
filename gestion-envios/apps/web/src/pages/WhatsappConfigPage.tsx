@@ -7,6 +7,7 @@ import { Spinner } from "@/components/ui/Spinner";
 import { PageHeader, PAGE_NARROW } from "@/components/ui/PageHeader";
 import { getApiErrorMessage } from "@/services/api-client";
 
+import { MessageCircle } from "lucide-react";
 /** Supervisor: vincula la cuenta de WhatsApp que manda los códigos de acceso y los avisos (HU-16/HU-17). */
 export function WhatsappConfigPage() {
   const queryClient = useQueryClient();
@@ -23,7 +24,7 @@ export function WhatsappConfigPage() {
 
   return (
     <div className={PAGE_NARROW}>
-      <PageHeader title="WhatsApp" description="Cuenta que envía los códigos de acceso y los avisos a clientes y repartidores." />
+      <PageHeader title="WhatsApp" icon={MessageCircle} description="Cuenta que envía los códigos de acceso y los avisos a clientes y repartidores." />
       {isLoading && <Spinner label="Consultando la conexión…" />}
       {isError && <Alert variant="error">{getApiErrorMessage(error, "No se pudo consultar WhatsApp")}</Alert>}
       {data && !data.habilitado && (

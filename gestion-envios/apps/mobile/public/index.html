@@ -15,8 +15,9 @@
     <meta name="mobile-web-app-capable" content="yes" />
     <!-- Mismo color que el fondo de la app: la barra del navegador (Android) y la
          franja de estado se funden con la pantalla en vez de verse como un borde. -->
-    <meta name="theme-color" content="#F7F7F8" media="(prefers-color-scheme: light)" />
-    <meta name="theme-color" content="#F7F7F8" media="(prefers-color-scheme: dark)" />
+    <!-- Arriba la pantalla empieza con la aurora amarilla: ese es el color de la
+         barra de estado, para que no quede una franja gris encima. -->
+    <meta name="theme-color" content="#FCDE84" />
 
     <!-- iPhone: pantalla completa al abrirse desde "Agregar a inicio", con la barra
          de estado transparente encima del contenido (black-translucent). -->
@@ -27,13 +28,19 @@
     <meta name="format-detection" content="telephone=no" />
 
     <style id="expo-reset">
+      html {
+        /* Lo que el navegador muestra detrás de sus barras (y en el rebote de
+           iOS): arriba el amarillo de la aurora, abajo el blanco de la barra de
+           pestañas. Así los bordes se funden con la app en vez de verse grises. */
+        background: linear-gradient(to bottom, #FCDE84 0 50%, #FFFFFF 50% 100%);
+      }
       html,
       body {
         height: 100%;
         margin: 0;
-        /* El color que se ve detrás de la app al estirar la página (rebote de iOS)
-           y en las franjas del navegador: igual al fondo de las pantallas. */
-        background-color: #F7F7F8;
+      }
+      body {
+        background: transparent;
       }
       body {
         overflow: hidden;

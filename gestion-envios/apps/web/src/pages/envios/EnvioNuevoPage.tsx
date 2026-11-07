@@ -11,6 +11,7 @@ import { Card } from "@/components/ui/Card";
 import { Alert } from "@/components/ui/Alert";
 import { PageHeader, PAGE_NARROW } from "@/components/ui/PageHeader";
 
+import { PackagePlus } from "lucide-react";
 export function EnvioNuevoPage() {
   const queryClient = useQueryClient();
   const [enviando, setEnviando] = useState(false);
@@ -59,7 +60,7 @@ export function EnvioNuevoPage() {
 
   return (
     <div className={PAGE_NARROW}>
-      <PageHeader title="Nuevo envío" description="Se genera automáticamente un código de guía único (MOV-AAAAMMDD-NNNN) y el envío queda en estado pendiente." />
+      <PageHeader title="Nuevo envío" icon={PackagePlus} description="Se genera automáticamente un código de guía único (MOV-AAAAMMDD-NNNN) y el envío queda en estado pendiente." />
 
       {creado && (
         <Alert variant="success">

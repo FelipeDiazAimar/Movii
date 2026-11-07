@@ -6,7 +6,7 @@ export function AccesoDenegadoPage() {
   const esRepartidor = sesion?.rol === "repartidor";
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center gap-3 bg-gray-50 px-4 text-center">
+    <div className="flex min-h-screen flex-col items-center justify-center gap-3 bg-hormigon-100 px-4 text-center">
       <h1 className="text-lg font-semibold text-gray-900">Acceso no disponible</h1>
       <p className="max-w-sm text-sm text-gray-500">
         {esRepartidor

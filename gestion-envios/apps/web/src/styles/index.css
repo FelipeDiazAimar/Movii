@@ -2,12 +2,66 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  /* Colores de los bordes del navegador (barra de estado arriba, barra de
+     herramientas abajo). useBordesNavegador() los ajusta por pantalla para que
+     Safari/Chrome móviles se fundan con la página. */
+  --borde-sup: #1a1a1a;
+  --borde-inf: #eef0f2;
+}
+
+html {
+  /* Mitad superior = color del borde de arriba, mitad inferior = el de abajo:
+     lo que el navegador muestra detrás de sus barras coincide con la pantalla. */
+  background: linear-gradient(to bottom, var(--borde-sup) 0 50%, var(--borde-inf) 50% 100%);
+  -webkit-text-size-adjust: 100%;
+}
+
 html,
 body,
 #root {
-  height: 100%;
+  min-height: 100%;
 }
 
 body {
-  @apply bg-gray-50 text-gray-900;
+  @apply bg-transparent font-sans text-gray-900 antialiased;
+  font-variation-settings: "wdth" 100;
+  overscroll-behavior-y: none;
+}
+
+@layer utilities {
+  /* Títulos y cifras: Archivo expandido, como la cartelería vial. */
+  .font-expandida {
+    font-family: "Archivo", system-ui, sans-serif;
+    font-variation-settings: "wdth" 125;
+    letter-spacing: -0.01em;
+  }
+  .font-angosta {
+    font-variation-settings: "wdth" 80;
+  }
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+  .pt-safe {
+    padding-top: env(safe-area-inset-top);
+  }
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}
+
+/* Foco visible y consistente con la marca. */
+:focus-visible {
+  outline: 2px solid #f4b400;
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
