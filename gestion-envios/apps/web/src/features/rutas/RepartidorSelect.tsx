@@ -8,7 +8,7 @@ interface Props {
   error?: string;
 }
 
-/** Selector de repartidor para el alta/edición de rutas (GET /repartidores, disponible para operador y supervisor). */
+/** Selector de repartidor para el alta/edición de rutas (GET /repartidores, disponible para operador y admin). */
 export function RepartidorSelect({ value, onChange, error }: Props) {
   const { data: repartidores = [], isError } = useQuery({ queryKey: ["repartidores"], queryFn: listarRepartidores });
 

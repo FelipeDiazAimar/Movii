@@ -82,7 +82,7 @@ func TestLogin_DevuelveTokenValidoConCredencialesCorrectas(t *testing.T) {
 	svc := NewAuthService(repo, "secreto-de-test")
 	ctx := context.Background()
 
-	_, err := svc.Register(ctx, "Ana", "ana@movii.demo", "clave-segura-123", domain.RolSupervisor)
+	_, err := svc.Register(ctx, "Ana", "ana@movii.demo", "clave-segura-123", domain.RolAdmin)
 	require.NoError(t, err)
 
 	token, err := svc.Login(ctx, "ana@movii.demo", "clave-segura-123")
@@ -94,7 +94,7 @@ func TestLogin_DevuelveTokenValidoConCredencialesCorrectas(t *testing.T) {
 	})
 	require.NoError(t, err)
 	claims := parsed.Claims.(jwt.MapClaims)
-	require.Equal(t, domain.RolSupervisor, claims["rol"])
+	require.Equal(t, domain.RolAdmin, claims["rol"])
 }
 
 func TestLogin_RechazaPasswordIncorrecta(t *testing.T) {

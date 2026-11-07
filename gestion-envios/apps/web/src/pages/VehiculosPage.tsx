@@ -1,7 +1,7 @@
 import { useMemo, useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { actualizarVehiculo, crearVehiculo, listarFlota } from "@/features/flota/api";
+import { actualizarVehiculo, crearVehiculo, eliminarVehiculo, listarFlota } from "@/features/flota/api";
 import {
   ETIQUETA_ESTADO_VEHICULO,
   ETIQUETA_TIPO_VEHICULO,
@@ -10,6 +10,11 @@ import {
   type Vehiculo,
   type VehiculoInput,
 } from "@/features/flota/types";
+import { BarraFiltros } from "@/components/ui/BarraFiltros";
+import { BotonEliminar } from "@/components/ui/BotonEliminar";
+import { colorDeFlota } from "@/features/flota/colores";
+import { ColorPicker } from "@/components/ui/ColorPicker";
+import { filtrarVehiculos } from "@/features/flota/filtros";
 import { Card, EmptyState } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Alert } from "@/components/ui/Alert";
@@ -21,8 +26,6 @@ import { getApiErrorMessage } from "@/services/api-client";
 import { Box, Gauge, Package, Pencil, Plus, Route, Truck, Weight } from "lucide-react";
 import { SpotlightCard } from "@/components/ui/Efectos";
 import { VehiculoIllustration } from "@/features/flota/VehiculoIllustration";
-import { ColorPicker } from "@/components/ui/ColorPicker";
-import { colorDeFlota } from "@/features/flota/colores";
 const VACIO: VehiculoInput = { patente: "", modelo: "", tipo: "camion", capacidad_peso: 3500, capacidad_volumen: 20, estado: "en_base", color: "" };
 
 const PUNTO_ESTADO: Record<EstadoVehiculo, string> = { activo: "bg-green-500", en_base: "bg-gray-400", mantenimiento: "bg-red-500" };
@@ -96,7 +99,7 @@ function FormVehiculo({ inicial, editando, autoColor, onListo }: { inicial: Vehi
       </SelectField>
       <div className="flex flex-col gap-1 sm:col-span-2 lg:col-span-3">
         <span className="text-sm font-medium text-gray-700">Color</span>
-        <ColorPicker value={v.color} onChange={(color) => setV({ ...v, color })} automatico={autoColor} />
+        <ColorPicker value={v.color ?? ""} onChange={(color) => setV({ ...v, color })} automatico={autoColor} />
         <p className="text-xs text-gray-500">Se usa en el vehículo, en su ruta y en el marcador del mapa del panel.</p>
       </div>
       {guardar.isError && (
@@ -124,10 +127,19 @@ function aInput(v: Vehiculo): VehiculoInput {
 export function VehiculosPage() {
   const [nuevo, setNuevo] = useState(false);
   const [editando, setEditando] = useState<string | null>(null);
+  const [busqueda, setBusqueda] = useState("");
+  const [estado, setEstado] = useState("");
+  const [tipo, setTipo] = useState("");
   const { data, isLoading, isError, error } = useQuery({ queryKey: ["operaciones", "flota"], queryFn: () => listarFlota() });
-
   const colores = useMemo(() => colorDeFlota(data ?? []), [data]);
-  const colorAuto = useMemo(() => ({ nuevo: colorDeFlota([...(data ?? []), { id: "nuevo" }]).nuevo }), [data]);
+  const colorNuevo = useMemo(() => colorDeFlota([...(data ?? []), { id: "nuevo" }]).nuevo, [data]);
+  const visibles = data ? filtrarVehiculos(data, { busqueda, estado, tipo }) : [];
+  const hayFiltros = Boolean(busqueda || estado || tipo);
+  const limpiar = () => {
+    setBusqueda("");
+    setEstado("");
+    setTipo("");
+  };
 
   return (
     <div className={PAGE_WIDE}>
@@ -146,15 +158,43 @@ export function VehiculosPage() {
       {nuevo && (
         <Card>
           <h2 className="mb-3 text-sm font-semibold text-gray-900">Nuevo vehículo</h2>
-          <FormVehiculo inicial={VACIO} autoColor={colorAuto.nuevo} onListo={() => setNuevo(false)} />
+          <FormVehiculo inicial={VACIO} autoColor={colorNuevo} onListo={() => setNuevo(false)} />
         </Card>
       )}
       {isLoading && <Spinner label="Cargando flota…" />}
       {isError && <Alert variant="error">{getApiErrorMessage(error, "No se pudo cargar la flota")}</Alert>}
       {data && data.length === 0 && <EmptyState title="Todavía no hay vehículos" />}
       {data && data.length > 0 && (
+        <BarraFiltros
+          busqueda={busqueda}
+          onBusqueda={setBusqueda}
+          placeholder="Buscar por patente, modelo, chofer o ruta…"
+          hayFiltros={hayFiltros}
+          onLimpiar={limpiar}
+          resumen={`${visibles.length} de ${data.length}`}
+        >
+          <SelectField label="Estado" value={estado} onChange={(e) => setEstado(e.target.value)}>
+            <option value="">Todos</option>
+            {Object.entries(ETIQUETA_ESTADO_VEHICULO).map(([k, label]) => (
+              <option key={k} value={k}>
+                {label}
+              </option>
+            ))}
+          </SelectField>
+          <SelectField label="Tipo" value={tipo} onChange={(e) => setTipo(e.target.value)}>
+            <option value="">Todos</option>
+            {Object.entries(ETIQUETA_TIPO_VEHICULO).map(([k, label]) => (
+              <option key={k} value={k}>
+                {label}
+              </option>
+            ))}
+          </SelectField>
+        </BarraFiltros>
+      )}
+      {data && data.length > 0 && visibles.length === 0 && <EmptyState title="Ningún vehículo coincide con la búsqueda" />}
+      {visibles.length > 0 && (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {data.map((v) => (
+          {visibles.map((v) => (
             <SpotlightCard key={v.id} className="flex flex-col">
               {editando === v.id ? (
                 <div className="p-5">
@@ -224,7 +264,8 @@ export function VehiculosPage() {
                         <p className="flex-1 text-gray-400">Sin ruta asignada hoy</p>
                       )}
                     </div>
-                    <div className="mt-auto flex justify-end">
+                    <div className="mt-auto flex justify-end gap-2">
+                      <BotonEliminar nombre={v.patente} eliminar={() => eliminarVehiculo(v.id)} invalidar={[["operaciones", "flota"]]} />
                       <Button type="button" variant="secondary" onClick={() => setEditando(v.id)}>
                         <Pencil className="h-4 w-4" aria-hidden />
                         Editar

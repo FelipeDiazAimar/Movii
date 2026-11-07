@@ -56,6 +56,13 @@ func RequireAuth(jwtSecret string) func(http.Handler) http.Handler {
 				return
 			}
 
+			// Un token con "scope" (el del primer acceso, T1) no da acceso a nada:
+			// solo sirve para cambiar la contraseña en /auth/primer-acceso.
+			if _, conScope := claimsMap["scope"]; conScope {
+				httpx.WriteError(w, http.StatusForbidden, "primer_acceso_pendiente", "completá el primer acceso antes de usar la API")
+				return
+			}
+
 			claims := Claims{
 				UsuarioID: toString(claimsMap["sub"]),
 				Rol:       toString(claimsMap["rol"]),

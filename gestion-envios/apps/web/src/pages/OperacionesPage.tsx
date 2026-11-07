@@ -15,6 +15,7 @@ import { ETIQUETA_ESTADO_VEHICULO, ETIQUETA_TIPO_VEHICULO, type LatLng, type Veh
 import { EstadoEnvioBadge } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/Card";
 import { Spinner } from "@/components/ui/Spinner";
+import { SkeletonPagina } from "@/components/ui/Skeleton";
 import { Alert } from "@/components/ui/Alert";
 import { getApiErrorMessage } from "@/services/api-client";
 import { formatearFecha, formatearHora } from "@/utils/fechas";
@@ -174,7 +175,7 @@ export function OperacionesPage() {
     [paquetes, envioElegido],
   );
 
-  if (dashboard.isLoading || flota.isLoading) return <Spinner label="Cargando el centro de operaciones…" />;
+  if (dashboard.isLoading || flota.isLoading) return <SkeletonPagina label="Cargando el centro de operaciones…" />;
   if (flota.isError) return <Alert variant="error">{getApiErrorMessage(flota.error, "No se pudo cargar la flota")}</Alert>;
 
   const m = dashboard.data?.metricas;

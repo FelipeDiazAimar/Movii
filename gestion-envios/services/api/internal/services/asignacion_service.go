@@ -2,16 +2,11 @@ package services
 
 import (
 	"context"
-	"errors"
-	"time"
 
 	"movii/api/internal/domain"
 	"movii/api/internal/repository"
 )
 
-// ErrFechaVencida indica que se intentó asignar un envío a una ruta cuya
-// fecha de reparto ya pasó (CA-05 de HU-04).
-var ErrFechaVencida = errors.New("no se puede asignar a una ruta con fecha vencida")
 
 // AsignacionService contiene la lógica de negocio de HU-04.
 type AsignacionService struct {
@@ -36,23 +31,13 @@ func NewAsignacionService(rutaRepo *repository.RutaRepo, envioRepo *repository.E
 	return &AsignacionService{rutaRepo: rutaRepo, envioRepo: envioRepo}
 }
 
-// Asignar valida que la ruta exista y su fecha no haya vencido, y asigna los
-// envíos dados (deben estar pendientes). Devuelve cuántos envíos quedaron
-// asignados; si alguno no estaba disponible no asigna ninguno.
+// Asignar valida que la ruta exista y asigna los envíos dados (deben estar
+// pendientes). Devuelve cuántos envíos quedaron asignados; si alguno no estaba
+// disponible no asigna ninguno. La fecha que rige es la de entrega de cada
+// envío, no la de la ruta, así que no se valida contra "hoy".
 func (s *AsignacionService) Asignar(ctx context.Context, rutaID string, envioIDs []string) (int, error) {
-	ruta, err := s.rutaRepo.GetByID(ctx, rutaID)
-	if err != nil {
+	if _, err := s.rutaRepo.GetByID(ctx, rutaID); err != nil {
 		return 0, err
-	}
-
-	// Las rutas se planifican por día calendario argentino: se compara contra
-	// "hoy" en hora local (UTC-3). Con UTC, después de las 21 h una ruta de
-	// hoy se leía como vencida.
-	if _, err := time.Parse("2006-01-02", ruta.Fecha); err != nil {
-		return 0, err
-	}
-	if ruta.Fecha < FechaAR(time.Now()) {
-		return 0, ErrFechaVencida
 	}
 
 	n, err := s.envioRepo.AsignarEnvios(ctx, envioIDs, rutaID)

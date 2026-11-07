@@ -75,24 +75,6 @@ func TestAsignacionService_AsignarYDesasignar(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func TestAsignacionService_AsignarRechazaFechaVencida(t *testing.T) {
-	svc, pool, repartidorID := nuevoAsignacionServiceDeTest(t)
-	ctx := context.Background()
-	rutaRepo := repository.NewRutaRepo(pool)
-
-	ayer := time.Now().AddDate(0, 0, -1).Format("2006-01-02")
-	ruta, err := rutaRepo.Create(ctx, domain.Ruta{
-		Nombre: "Ruta Vencida Test", Zona: "Centro", Fecha: ayer, RepartidorID: repartidorID,
-	})
-	require.NoError(t, err)
-	t.Cleanup(func() { _, _ = pool.Exec(ctx, "DELETE FROM rutas WHERE id = $1", ruta.ID) })
-
-	envioID := crearEnvioPendienteDeTest(t, pool)
-
-	_, err = svc.Asignar(ctx, ruta.ID, []string{envioID})
-	require.ErrorIs(t, err, ErrFechaVencida)
-}
-
 func TestAsignacionService_DesasignarRechazaRutaNoPlanificada(t *testing.T) {
 	svc, pool, repartidorID := nuevoAsignacionServiceDeTest(t)
 	ctx := context.Background()

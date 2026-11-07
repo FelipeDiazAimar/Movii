@@ -11,6 +11,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"movii/api/internal/domain"
+	"movii/api/internal/platform/fecha"
 	"movii/api/internal/repository"
 )
 
@@ -286,8 +287,7 @@ func (s *EstadoService) Reprogramar(ctx context.Context, envioID, nuevaFecha, fr
 	if err != nil {
 		return domain.Envio{}, fmt.Errorf("fecha de reprogramación %q inválida: %w", nuevaFecha, ErrFechaInvalida)
 	}
-	hoy, _ := time.Parse("2006-01-02", time.Now().UTC().Format("2006-01-02"))
-	if parsed.Before(hoy) {
+	if parsed.Before(fecha.InicioDeHoy()) {
 		return domain.Envio{}, fmt.Errorf("fecha de reprogramación %q es pasada (solo valen hoy o futuras): %w", nuevaFecha, ErrFechaInvalida)
 	}
 	if !franjaValida(franja) {

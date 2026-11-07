@@ -41,14 +41,14 @@ export const esJPEGBase64 = (b64: string) => b64.startsWith("/9j/");
 export const esPNGBase64 = (b64: string) => b64.startsWith("iVBORw0KGgo");
 export const bytesDeBase64 = (b64: string) => Math.floor((b64.length * 3) / 4) - (b64.endsWith("==") ? 2 : b64.endsWith("=") ? 1 : 0);
 
-/** Fecha de hoy en UTC (YYYY-MM-DD): la API valida la reprogramación contra "hoy" en UTC. */
+/** Fecha de hoy en Argentina (UTC-3, YYYY-MM-DD): la API valida la reprogramación contra "hoy" en ese huso. */
 export function hoyUTC(ahora: Date = new Date()): string {
-  return ahora.toISOString().slice(0, 10);
+  return new Date(ahora.getTime() - 3 * 3_600_000).toISOString().slice(0, 10);
 }
 
 const DIAS = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
 
-/** Próximas `cantidad` fechas válidas para reprogramar (desde hoy en UTC). */
+/** Próximas `cantidad` fechas válidas para reprogramar (desde hoy en Argentina). */
 export function proximasFechas(cantidad = 3, ahora: Date = new Date()): { fecha: string; etiqueta: string }[] {
   const base = new Date(`${hoyUTC(ahora)}T00:00:00Z`);
   return Array.from({ length: cantidad }, (_, i) => {

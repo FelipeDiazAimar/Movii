@@ -43,10 +43,18 @@ export interface RutaDetalle {
 export interface RutaInput {
   nombre: string;
   zona: string;
-  fecha: string;
   repartidor_id: string;
 }
 
 export interface RutasFiltro {
   fecha?: string;
+}
+
+export type NivelRecomendacion = "conviene" | "dudoso" | "no_conviene" | "sin_recomendacion";
+
+export interface Recomendacion {
+  extra_km: number;
+  desvio_pct: number;
+  recomendacion: NivelRecomendacion;
+  motivo: string;
 }

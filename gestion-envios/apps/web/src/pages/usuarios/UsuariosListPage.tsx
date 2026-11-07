@@ -1,8 +1,13 @@
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { listarUsuarios } from "@/features/usuarios/api";
+import { listarUsuarios, eliminarUsuario } from "@/features/usuarios/api";
 import { Card, EmptyState } from "@/components/ui/Card";
-import { Spinner } from "@/components/ui/Spinner";
+import { SkeletonTabla } from "@/components/ui/Skeleton";
+import { BarraFiltros, FiltroSelect } from "@/components/ui/BarraFiltros";
+import { filtrarUsuarios } from "@/utils/filtros";
+import { BotonEliminar } from "@/components/ui/BotonEliminar";
+import { useAuth } from "@/hooks/useAuth";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { RolBadge } from "@/components/ui/Badge";
@@ -11,19 +16,24 @@ import { PageHeader, PAGE_WIDE } from "@/components/ui/PageHeader";
 import { TelefonoEditable } from "@/features/whatsapp/TelefonoEditable";
 
 import { CircleCheck, CircleOff, Headset, Mail, Plus, ShieldCheck, Smartphone, Truck, UserRound, Users, type LucideIcon } from "lucide-react";
-const ICONO_ROL: Record<string, LucideIcon> = { supervisor: ShieldCheck, operador: Headset, repartidor: Truck };
+const ICONO_ROL: Record<string, LucideIcon> = { admin: ShieldCheck, operador: Headset, repartidor: Truck };
 
 export function UsuariosListPage() {
+  const { sesion } = useAuth();
   const { data, isLoading, isError, error } = useQuery({
     queryKey: ["usuarios"],
     queryFn: listarUsuarios,
   });
+  const [busqueda, setBusqueda] = useState("");
+  const [rol, setRol] = useState("");
+  const [estado, setEstado] = useState("");
+  const visibles = data ? filtrarUsuarios(data, { busqueda, rol, estado }) : [];
 
   return (
     <div className={PAGE_WIDE}>
       <PageHeader
         title="Usuarios" icon={Users}
-        description="Operadores, supervisores y repartidores del sistema."
+        description="Operadores, admins y repartidores del sistema."
         action={
           <Link to="/usuarios/nuevo">
             <Button type="button"><Plus className="h-4 w-4" strokeWidth={2.5} aria-hidden />
@@ -32,11 +42,36 @@ Nuevo usuario</Button>
         }
       />
 
-      {isLoading && <Spinner label="Cargando usuarios…" />}
+      {data && data.length > 0 && (
+        <BarraFiltros
+          busqueda={busqueda}
+          onBusqueda={setBusqueda}
+          placeholder="Buscar por nombre, email o teléfono"
+          hayFiltros={Boolean(busqueda || rol || estado)}
+          onLimpiar={() => { setBusqueda(""); setRol(""); setEstado(""); }}
+          resumen={`${visibles.length} de ${data.length}`}
+        >
+          <FiltroSelect label="Rol" value={rol} onChange={setRol}>
+            <option value="">Todos</option>
+            <option value="operador">Operador</option>
+            <option value="repartidor">Repartidor</option>
+            <option value="admin">Admin</option>
+          </FiltroSelect>
+          <FiltroSelect label="Estado" value={estado} onChange={setEstado}>
+            <option value="">Todos</option>
+            <option value="activo">Activo</option>
+            <option value="inactivo">Inactivo</option>
+          </FiltroSelect>
+        </BarraFiltros>
+      )}
+
+      {isLoading && <SkeletonTabla label="Cargando usuarios…" />}
       {isError && <Alert variant="error">{getApiErrorMessage(error, "No se pudieron cargar los usuarios")}</Alert>}
       {data && data.length === 0 && <EmptyState title="No hay usuarios cargados" />}
 
-      {data && data.length > 0 && (
+      {data && data.length > 0 && visibles.length === 0 && <EmptyState title="Ningún usuario coincide con los filtros" />}
+
+      {visibles.length > 0 && (
         <Card className="overflow-x-auto p-0">
           <table className="min-w-full divide-y divide-hormigon-200 text-sm">
             <thead className="bg-hormigon-50 text-left text-xs font-semibold text-gray-500">
@@ -46,10 +81,11 @@ Nuevo usuario</Button>
                 <th className="px-4 py-3">Celular</th>
                 <th className="px-4 py-3">Rol</th>
                 <th className="px-4 py-3">Estado</th>
+                <th className="px-4 py-3"><span className="sr-only">Acciones</span></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-hormigon-100">
-              {data.map((usuario) => (
+              {visibles.map((usuario) => (
                 <tr key={usuario.id} className="transition-colors hover:bg-movii-50/40">
                   <td className="px-4 py-3 font-medium text-gray-900">
                     <span className="flex items-center gap-3">
@@ -89,6 +125,11 @@ Nuevo usuario</Button>
                         <CircleOff className="h-4 w-4" aria-hidden />
                         Inactivo
                       </span>
+                    )}
+                  </td>
+                  <td className="px-4 py-3">
+                    {usuario.id !== sesion?.usuarioId && (
+                      <BotonEliminar nombre={usuario.nombre} eliminar={() => eliminarUsuario(usuario.id)} invalidar={[["usuarios"]]} />
                     )}
                   </td>
                 </tr>

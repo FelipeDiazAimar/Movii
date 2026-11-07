@@ -17,6 +17,8 @@ import (
 	"movii/api/internal/httprouter"
 	"movii/api/internal/platform/db"
 	"movii/api/internal/platform/geo"
+	"movii/api/internal/platform/google"
+	"movii/api/internal/platform/mail"
 	"movii/api/internal/platform/whatsapp"
 	"movii/api/internal/repository"
 	"movii/api/internal/services"
@@ -50,6 +52,15 @@ func main() {
 	// dibuja en línea recta para que el mapa nunca quede vacío.
 	router := geo.ConRespaldo(geo.NewOSRM(cfg.OSRMURL))
 	var geocoder geo.Geocoder = geo.NewNominatim(cfg.NominatimURL)
+	var proveedor geo.GeoProvider = geo.NewOSM(geocoder, cfg.OSRMURL)
+	if cfg.GeoProvider == "google" {
+		if cfg.GoogleMapsKey != "" {
+			proveedor = geo.NewGoogle(cfg.GoogleMapsKey)
+		} else {
+			log.Printf("geo: GEO_PROVIDER=google sin GOOGLE_MAPS_KEY, se usa OSRM")
+		}
+	}
+	proveedor = geo.ConCache(proveedor, 24*time.Hour)
 
 	// WhatsApp: cuenta vinculada por QR (whatsmeow) o, deshabilitado, solo log.
 	var wa whatsapp.Administrable = whatsapp.SoloLog{}
@@ -91,6 +102,19 @@ func main() {
 	reportesService := services.NewReportesService(repository.NewReportesRepo(pool))
 	flotaService := services.NewFlotaService(flotaRepo, operacionesRepo, router)
 	otpService := services.NewOTPService(whatsappRepo, usuarioRepo, authService, wa, cfg.JWTSecret)
+	otpService.TTL = time.Duration(cfg.OTPTTLMin) * time.Minute
+	otpService.MaxIntentos = cfg.OTPMaxIntentos
+	// Mail del código para quien no tiene celular (T1): Resend o, sin clave, solo log.
+	if cfg.ResendAPIKey != "" && cfg.MailFrom != "" {
+		otpService.ConMail(mail.NewResend(cfg.ResendAPIKey, cfg.MailFrom))
+	} else {
+		log.Printf("mail: sin RESEND_API_KEY/MAIL_FROM, los códigos por mail se escriben en el log")
+	}
+	// Login con Google (T2): sin GOOGLE_* el botón se oculta (GET /auth/config).
+	var googleCliente *google.Cliente
+	if cfg.GoogleHabilitado() {
+		googleCliente = google.New(cfg.GoogleClientID, cfg.GoogleClientSecret, cfg.GoogleCallbackURL)
+	}
 	hub := services.NewFlotaHub()
 
 	if cfg.Geocodificar {
@@ -111,13 +135,18 @@ func main() {
 		log.Printf("simulador GPS activo (x%.1f)", cfg.SimuladorFactor)
 	}
 
+	rutaHandler := handlers.NewRutaHandler(rutaService, asignacionService)
+	if cfg.Geocodificar { // GEOCODIFICAR=false = sin red: no se valida ni recomienda
+		rutaHandler.ConRecomendacion(services.NewRecomendacionService(rutaRepo, repository.NewGeoRepo(pool), proveedor, cfg.RecomiendaOKKm, cfg.RecomiendaNoKm))
+	}
+
 	api := httprouter.New(httprouter.Deps{
 		CORSOrigins:        cfg.CORSOrigins,
 		JWTSecret:          cfg.JWTSecret,
 		AuthHandler:        handlers.NewAuthHandler(authService).ConSegundoFactor(otpService),
 		UsuariosHandler:    handlers.NewUsuariosHandler(usuarioRepo),
 		EnvioHandler:       handlers.NewEnvioHandler(envioService),
-		RutaHandler:        handlers.NewRutaHandler(rutaService, asignacionService),
+		RutaHandler:        rutaHandler,
 		RepartidorHandler:  handlers.NewRepartidorHandler(repartidorService),
 		EstadoHandler:      handlers.NewEstadoHandler(estadoService),
 		TrackingHandler:    handlers.NewTrackingHandler(trackingService),
@@ -125,6 +154,8 @@ func main() {
 		ReportesHandler:    handlers.NewReportesHandler(reportesService),
 		FlotaHandler:       handlers.NewFlotaHandler(flotaService, hub),
 		WhatsappHandler:    handlers.NewWhatsappHandler(wa, usuarioRepo, whatsappRepo),
+		EliminarHandler:    handlers.NewEliminarHandler(pool),
+		GoogleHandler:      handlers.NewGoogleHandler(googleCliente, authService, otpService, cfg.JWTSecret, cfg.PublicWebURL, cfg.Env != "production"),
 	})
 
 	var handler http.Handler = api

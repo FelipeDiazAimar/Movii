@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react";
-import { DateField, InputField } from "@/components/ui/Field";
+import { InputField } from "@/components/ui/Field";
 import { Button } from "@/components/ui/Button";
 import { Alert } from "@/components/ui/Alert";
 import { RepartidorSelect } from "./RepartidorSelect";
@@ -17,14 +17,13 @@ interface Props {
 export function RutaForm({ valoresIniciales, onSubmit, enviando, errorServidor, textoBoton = "Crear ruta" }: Props) {
   const [nombre, setNombre] = useState(valoresIniciales?.nombre ?? "");
   const [zona, setZona] = useState(valoresIniciales?.zona ?? "");
-  const [fecha, setFecha] = useState(valoresIniciales?.fecha ?? "");
   const [repartidorId, setRepartidorId] = useState(valoresIniciales?.repartidor_id ?? "");
   const [errores, setErrores] = useState<Record<string, string>>({});
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
 
-    const resultado = rutaFormSchema.safeParse({ nombre, zona, fecha, repartidor_id: repartidorId });
+    const resultado = rutaFormSchema.safeParse({ nombre, zona, repartidor_id: repartidorId });
     if (!resultado.success) {
       const nuevosErrores: Record<string, string> = {};
       for (const issue of resultado.error.issues) {
@@ -43,7 +42,6 @@ export function RutaForm({ valoresIniciales, onSubmit, enviando, errorServidor, 
 
       <InputField label="Nombre" value={nombre} onChange={(e) => setNombre(e.target.value)} error={errores.nombre} />
       <InputField label="Zona" value={zona} onChange={(e) => setZona(e.target.value)} error={errores.zona} />
-      <DateField label="Fecha *" value={fecha} onChange={setFecha} error={errores.fecha} />
       <RepartidorSelect value={repartidorId} onChange={setRepartidorId} error={errores.repartidor_id} />
 
       <div>

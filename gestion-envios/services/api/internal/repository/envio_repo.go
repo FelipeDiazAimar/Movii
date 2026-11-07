@@ -4,13 +4,13 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"movii/api/internal/domain"
+	"movii/api/internal/platform/fecha"
 )
 
 // ErrEnvioNoDisponible indica que uno o más envíos no están en estado
@@ -35,14 +35,15 @@ func NewEnvioRepo(pool *pgxpool.Pool) *EnvioRepo {
 // usa dentro de una transacción junto con CreateRemitente/CreateDestinatario).
 func (r *EnvioRepo) Create(ctx context.Context, q Querier, e domain.Envio) (domain.Envio, error) {
 	row := q.QueryRow(ctx, `
-		INSERT INTO envios (codigo_guia, peso, tamano, tipo_contenido, fragil, urgente, remitente_id, destinatario_id)
-		VALUES ($1, $2, $3::tamano_paquete, $4, $5, $6, $7, $8)
-		RETURNING id, codigo_guia, estado, peso, tamano, tipo_contenido, fragil, urgente, remitente_id, destinatario_id
-	`, e.CodigoGuia, e.Peso, e.Tamano, e.TipoContenido, e.Fragil, e.Urgente, e.RemitenteID, e.DestinatarioID)
+		INSERT INTO envios (codigo_guia, peso, tamano, tipo_contenido, fragil, urgente, remitente_id, destinatario_id, fecha_entrega)
+		VALUES ($1, $2, $3::tamano_paquete, $4, $5, $6, $7, $8, COALESCE(NULLIF($9::text, '')::date, (now() AT TIME ZONE 'America/Argentina/Buenos_Aires')::date))
+		RETURNING id, codigo_guia, estado, peso, tamano, tipo_contenido, fragil, urgente, remitente_id, destinatario_id,
+		          to_char(fecha_entrega, 'YYYY-MM-DD')
+	`, e.CodigoGuia, e.Peso, e.Tamano, e.TipoContenido, e.Fragil, e.Urgente, e.RemitenteID, e.DestinatarioID, e.FechaEntrega)
 
 	var creado domain.Envio
 	err := row.Scan(&creado.ID, &creado.CodigoGuia, &creado.Estado, &creado.Peso, &creado.Tamano,
-		&creado.TipoContenido, &creado.Fragil, &creado.Urgente, &creado.RemitenteID, &creado.DestinatarioID)
+		&creado.TipoContenido, &creado.Fragil, &creado.Urgente, &creado.RemitenteID, &creado.DestinatarioID, &creado.FechaEntrega)
 	if err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == pgUniqueViolation {
@@ -66,7 +67,7 @@ func (r *EnvioRepo) ContarPorPrefijoCodigo(ctx context.Context, q Querier, prefi
 func (r *EnvioRepo) List(ctx context.Context, estado, fecha string) ([]domain.EnvioConDetalle, error) {
 	rows, err := r.pool.Query(ctx, `
 		SELECT e.id, e.codigo_guia, e.estado, e.peso, e.tamano, e.tipo_contenido, e.fragil, e.urgente,
-		       e.remitente_id, e.destinatario_id, e.ruta_id,
+		       e.remitente_id, e.destinatario_id, e.ruta_id, to_char(e.fecha_entrega, 'YYYY-MM-DD'),
 		       d.id, d.nombre, d.telefono, d.calle, d.numero, COALESCE(d.piso_depto, ''), d.localidad, d.codigo_postal,
 		       to_char(e.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"'),
 		       COALESCE(ru.nombre, ''), COALESCE(u.nombre, '')
@@ -75,7 +76,7 @@ func (r *EnvioRepo) List(ctx context.Context, estado, fecha string) ([]domain.En
 		LEFT JOIN rutas ru ON ru.id = e.ruta_id
 		LEFT JOIN usuarios u ON u.id = ru.repartidor_id
 		WHERE ($1 = '' OR e.estado::text = $1)
-		  AND ($2 = '' OR e.created_at::date = $2::date OR e.reprogramado_para = $2::date)
+		  AND ($2 = '' OR e.fecha_entrega = $2::date)
 		ORDER BY e.created_at DESC
 	`, estado, fecha)
 	if err != nil {
@@ -88,7 +89,7 @@ func (r *EnvioRepo) List(ctx context.Context, estado, fecha string) ([]domain.En
 		var e domain.EnvioConDetalle
 		var rutaID sql.NullString
 		if err := rows.Scan(&e.ID, &e.CodigoGuia, &e.Estado, &e.Peso, &e.Tamano, &e.TipoContenido, &e.Fragil, &e.Urgente,
-			&e.RemitenteID, &e.DestinatarioID, &rutaID,
+			&e.RemitenteID, &e.DestinatarioID, &rutaID, &e.FechaEntrega,
 			&e.Destinatario.ID, &e.Destinatario.Nombre, &e.Destinatario.Telefono, &e.Destinatario.Calle,
 			&e.Destinatario.Numero, &e.Destinatario.PisoDepto, &e.Destinatario.Localidad, &e.Destinatario.CodigoPostal,
 			&e.FechaCreacion, &e.RutaNombre, &e.RepartidorNombre,
@@ -108,7 +109,7 @@ func (r *EnvioRepo) List(ctx context.Context, estado, fecha string) ([]domain.En
 func (r *EnvioRepo) GetByID(ctx context.Context, id string) (domain.EnvioConDetalle, error) {
 	row := r.pool.QueryRow(ctx, `
 		SELECT e.id, e.codigo_guia, e.estado, e.peso, e.tamano, e.tipo_contenido, e.fragil, e.urgente,
-		       e.remitente_id, e.destinatario_id, e.ruta_id,
+		       e.remitente_id, e.destinatario_id, e.ruta_id, to_char(e.fecha_entrega, 'YYYY-MM-DD'),
 		       d.id, d.nombre, d.telefono, d.calle, d.numero, COALESCE(d.piso_depto, ''), d.localidad, d.codigo_postal,
 		       to_char(e.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"'),
 		       COALESCE(ru.nombre, ''), COALESCE(u.nombre, '')
@@ -122,7 +123,7 @@ func (r *EnvioRepo) GetByID(ctx context.Context, id string) (domain.EnvioConDeta
 	var e domain.EnvioConDetalle
 	var rutaID sql.NullString
 	err := row.Scan(&e.ID, &e.CodigoGuia, &e.Estado, &e.Peso, &e.Tamano, &e.TipoContenido, &e.Fragil, &e.Urgente,
-		&e.RemitenteID, &e.DestinatarioID, &rutaID,
+		&e.RemitenteID, &e.DestinatarioID, &rutaID, &e.FechaEntrega,
 		&e.Destinatario.ID, &e.Destinatario.Nombre, &e.Destinatario.Telefono, &e.Destinatario.Calle,
 		&e.Destinatario.Numero, &e.Destinatario.PisoDepto, &e.Destinatario.Localidad, &e.Destinatario.CodigoPostal,
 		&e.FechaCreacion, &e.RutaNombre, &e.RepartidorNombre,
@@ -261,7 +262,7 @@ func (r *EnvioRepo) ActualizarEstado(ctx context.Context, q Querier, envioID, nu
 func (r *EnvioRepo) Reprogramar(ctx context.Context, q Querier, envioID, fechaYYYYMMDD, franja string) error {
 	tag, err := q.Exec(ctx, `
 		UPDATE envios
-		SET estado = 'pendiente', reprogramado_para = $2::date, franja = $3::franja_horaria, ruta_id = NULL
+		SET estado = 'pendiente', fecha_entrega = $2::date, reprogramado_para = $2::date, franja = $3::franja_horaria, ruta_id = NULL
 		WHERE id = $1::uuid
 	`, envioID, fechaYYYYMMDD, franja)
 	if err != nil {
@@ -300,28 +301,30 @@ func (r *EnvioRepo) ReprogramacionDe(ctx context.Context, envioID string) (para 
 	return para, franja, nil
 }
 
-// currentDateUTC devuelve la fecha de hoy en UTC, formato "YYYY-MM-DD". Se
+// currentDateUTC devuelve la fecha de hoy en Argentina (nombre histórico), formato "YYYY-MM-DD". Se
 // usa en vez de time.Now().Format en horario local para no repetir el bug
 // de huso horario ya corregido en AsignacionService (una fecha calculada en
 // el huso local de la máquina puede diferir de la fecha real en UTC cerca
 // de la medianoche).
 func currentDateUTC() string {
-	return time.Now().UTC().Format("2006-01-02")
+	return fecha.Hoy()
 }
 
 // ListDelDiaPorRepartidor devuelve los envíos de las rutas de repartidorID
-// con fecha == fecha, con el nombre de la ruta para poder agruparlos.
+// con fecha de entrega == fecha, con el nombre de la ruta para poder agruparlos.
 // estado vacío ("") no filtra por estado.
 func (r *EnvioRepo) ListDelDiaPorRepartidor(ctx context.Context, repartidorID, fecha, estado string) ([]domain.EnvioDelDia, error) {
 	rows, err := r.pool.Query(ctx, `
 		SELECT e.id, e.codigo_guia, e.estado, e.peso, e.tamano, e.tipo_contenido, e.fragil, e.urgente,
-		       e.remitente_id, e.destinatario_id, e.ruta_id,
+		       e.remitente_id, e.destinatario_id, e.ruta_id, to_char(e.fecha_entrega, 'YYYY-MM-DD'),
 		       d.id, d.nombre, d.telefono, d.calle, d.numero, COALESCE(d.piso_depto, ''), d.localidad, d.codigo_postal,
 		       r.nombre
 		FROM envios e
 		JOIN rutas r ON r.id = e.ruta_id
 		JOIN destinatarios d ON d.id = e.destinatario_id
-		WHERE r.repartidor_id = $1 AND r.fecha = $2::date
+		WHERE r.repartidor_id = $1
+		  AND (e.fecha_entrega = $2::date
+		       OR (e.fecha_entrega < $2::date AND e.estado IN ('asignado', 'en_camino'))) -- atrasados sin entregar
 		  AND ($3 = '' OR e.estado::text = $3)
 		ORDER BY r.nombre, e.created_at
 	`, repartidorID, fecha, estado)
@@ -334,13 +337,13 @@ func (r *EnvioRepo) ListDelDiaPorRepartidor(ctx context.Context, repartidorID, f
 	for rows.Next() {
 		var e domain.EnvioDelDia
 		var rutaID sql.NullString
-		// Orden exacto de columnas del SELECT (20 en total):
+		// Orden exacto de columnas del SELECT (21 en total):
 		// 1-10: e.id, codigo_guia, estado, peso, tamano, tipo_contenido, fragil, urgente, remitente_id, destinatario_id
-		// 11: e.ruta_id
-		// 12-19: d.id, nombre, telefono, calle, numero, piso_depto, localidad, codigo_postal
-		// 20: r.nombre
+		// 11: e.ruta_id, 12: fecha_entrega
+		// 13-20: d.id, nombre, telefono, calle, numero, piso_depto, localidad, codigo_postal
+		// 21: r.nombre
 		if err := rows.Scan(&e.ID, &e.CodigoGuia, &e.Estado, &e.Peso, &e.Tamano, &e.TipoContenido, &e.Fragil, &e.Urgente,
-			&e.RemitenteID, &e.DestinatarioID, &rutaID,
+			&e.RemitenteID, &e.DestinatarioID, &rutaID, &e.FechaEntrega,
 			&e.Destinatario.ID, &e.Destinatario.Nombre, &e.Destinatario.Telefono, &e.Destinatario.Calle,
 			&e.Destinatario.Numero, &e.Destinatario.PisoDepto, &e.Destinatario.Localidad, &e.Destinatario.CodigoPostal,
 			&e.RutaNombre,

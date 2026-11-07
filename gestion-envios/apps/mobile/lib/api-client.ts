@@ -5,7 +5,12 @@ import { Platform } from "react-native";
 import type { FranjaHoraria, MotivoFallo, RelacionReceptor, TrackingInfo } from "@/lib/seguimiento";
 import type { Shipment, ShipmentStatus } from "@/types/logistics";
 
-const API_URL = process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:8080";
+// En web servida por un túnel (devtunnels: <id>-8081.dominio) la API va por el túnel
+// del 8080: una página https no puede llamar a http://IP-de-la-LAN (contenido mixto).
+const hostTunel = Platform.OS === "web" && typeof window !== "undefined" ? window.location.host : "";
+const API_URL = /-8081\./.test(hostTunel)
+  ? `https://${hostTunel.replace("-8081.", "-8080.")}`
+  : (process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:8080");
 
 const TOKEN_KEY = "movii_jwt_token";
 
@@ -83,13 +88,57 @@ export async function login(email: string, password: string): Promise<(ClaimsJWT
   return { ...claims, token: data.token };
 }
 
-/** Segundo paso pendiente del login: el código ya salió por WhatsApp. */
+/** Segundo paso pendiente del login: el código ya salió por WhatsApp (o por mail, primer acceso T1). */
 export type DesafioLogin = {
   desafio_id: string;
-  /** Celular enmascarado (+54 9 3564 ••••45). */
+  /** Celular enmascarado (+54 9 3564 ••••45); vacío si salió por mail. */
   telefono: string;
+  canal?: "whatsapp" | "mail";
+  /** Celular o mail enmascarado. */
+  destino?: string;
   vence_en_segundos: number;
 };
+
+/** Métodos de login disponibles (T2): sin GOOGLE_* en la API, google es false. */
+export async function obtenerConfigAuth(): Promise<{ google: boolean }> {
+  const { data } = await api.get<{ google: boolean }>("/auth/config");
+  return data;
+}
+
+const ERRORES_GOOGLE: Record<string, string> = {
+  cancelado: "Cancelaste el inicio de sesión con Google.",
+  google_denied: "Google no autorizó el inicio de sesión.",
+  email_no_verificado: "Tu cuenta de Google no tiene el email verificado.",
+  cuenta_inactiva: "Tu usuario está dado de baja.",
+  google_otra_cuenta: "Ese email ya está vinculado a otra cuenta de Google.",
+  google_no_configurado: "El ingreso con Google no está habilitado.",
+  codigo_no_enviado: "No pudimos enviarte el código de verificación. Probá de nuevo en un minuto.",
+};
+
+/**
+ * Lee la URL con la que la API vuelve a la app después de Google (T2):
+ * movii://auth#token=...&email=..., movii://auth#desafio_id=...&canal=... (primer
+ * acceso) o movii://auth?error=cancelado.
+ */
+export function leerVueltaGoogle(url: string): { token?: string; email?: string; desafio?: DesafioLogin; error?: string } {
+  const i = url.search(/[?#]/);
+  const p: Record<string, string> = {};
+  for (const par of (i < 0 ? "" : url.slice(i + 1)).split(/[&#?]/)) {
+    const [k, v = ""] = par.split("=");
+    if (k) p[decodeURIComponent(k)] = decodeURIComponent(v.replace(/\+/g, " "));
+  }
+  if (p.error) return { error: ERRORES_GOOGLE[p.error] ?? "No se pudo iniciar sesión con Google." };
+  if (p.token) return { token: p.token, email: p.email };
+  if (p.desafio_id) {
+    const canal = p.canal === "whatsapp" ? "whatsapp" : "mail";
+    const destino = p.destino ?? "";
+    return {
+      email: p.email,
+      desafio: { desafio_id: p.desafio_id, canal, destino, telefono: canal === "whatsapp" ? destino : "", vence_en_segundos: Number(p.vence_en_segundos) || 600 },
+    };
+  }
+  return { error: "No se pudo iniciar sesión con Google." };
+}
 
 /** Canjea el código de WhatsApp por el token y lo guarda (igual que login). */
 export async function verificarCodigoLogin(desafioId: string, codigo: string): Promise<ClaimsJWT & { token: string }> {

@@ -28,7 +28,7 @@ func NewRutaRepo(pool *pgxpool.Pool) *RutaRepo {
 func (r *RutaRepo) Create(ctx context.Context, ruta domain.Ruta) (domain.Ruta, error) {
 	row := r.pool.QueryRow(ctx, `
 		INSERT INTO rutas (nombre, zona, fecha, repartidor_id)
-		VALUES ($1, $2, $3::date, $4)
+		VALUES ($1, $2, COALESCE(NULLIF($3::text, '')::date, (now() AT TIME ZONE 'America/Argentina/Buenos_Aires')::date), $4)
 		RETURNING id, nombre, zona, to_char(fecha, 'YYYY-MM-DD'), estado, repartidor_id
 	`, ruta.Nombre, ruta.Zona, ruta.Fecha, ruta.RepartidorID)
 
@@ -93,7 +93,7 @@ func (r *RutaRepo) GetByID(ctx context.Context, id string) (domain.Ruta, error) 
 // no existe, o ErrRutaNoEditable si no está planificada.
 func (r *RutaRepo) Update(ctx context.Context, id string, ruta domain.Ruta) (domain.Ruta, error) {
 	row := r.pool.QueryRow(ctx, `
-		UPDATE rutas SET nombre = $1, zona = $2, fecha = $3::date, repartidor_id = $4
+		UPDATE rutas SET nombre = $1, zona = $2, fecha = COALESCE(NULLIF($3::text, '')::date, fecha), repartidor_id = $4
 		WHERE id = $5 AND estado = 'planificada'
 		  AND NOT EXISTS (SELECT 1 FROM envios WHERE ruta_id = $5 AND estado <> 'asignado')
 		RETURNING id, nombre, zona, to_char(fecha, 'YYYY-MM-DD'), estado, repartidor_id
@@ -118,7 +118,7 @@ func (r *RutaRepo) Update(ctx context.Context, id string, ruta domain.Ruta) (dom
 // EnviosDeRuta devuelve los envíos asignados a una ruta.
 func (r *RutaRepo) EnviosDeRuta(ctx context.Context, rutaID string) ([]domain.Envio, error) {
 	rows, err := r.pool.Query(ctx, `
-		SELECT id, codigo_guia, estado, peso, tamano, tipo_contenido, fragil, urgente, remitente_id, destinatario_id
+		SELECT id, codigo_guia, estado, peso, tamano, tipo_contenido, fragil, urgente, remitente_id, destinatario_id, to_char(fecha_entrega, 'YYYY-MM-DD')
 		FROM envios WHERE ruta_id = $1
 	`, rutaID)
 	if err != nil {
@@ -129,7 +129,7 @@ func (r *RutaRepo) EnviosDeRuta(ctx context.Context, rutaID string) ([]domain.En
 	lista := make([]domain.Envio, 0)
 	for rows.Next() {
 		var e domain.Envio
-		if err := rows.Scan(&e.ID, &e.CodigoGuia, &e.Estado, &e.Peso, &e.Tamano, &e.TipoContenido, &e.Fragil, &e.Urgente, &e.RemitenteID, &e.DestinatarioID); err != nil {
+		if err := rows.Scan(&e.ID, &e.CodigoGuia, &e.Estado, &e.Peso, &e.Tamano, &e.TipoContenido, &e.Fragil, &e.Urgente, &e.RemitenteID, &e.DestinatarioID, &e.FechaEntrega); err != nil {
 			return nil, err
 		}
 		rutaIDCopia := rutaID

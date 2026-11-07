@@ -17,9 +17,9 @@ func TestValidarRuta_RechazaSinRepartidor(t *testing.T) {
 	require.ErrorIs(t, err, ErrRutaCamposObligatorios)
 }
 
-func TestValidarRuta_RechazaSinFecha(t *testing.T) {
+func TestValidarRuta_AceptaSinFecha(t *testing.T) {
 	err := validarRuta(domain.Ruta{RepartidorID: "algún-id"})
-	require.ErrorIs(t, err, ErrRutaCamposObligatorios)
+	require.NoError(t, err)
 }
 
 func TestValidarRuta_AceptaCompleta(t *testing.T) {

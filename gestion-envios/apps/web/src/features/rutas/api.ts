@@ -1,5 +1,5 @@
 import { apiClient } from "@/services/api-client";
-import type { RutaDetalle, RutaInput, RutaListItem, RutasFiltro } from "./types";
+import type { Recomendacion, RutaDetalle, RutaInput, RutaListItem, RutasFiltro } from "./types";
 
 export async function listarRutas(filtro: RutasFiltro = {}): Promise<RutaListItem[]> {
   const { data } = await apiClient.get<RutaListItem[]>("/rutas", {
@@ -23,11 +23,21 @@ export async function editarRuta(id: string, input: RutaInput): Promise<RutaList
   return data;
 }
 
-export async function asignarEnvios(rutaId: string, envioIds: string[]): Promise<{ asignados: number }> {
-  const { data } = await apiClient.post<{ asignados: number }>(`/rutas/${rutaId}/envios`, { envio_ids: envioIds });
+export async function asignarEnvios(rutaId: string, envioIds: string[], forzar = false): Promise<{ asignados: number }> {
+  const { data } = await apiClient.post<{ asignados: number }>(`/rutas/${rutaId}/envios`, { envio_ids: envioIds, forzar });
+  return data;
+}
+
+/** T4: valida la dirección del envío y estima el desvío que causa en la ruta. */
+export async function recomendarEnvio(rutaId: string, envioId: string): Promise<Recomendacion> {
+  const { data } = await apiClient.post<Recomendacion>(`/rutas/${rutaId}/recomendar`, { envio_id: envioId });
   return data;
 }
 
 export async function desasignarEnvio(rutaId: string, envioId: string): Promise<void> {
   await apiClient.delete(`/rutas/${rutaId}/envios/${envioId}`);
+}
+
+export async function eliminarRuta(id: string): Promise<void> {
+  await apiClient.delete(`/rutas/${id}`);
 }

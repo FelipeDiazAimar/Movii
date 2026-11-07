@@ -1,10 +1,15 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
-import { listarRutas } from "@/features/rutas/api";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import { listarRutas, eliminarRuta } from "@/features/rutas/api";
 import { EstadoRutaBadge } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/Card";
-import { Spinner } from "@/components/ui/Spinner";
+import { SkeletonTarjetas } from "@/components/ui/Skeleton";
+import { BarraFiltros, FiltroSelect } from "@/components/ui/BarraFiltros";
+import { filtrarRutas } from "@/utils/filtros";
+import { listarRepartidores } from "@/features/usuarios/api";
+import { ESTADOS_RUTA } from "@/features/rutas/types";
+import { BotonEliminar } from "@/components/ui/BotonEliminar";
 import { Alert } from "@/components/ui/Alert";
 import { DatePicker } from "@/components/ui/DatePicker";
 import { Button } from "@/components/ui/Button";
@@ -20,7 +25,13 @@ export function RutasListPage() {
   const { data, isLoading, isError, error } = useQuery({
     queryKey: ["rutas", { fecha }],
     queryFn: () => listarRutas({ fecha: fecha || undefined }),
+    placeholderData: keepPreviousData,
   });
+  const repartidores = useQuery({ queryKey: ["repartidores"], queryFn: listarRepartidores });
+  const [busqueda, setBusqueda] = useState("");
+  const [estado, setEstado] = useState("");
+  const [repartidor, setRepartidor] = useState("");
+  const visibles = data ? filtrarRutas(data, { busqueda, estado, repartidor }) : [];
 
   return (
     <div className={PAGE_WIDE}>
@@ -40,15 +51,38 @@ export function RutasListPage() {
         }
       />
 
-      {isLoading && <Spinner label="Cargando rutas…" />}
+      <BarraFiltros
+        busqueda={busqueda}
+        onBusqueda={setBusqueda}
+        placeholder="Buscar por nombre, zona o repartidor"
+        hayFiltros={Boolean(busqueda || estado || repartidor || fecha)}
+        onLimpiar={() => { setBusqueda(""); setEstado(""); setRepartidor(""); setFecha(""); }}
+        resumen={data ? `${visibles.length} de ${data.length}` : undefined}
+      >
+        <FiltroSelect label="Estado" value={estado} onChange={setEstado}>
+          <option value="">Todos</option>
+          {ESTADOS_RUTA.map((e) => (
+            <option key={e} value={e}>{e.replace("_", " ")}</option>
+          ))}
+        </FiltroSelect>
+        <FiltroSelect label="Repartidor" value={repartidor} onChange={setRepartidor}>
+          <option value="">Todos</option>
+          {(repartidores.data ?? []).map((r) => (
+            <option key={r.id} value={r.id}>{r.nombre}</option>
+          ))}
+        </FiltroSelect>
+      </BarraFiltros>
+
+      {isLoading && <SkeletonTarjetas label="Cargando rutas…" />}
       {isError && <Alert variant="error">{getApiErrorMessage(error, "No se pudieron cargar las rutas")}</Alert>}
+      {data && data.length > 0 && visibles.length === 0 && <EmptyState title="Ninguna ruta coincide con los filtros" />}
       {data && data.length === 0 && (
         <EmptyState title="No hay rutas" description="Todavía no se creó ninguna ruta con estos filtros." />
       )}
 
-      {data && data.length > 0 && (
+      {visibles.length > 0 && (
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          {data.map((ruta) => (
+          {visibles.map((ruta) => (
             <SpotlightCard key={ruta.id} className="h-full">
               <Link to={`/rutas/${ruta.id}`} className="flex h-full flex-col gap-4 p-5">
                 <div className="flex items-start justify-between gap-3">
@@ -90,6 +124,9 @@ export function RutasListPage() {
                 <MapPinned className="h-3.5 w-3.5" aria-hidden />
                 Ver en el mapa
               </Link>
+              <div className="flex justify-end border-t border-hormigon-100 px-2 py-1">
+                <BotonEliminar nombre={ruta.nombre || "(sin nombre)"} eliminar={() => eliminarRuta(ruta.id)} invalidar={[["rutas"]]} />
+              </div>
             </SpotlightCard>
           ))}
         </div>

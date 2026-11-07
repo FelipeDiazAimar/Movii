@@ -73,10 +73,11 @@ type vehiculoRequest struct {
 	CapacidadPeso    float64 `json:"capacidad_peso"`
 	CapacidadVolumen float64 `json:"capacidad_volumen"`
 	Estado           string  `json:"estado"`
+	Color            string  `json:"color"`
 }
 
 func (v vehiculoRequest) dominio() domain.Vehiculo {
-	return domain.Vehiculo{Patente: v.Patente, Modelo: v.Modelo, Tipo: v.Tipo, CapacidadPeso: v.CapacidadPeso, CapacidadVolumen: v.CapacidadVolumen, Estado: v.Estado}
+	return domain.Vehiculo{Patente: v.Patente, Modelo: v.Modelo, Tipo: v.Tipo, CapacidadPeso: v.CapacidadPeso, CapacidadVolumen: v.CapacidadVolumen, Estado: v.Estado, Color: v.Color}
 }
 
 // Crear maneja POST /vehiculos.

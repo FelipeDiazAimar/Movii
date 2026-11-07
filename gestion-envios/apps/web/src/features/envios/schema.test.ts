@@ -21,9 +21,14 @@ const base = {
   tipoContenido: "",
   fragil: false,
   urgente: false,
+  fechaEntrega: "2026-12-01",
 };
 
 describe("envioFormSchema", () => {
+  it("rechaza sin fecha de entrega", () => {
+    expect(envioFormSchema.safeParse({ ...base, fechaEntrega: "", peso: "1" }).success).toBe(false);
+  });
+
   it("acepta un envío con solo los campos obligatorios", () => {
     const resultado = envioFormSchema.safeParse({ ...base, peso: "3.5" });
     expect(resultado.success).toBe(true);

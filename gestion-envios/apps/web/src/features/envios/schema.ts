@@ -25,6 +25,7 @@ export const envioFormSchema = z.object({
   tipoContenido: z.string().max(120).optional().or(z.literal("")),
   fragil: z.boolean(),
   urgente: z.boolean(),
+  fechaEntrega: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "La fecha de entrega es obligatoria"),
 });
 
 export type EnvioFormValues = z.infer<typeof envioFormSchema>;
@@ -45,6 +46,7 @@ export const ENVIO_FORM_DEFAULTS: EnvioFormValues = {
   tipoContenido: "",
   fragil: false,
   urgente: false,
+  fechaEntrega: "",
 };
 
 /**

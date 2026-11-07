@@ -32,6 +32,7 @@ type Envio struct {
 	Urgente        bool    `json:"urgente"`
 	RemitenteID    string  `json:"remitente_id"`
 	DestinatarioID string  `json:"destinatario_id"`
+	FechaEntrega   string  `json:"fecha_entrega"` // "YYYY-MM-DD": día en que se entrega
 	RutaID         *string `json:"ruta_id"` // nil si el envío todavía no fue asignado a una ruta
 }
 

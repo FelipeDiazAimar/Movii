@@ -28,7 +28,7 @@ func NewFlotaRepo(pool *pgxpool.Pool) *FlotaRepo {
 // selectVehiculos une cada vehículo con su ruta de la fecha $1 (a lo sumo una,
 // por el índice único uq_rutas_vehiculo_fecha) y agrega la carga de esa ruta.
 const selectVehiculos = `
-	SELECT v.id, v.patente, v.modelo, v.tipo, v.capacidad_peso::float8, v.capacidad_volumen::float8, v.estado,
+	SELECT v.id, v.patente, v.modelo, v.tipo, v.capacidad_peso::float8, v.capacidad_volumen::float8, v.estado, v.color,
 	       v.latitud::float8, v.longitud::float8, v.velocidad::float8, v.rumbo::float8, v.temperatura::float8, v.posicion_at,
 	       r.id::text, COALESCE(r.nombre, ''), COALESCE(r.zona, ''), COALESCE(r.estado::text, ''), r.repartidor_id::text, COALESCE(u.nombre, ''),
 	       COALESCE(sum(e.peso) FILTER (WHERE e.estado IN ('asignado', 'en_camino')), 0)::float8,
@@ -43,7 +43,7 @@ const selectVehiculos = `
 
 func scanVehiculo(row pgx.Row) (domain.Vehiculo, error) {
 	var v domain.Vehiculo
-	err := row.Scan(&v.ID, &v.Patente, &v.Modelo, &v.Tipo, &v.CapacidadPeso, &v.CapacidadVolumen, &v.Estado,
+	err := row.Scan(&v.ID, &v.Patente, &v.Modelo, &v.Tipo, &v.CapacidadPeso, &v.CapacidadVolumen, &v.Estado, &v.Color,
 		&v.Latitud, &v.Longitud, &v.Velocidad, &v.Rumbo, &v.Temperatura, &v.PosicionAt,
 		&v.RutaID, &v.RutaNombre, &v.RutaZona, &v.RutaEstado, &v.RepartidorID, &v.RepartidorNombre,
 		&v.CargaActualPeso, &v.TotalPaquetes, &v.PaquetesEntregados, &v.PaquetesFallidos)
@@ -120,9 +120,9 @@ func (r *FlotaRepo) Paquetes(ctx context.Context, rutaID string) ([]domain.Paque
 func (r *FlotaRepo) Create(ctx context.Context, v domain.Vehiculo) (string, error) {
 	var id string
 	err := r.pool.QueryRow(ctx, `
-		INSERT INTO vehiculos (patente, modelo, tipo, capacidad_peso, capacidad_volumen, estado)
-		VALUES ($1, $2, $3, $4, $5, $6) RETURNING id
-	`, v.Patente, v.Modelo, v.Tipo, v.CapacidadPeso, v.CapacidadVolumen, v.Estado).Scan(&id)
+		INSERT INTO vehiculos (patente, modelo, tipo, capacidad_peso, capacidad_volumen, estado, color)
+		VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id
+	`, v.Patente, v.Modelo, v.Tipo, v.CapacidadPeso, v.CapacidadVolumen, v.Estado, v.Color).Scan(&id)
 	var pgErr *pgconn.PgError
 	if errors.As(err, &pgErr) && pgErr.Code == pgUniqueViolation {
 		return "", ErrDuplicado
@@ -133,9 +133,9 @@ func (r *FlotaRepo) Create(ctx context.Context, v domain.Vehiculo) (string, erro
 // Update modifica los datos editables de un vehículo. ErrNoEncontrado si no existe.
 func (r *FlotaRepo) Update(ctx context.Context, id string, v domain.Vehiculo) error {
 	tag, err := r.pool.Exec(ctx, `
-		UPDATE vehiculos SET modelo = $2, tipo = $3, capacidad_peso = $4, capacidad_volumen = $5, estado = $6
+		UPDATE vehiculos SET modelo = $2, tipo = $3, capacidad_peso = $4, capacidad_volumen = $5, estado = $6, color = $7
 		WHERE id::text = $1
-	`, id, v.Modelo, v.Tipo, v.CapacidadPeso, v.CapacidadVolumen, v.Estado)
+	`, id, v.Modelo, v.Tipo, v.CapacidadPeso, v.CapacidadVolumen, v.Estado, v.Color)
 	if err != nil {
 		return err
 	}

@@ -160,7 +160,7 @@ func TestFlujoCompleto_FlotaYTrayecto(t *testing.T) {
 	rec = pedidoSeguimientoDeTest(t, router, http.MethodPut, "/rutas/"+rutaID+"/vehiculo", tokOp, map[string]string{"vehiculo_id": v.ID})
 	require.Equal(t, http.StatusConflict, rec.Code)
 
-	// --- Teléfono del usuario (HU-16), solo supervisor; se normaliza.
+	// --- Teléfono del usuario (HU-16), solo admin; se normaliza.
 	rec = pedidoSeguimientoDeTest(t, router, http.MethodPut, "/users/"+repartidorID+"/telefono", tokSup, map[string]string{"telefono": "03564 15 999001"})
 	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
 	var tel map[string]string

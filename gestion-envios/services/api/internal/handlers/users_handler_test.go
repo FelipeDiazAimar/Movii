@@ -26,7 +26,7 @@ func (f *repoFakeUsuarios) List(ctx context.Context) ([]domain.Usuario, error) {
 
 func TestUsuariosHandler_List_Devuelve200ConLista(t *testing.T) {
 	repo := &repoFakeUsuarios{usuarios: []domain.Usuario{
-		{ID: "1", Nombre: "Ana", Email: "ana@movii.demo", Rol: domain.RolSupervisor, Activo: true, PasswordHash: "no-deberia-viajar"},
+		{ID: "1", Nombre: "Ana", Email: "ana@movii.demo", Rol: domain.RolAdmin, Activo: true, PasswordHash: "no-deberia-viajar"},
 	}}
 	h := NewUsuariosHandler(repo)
 

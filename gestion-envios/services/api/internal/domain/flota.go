@@ -25,6 +25,7 @@ type Vehiculo struct {
 	CapacidadPeso    float64   `json:"capacidad_peso"`
 	CapacidadVolumen float64   `json:"capacidad_volumen"`
 	Estado           string    `json:"estado"`
+	Color            string    `json:"color"` // #RRGGBB; vacío = automático
 	Latitud          float64   `json:"latitud"`
 	Longitud         float64   `json:"longitud"`
 	Velocidad        float64   `json:"velocidad"`

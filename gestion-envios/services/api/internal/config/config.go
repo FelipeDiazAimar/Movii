@@ -26,6 +26,31 @@ type Config struct {
 	NominatimURL       string  // NOMINATIM_URL (vacío = servidor público de OSM)
 	OSRMURL            string  // OSRM_URL (vacío = servidor público de OSRM)
 	Geocodificar       bool    // GEOCODIFICAR=false desactiva la geocodificación (tests sin red)
+	GeoProvider        string  // GEO_PROVIDER: "osrm" (default, gratis) o "google" (requiere GOOGLE_MAPS_KEY)
+	GoogleMapsKey      string  // GOOGLE_MAPS_KEY (opcional)
+	RecomiendaOKKm     float64 // RECOMIENDA_UMBRAL_OK_KM: por debajo de este desvío, conviene (default 2)
+	RecomiendaNoKm     float64 // RECOMIENDA_UMBRAL_NO_KM: por encima, no conviene (default 5)
+
+	// T1/T2: primer acceso y login con Google
+	OTPTTLMin          int    // OTP_TTL_MIN: vigencia del código en minutos (default 10)
+	OTPMaxIntentos     int    // OTP_MAX_INTENTOS: intentos por código (default 3)
+	ResendAPIKey       string // RESEND_API_KEY: vacío = el mail del código se escribe en el log
+	MailFrom           string // MAIL_FROM: remitente verificado en Resend (ej. "Movii <no-reply@tu-dominio.com>")
+	GoogleClientID     string // GOOGLE_CLIENT_ID
+	GoogleClientSecret string // GOOGLE_CLIENT_SECRET
+	GoogleCallbackURL  string // GOOGLE_CALLBACK_URL: URL pública de /auth/google/callback
+}
+
+// GoogleHabilitado indica si están las tres variables del login con Google.
+func (c Config) GoogleHabilitado() bool {
+	return c.GoogleClientID != "" && c.GoogleClientSecret != "" && c.GoogleCallbackURL != ""
+}
+
+func envInt(nombre string, porDefecto int) int {
+	if n, err := strconv.Atoi(strings.TrimSpace(os.Getenv(nombre))); err == nil && n > 0 {
+		return n
+	}
+	return porDefecto
 }
 
 func envBool(nombre string, porDefecto bool) bool {
@@ -34,6 +59,20 @@ func envBool(nombre string, porDefecto bool) bool {
 		return true
 	case "false", "0", "no":
 		return false
+	}
+	return porDefecto
+}
+
+func envOr(nombre, porDefecto string) string {
+	if v := os.Getenv(nombre); v != "" {
+		return v
+	}
+	return porDefecto
+}
+
+func envFloat(nombre string, porDefecto float64) float64 {
+	if f, err := strconv.ParseFloat(os.Getenv(nombre), 64); err == nil && f > 0 {
+		return f
 	}
 	return porDefecto
 }
@@ -97,5 +136,16 @@ func Load() (Config, error) {
 		NominatimURL:       os.Getenv("NOMINATIM_URL"),
 		OSRMURL:            os.Getenv("OSRM_URL"),
 		Geocodificar:       envBool("GEOCODIFICAR", true),
+		GeoProvider:        strings.ToLower(strings.TrimSpace(envOr("GEO_PROVIDER", "osrm"))),
+		GoogleMapsKey:      os.Getenv("GOOGLE_MAPS_KEY"),
+		RecomiendaOKKm:     envFloat("RECOMIENDA_UMBRAL_OK_KM", 2),
+		RecomiendaNoKm:     envFloat("RECOMIENDA_UMBRAL_NO_KM", 5),
+		OTPTTLMin:          envInt("OTP_TTL_MIN", 10),
+		OTPMaxIntentos:     envInt("OTP_MAX_INTENTOS", 3),
+		ResendAPIKey:       strings.TrimSpace(os.Getenv("RESEND_API_KEY")),
+		MailFrom:           strings.TrimSpace(os.Getenv("MAIL_FROM")),
+		GoogleClientID:     strings.TrimSpace(os.Getenv("GOOGLE_CLIENT_ID")),
+		GoogleClientSecret: strings.TrimSpace(os.Getenv("GOOGLE_CLIENT_SECRET")),
+		GoogleCallbackURL:  strings.TrimSpace(os.Getenv("GOOGLE_CALLBACK_URL")),
 	}, nil
 }

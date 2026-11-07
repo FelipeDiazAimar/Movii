@@ -37,15 +37,19 @@ func TestFlujoCompleto_RegistroLoginYListadoDeUsuarios(t *testing.T) {
 		UsuariosHandler: handlers.NewUsuariosHandler(usuarioRepo),
 	})
 
-	// 1. Registrar un supervisor nuevo.
+	// 1. Registrar un admin nuevo.
 	regBody, _ := json.Marshal(map[string]string{
 		"nombre": "Flujo Test", "email": "flujo-test@movii.demo",
-		"password": "clave-segura-123", "rol": domain.RolSupervisor,
+		"password": "clave-segura-123", "rol": domain.RolAdmin,
 	})
 	regReq := httptest.NewRequest(http.MethodPost, "/auth/register", bytes.NewReader(regBody))
 	regRec := httptest.NewRecorder()
 	router.ServeHTTP(regRec, regReq)
 	require.Equal(t, http.StatusCreated, regRec.Code)
+	// El alta por API deja el primer acceso pendiente (T1, cubierto en
+	// internal/httprouter/login_primer_acceso_test.go); acá se da por hecho.
+	_, err = pool.Exec(t.Context(), "UPDATE usuarios SET must_change_password = false WHERE email = $1", "flujo-test@movii.demo")
+	require.NoError(t, err)
 
 	// 2. Loguearse y obtener el token.
 	loginBody, _ := json.Marshal(map[string]string{"email": "flujo-test@movii.demo", "password": "clave-segura-123"})
@@ -59,7 +63,7 @@ func TestFlujoCompleto_RegistroLoginYListadoDeUsuarios(t *testing.T) {
 	token := loginResp["token"]
 	require.NotEmpty(t, token)
 
-	// 3. Usar el token para listar usuarios (requiere rol supervisor).
+	// 3. Usar el token para listar usuarios (requiere rol admin).
 	listReq := httptest.NewRequest(http.MethodGet, "/users", nil)
 	listReq.Header.Set("Authorization", "Bearer "+token)
 	listRec := httptest.NewRecorder()

@@ -54,7 +54,7 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 	case errors.Is(err, services.ErrEmailInvalido):
 		httpx.WriteError(w, http.StatusBadRequest, "email_invalido", "el email no tiene un formato válido")
 	case errors.Is(err, services.ErrRolInvalido):
-		httpx.WriteError(w, http.StatusBadRequest, "rol_invalido", "el rol debe ser operador, repartidor o supervisor")
+		httpx.WriteError(w, http.StatusBadRequest, "rol_invalido", "el rol debe ser operador, repartidor o admin")
 	case errors.Is(err, services.ErrTelefonoInvalido):
 		httpx.WriteError(w, http.StatusBadRequest, "telefono_invalido", "ingresá un celular argentino con código de área")
 	case errors.Is(err, services.ErrTelefonoEnUso):
@@ -89,6 +89,21 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Primer acceso (T1): 428 con un token que solo sirve para cambiar la
+	// contraseña (no da acceso a ningún otro endpoint).
+	if u.MustChangePassword {
+		token, err := h.svc.EmitirTokenPrimerAcceso(u)
+		if err != nil {
+			httpx.WriteError(w, http.StatusInternalServerError, "error_interno", "no se pudo iniciar sesión")
+			return
+		}
+		var cuerpo primerAccesoResponse
+		cuerpo.Code, cuerpo.UserID, cuerpo.Token = "must_change_password", u.ID, token
+		cuerpo.Error.Code, cuerpo.Error.Message = "must_change_password", "es tu primer acceso: elegí una contraseña nueva desde la web de Movii"
+		httpx.WriteJSON(w, http.StatusPreconditionRequired, cuerpo)
+		return
+	}
+
 	// Segundo paso (HU-16): el token sale recién con el código de WhatsApp.
 	if h.otp != nil && h.otp.Requiere(u) {
 		desafio, err := h.otp.Iniciar(r.Context(), u)
@@ -96,8 +111,8 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		case err == nil:
 			httpx.WriteJSON(w, http.StatusOK, loginResponse{RequiereCodigo: true, Desafio: &desafio})
 			return
-		case errors.Is(err, services.ErrDemasiadosPedidos):
-			httpx.WriteError(w, http.StatusTooManyRequests, "demasiados_pedidos", "pediste demasiados códigos; esperá 15 minutos")
+		case errors.Is(err, services.ErrDemasiadosPedidos), errors.Is(err, services.ErrEsperarReenvio):
+			escribirErrorCodigo(w, err)
 			return
 		default:
 			// WhatsApp no pudo entregar el código: se entra solo con la
@@ -112,6 +127,31 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	httpx.WriteJSON(w, http.StatusOK, loginResponse{Token: token})
+}
+
+// primerAccesoResponse es el cuerpo del 428: {code, user_id, token, error}.
+type primerAccesoResponse struct {
+	Code   string `json:"code"`
+	UserID string `json:"user_id"`
+	Token  string `json:"token"` // solo para /auth/primer-acceso/cambiar-password (15 min)
+	httpx.APIError
+}
+
+// escribirErrorCodigo traduce los errores del código de verificación (OTPService).
+func escribirErrorCodigo(w http.ResponseWriter, err error) {
+	switch {
+	case errors.Is(err, services.ErrCodigoVencido):
+		httpx.WriteError(w, http.StatusUnauthorized, "codigo_vencido", "el código venció o superaste los intentos; pedí uno nuevo")
+	case errors.Is(err, services.ErrCodigoInvalido):
+		httpx.WriteError(w, http.StatusUnauthorized, "codigo_invalido", "el código es incorrecto")
+	case errors.Is(err, services.ErrEsperarReenvio):
+		httpx.WriteError(w, http.StatusTooManyRequests, "esperar_reenvio", "esperá un minuto antes de pedir otro código")
+	case errors.Is(err, services.ErrDemasiadosPedidos):
+		httpx.WriteError(w, http.StatusTooManyRequests, "demasiados_pedidos", "pediste demasiados códigos; esperá 15 minutos")
+	default:
+		log.Printf("código de verificación: %v", err)
+		httpx.WriteError(w, http.StatusBadGateway, "envio_codigo_error", "no se pudo enviar el código; probá de nuevo en un minuto")
+	}
 }
 
 // loginResponse es {token} o, con segundo factor, {requiere_codigo, desafio_id, telefono, vence_en_segundos}.
@@ -138,7 +178,7 @@ func (h *AuthHandler) VerificarCodigo(w http.ResponseWriter, r *http.Request) {
 	case err == nil:
 		httpx.WriteJSON(w, http.StatusOK, loginResponse{Token: token})
 	case errors.Is(err, services.ErrCodigoInvalido):
-		httpx.WriteError(w, http.StatusUnauthorized, "codigo_invalido", "el código es incorrecto o venció")
+		escribirErrorCodigo(w, err)
 	default:
 		httpx.WriteError(w, http.StatusInternalServerError, "error_interno", "no se pudo verificar el código")
 	}
@@ -157,9 +197,42 @@ func (h *AuthHandler) ReenviarCodigo(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteJSON(w, http.StatusOK, loginResponse{RequiereCodigo: true, Desafio: &desafio})
 	case errors.Is(err, services.ErrCodigoInvalido):
 		httpx.WriteError(w, http.StatusUnauthorized, "codigo_invalido", "el inicio de sesión venció; volvé a ingresar tu contraseña")
-	case errors.Is(err, services.ErrDemasiadosPedidos):
-		httpx.WriteError(w, http.StatusTooManyRequests, "demasiados_pedidos", "pediste demasiados códigos; esperá 15 minutos")
 	default:
-		httpx.WriteError(w, http.StatusBadGateway, "whatsapp_error", "no se pudo enviar el código por WhatsApp")
+		escribirErrorCodigo(w, err)
 	}
+}
+
+type cambiarPasswordRequest struct {
+	UserID        string `json:"user_id"`
+	NuevaPassword string `json:"nueva_password"`
+	Token         string `json:"token"` // el del 428 del login
+}
+
+// CambiarPasswordPrimerAcceso maneja POST /auth/primer-acceso/cambiar-password
+// {user_id, nueva_password, token}: guarda la contraseña nueva y manda el
+// código por WhatsApp o mail. El token de sesión sale de /auth/primer-acceso/verificar.
+func (h *AuthHandler) CambiarPasswordPrimerAcceso(w http.ResponseWriter, r *http.Request) {
+	var req cambiarPasswordRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || h.otp == nil {
+		httpx.WriteError(w, http.StatusBadRequest, "body_invalido", "el cuerpo de la petición no es JSON válido")
+		return
+	}
+	u, err := h.svc.CambiarPasswordPrimerAcceso(r.Context(), req.Token, req.UserID, req.NuevaPassword)
+	switch {
+	case errors.Is(err, services.ErrPrimerAccesoInvalido):
+		httpx.WriteError(w, http.StatusUnauthorized, "primer_acceso_invalido", "el primer acceso venció; volvé a iniciar sesión")
+		return
+	case errors.Is(err, services.ErrPasswordDebil):
+		httpx.WriteError(w, http.StatusBadRequest, "password_debil", "la contraseña debe tener al menos 8 caracteres, una mayúscula y un número")
+		return
+	case err != nil:
+		httpx.WriteError(w, http.StatusInternalServerError, "error_interno", "no se pudo cambiar la contraseña")
+		return
+	}
+	desafio, err := h.otp.Iniciar(r.Context(), u)
+	if err != nil {
+		escribirErrorCodigo(w, err)
+		return
+	}
+	httpx.WriteJSON(w, http.StatusOK, loginResponse{RequiereCodigo: true, Desafio: &desafio})
 }

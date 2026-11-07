@@ -1,7 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { listarRutas } from "@/features/rutas/api";
-import { formatearDia } from "@/utils/fechas";
 import { Button } from "@/components/ui/Button";
 import { InputField, SelectField } from "@/components/ui/Field";
 import { Alert } from "@/components/ui/Alert";
@@ -22,6 +21,7 @@ function valoresIniciales(): RawValues {
   return {
     ...ENVIO_FORM_DEFAULTS,
     peso: "",
+    fechaEntrega: new Date().toLocaleDateString("en-CA"),
   } as unknown as RawValues;
 }
 
@@ -73,6 +73,7 @@ export function EnvioForm({ onSubmit, enviando, errorServidor }: Props) {
         fragil: v.fragil,
         urgente: v.urgente,
       },
+      fecha_entrega: v.fechaEntrega,
     }, rutaId);
   }
 
@@ -206,6 +207,19 @@ export function EnvioForm({ onSubmit, enviando, errorServidor }: Props) {
             error={errores.tipoContenido}
           />
         </div>
+        <div className="max-w-xs">
+          <InputField
+            label="Fecha de entrega *"
+            name="fechaEntrega"
+            type="date"
+            required
+            min={new Date().toLocaleDateString("en-CA")}
+            value={valores.fechaEntrega as string}
+            onChange={(e) => setCampo("fechaEntrega", e.target.value)}
+            error={errores.fechaEntrega}
+            hint="Día en que el repartidor lo ve para entregarlo."
+          />
+        </div>
         <div className="flex gap-6">
           <label className="flex items-center gap-2 text-sm text-gray-700">
             <input
@@ -241,7 +255,7 @@ export function EnvioForm({ onSubmit, enviando, errorServidor }: Props) {
             <option value="">Sin asignar por ahora</option>
             {planificadas.map((r) => (
               <option key={r.id} value={r.id}>
-                {r.nombre} · {formatearDia(r.fecha)} · {r.repartidor_nombre ?? "sin repartidor"}
+                {r.nombre} · {r.repartidor_nombre ?? "sin repartidor"}
               </option>
             ))}
           </SelectField>

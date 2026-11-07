@@ -42,28 +42,39 @@ type usuarioRepo interface {
 // AuthService contiene la lógica de negocio de HU-01 (registro y login).
 type AuthService struct {
 	repo      usuarioRepo
+	cuentas   cuentasRepo // primer acceso y Google (T1/T2); nil si el repo no lo implementa
 	jwtSecret string
 }
 
 // NewAuthService crea un AuthService.
 func NewAuthService(repo usuarioRepo, jwtSecret string) *AuthService {
-	return &AuthService{repo: repo, jwtSecret: jwtSecret}
+	// repository.UsuarioRepo implementa también cuentasRepo; los fakes de tests
+	// viejos no, y para ellos esas funciones devuelven error.
+	cuentas, _ := repo.(cuentasRepo)
+	return &AuthService{repo: repo, cuentas: cuentas, jwtSecret: jwtSecret}
 }
 
 var rolesValidos = map[string]bool{
 	domain.RolOperador:   true,
 	domain.RolRepartidor: true,
-	domain.RolSupervisor: true,
+	domain.RolAdmin:      true,
 }
 
-// Register valida y crea un usuario nuevo con la contraseña hasheada.
+// Register valida y crea un usuario nuevo con la contraseña hasheada, sin
+// primer acceso pendiente (lo usan la carga de la demo y los tests).
 func (s *AuthService) Register(ctx context.Context, nombre, email, password, rol string) (domain.Usuario, error) {
-	return s.RegisterConTelefono(ctx, nombre, email, password, rol, "")
+	return s.registrar(ctx, nombre, email, password, rol, "", false)
 }
 
-// RegisterConTelefono es Register con el celular del usuario (para el acceso
-// y los avisos por WhatsApp, HU-16/HU-17). telefono vacío = sin teléfono.
+// RegisterConTelefono es el alta por admin/API (POST /auth/register), con el
+// celular del usuario (para el acceso y los avisos por WhatsApp, HU-16/HU-17;
+// vacío = sin teléfono). El usuario queda con must_change_password (T1): en su
+// primer login tiene que cambiar la contraseña y validar un código.
 func (s *AuthService) RegisterConTelefono(ctx context.Context, nombre, email, password, rol, telefono string) (domain.Usuario, error) {
+	return s.registrar(ctx, nombre, email, password, rol, telefono, true)
+}
+
+func (s *AuthService) registrar(ctx context.Context, nombre, email, password, rol, telefono string, primerAcceso bool) (domain.Usuario, error) {
 	if telefono != "" {
 		var err error
 		if telefono, err = NormalizarTelefonoAR(telefono); err != nil {
@@ -83,11 +94,12 @@ func (s *AuthService) RegisterConTelefono(ctx context.Context, nombre, email, pa
 	}
 
 	creado, err := s.repo.Create(ctx, domain.Usuario{
-		Nombre:       nombre,
-		Email:        email,
-		PasswordHash: string(hash),
-		Rol:          rol,
-		Telefono:     telefono,
+		Nombre:             nombre,
+		Email:              email,
+		PasswordHash:       string(hash),
+		Rol:                rol,
+		Telefono:           telefono,
+		MustChangePassword: primerAcceso,
 	})
 	if errors.Is(err, repository.ErrDuplicado) {
 		return domain.Usuario{}, ErrEmailEnUso

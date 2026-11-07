@@ -223,7 +223,7 @@ func TestFlujoCompleto_SeguimientoTransicionesEIncidencia(t *testing.T) {
 	require.True(t, motivoVisto, "ningún evento guarda el motivo cliente_ausente")
 
 	// 5. Login operador → PUT en_camino sobre el envío del otro repartidor
-	// (200 OK: operador/supervisor no están atados a rutas propias).
+	// (200 OK: operador/admin no están atados a rutas propias).
 	tokenOperador := loginSeguimientoDeTest(t, router, "operador@movii.demo", "Movii2026!")
 	recOp := pedidoSeguimientoDeTest(t, router, http.MethodPut, "/envios/"+envioAjenoID+"/estado", tokenOperador,
 		map[string]string{"estado": domain.EstadoEnvioEnCamino})

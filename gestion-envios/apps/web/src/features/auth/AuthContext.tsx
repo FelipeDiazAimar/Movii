@@ -1,18 +1,24 @@
 import { createContext, useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import axios from "axios";
 import { TOKEN_STORAGE_KEY, setOnUnauthorized } from "@/services/api-client";
 import { decodeJwt, isTokenExpired } from "./jwt";
 import * as authApi from "./api";
-import type { DesafioLogin, LoginInput, Sesion } from "./types";
+import type { DesafioLogin, LoginInput, PrimerAccesoPendiente, Sesion } from "./types";
 
 const EMAIL_STORAGE_KEY = "movii.web.email";
 
 interface AuthContextValue {
   sesion: Sesion | null;
   cargando: boolean;
-  /** Devuelve la sesión o, si el usuario tiene celular, el desafío del código por WhatsApp. */
-  login: (input: LoginInput) => Promise<Sesion | DesafioLogin>;
+  /**
+   * Devuelve la sesión, el desafío del código por WhatsApp (si tiene celular)
+   * o, en el primer acceso (428, T1), los datos para elegir contraseña nueva.
+   */
+  login: (input: LoginInput) => Promise<Sesion | DesafioLogin | PrimerAccesoPendiente>;
   /** Segundo paso del login (HU-16): valida el código de 6 dígitos y abre la sesión. */
   verificarCodigo: (desafioId: string, codigo: string, email: string) => Promise<Sesion>;
+  /** Abre la sesión con un token ya obtenido (primer acceso o vuelta de Google). */
+  abrirSesion: (token: string, email: string) => Sesion;
   logout: () => void;
 }
 
@@ -78,8 +84,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const login = useCallback(
-    async (input: LoginInput): Promise<Sesion | DesafioLogin> => {
-      const r = await authApi.login(input);
+    async (input: LoginInput): Promise<Sesion | DesafioLogin | PrimerAccesoPendiente> => {
+      let r: authApi.LoginRespuesta;
+      try {
+        r = await authApi.login(input);
+      } catch (err) {
+        if (axios.isAxiosError<{ user_id?: string; token?: string }>(err) && err.response?.status === 428) {
+          const { user_id = "", token = "" } = err.response.data ?? {};
+          return { user_id, token, email: input.email };
+        }
+        throw err;
+      }
       if ("token" in r && r.token) return loginConToken(r.token, input.email);
       return r as DesafioLogin;
     },
@@ -94,7 +109,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [loginConToken],
   );
 
-  const value = useMemo(() => ({ sesion, cargando, login, verificarCodigo, logout }), [sesion, cargando, login, verificarCodigo, logout]);
+  const value = useMemo(
+    () => ({ sesion, cargando, login, verificarCodigo, abrirSesion: loginConToken, logout }),
+    [sesion, cargando, login, verificarCodigo, loginConToken, logout],
+  );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

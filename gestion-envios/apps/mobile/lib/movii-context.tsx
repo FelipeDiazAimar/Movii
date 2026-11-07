@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useMemo, useState, type ReactNode
 
 import { allSeedShipments, drivers } from "@/mock/shipments";
 import type { Shipment, ShipmentStatus } from "@/types/logistics";
+import { loginConGoogle as apiLoginConGoogle } from "@/lib/login-google";
 import { login as apiLogin, verificarCodigoLogin as apiVerificarCodigo, type DesafioLogin, logout as apiLogout, getEnviosDelDia, getToken, decodeJwt, type EstadoEnvioAPI, type ResumenDelDiaAPI } from "@/lib/api-client";
 import { agruparEnviosPorRuta, type RutaDelDia } from "@/lib/envios-del-dia";
 
@@ -27,6 +28,8 @@ type MoviiContextValue = {
   login: (email: string, password: string) => Promise<DesafioLogin | null>;
   /** Segundo paso del login: código de 6 dígitos recibido por WhatsApp. */
   verificarCodigo: (desafioId: string, codigo: string, email: string) => Promise<void>;
+  /** Login con Google (T2): true si entró, el desafío si falta el código (primer acceso), null si se canceló. */
+  loginConGoogle: () => Promise<DesafioLogin | boolean | null>;
   logout: () => Promise<void>;
   recargarEnviosDelDia: () => Promise<void>;
   findShipment: (idOrCode: string) => Shipment | undefined;
@@ -112,6 +115,14 @@ export function MoviiProvider({ children }: { children: ReactNode }) {
     await abrirSesion(await apiVerificarCodigo(desafioId, codigo), email.split("@")[0]);
   };
 
+  const loginConGoogle = async (): Promise<DesafioLogin | boolean | null> => {
+    const r = await apiLoginConGoogle();
+    if (!r) return null;
+    if ("desafio_id" in r) return r;
+    await abrirSesion(r, "");
+    return true;
+  };
+
   const logout = async () => {
     await apiLogout();
     setRole(null);
@@ -160,6 +171,7 @@ export function MoviiProvider({ children }: { children: ReactNode }) {
       activeDriverId,
       login,
       verificarCodigo,
+      loginConGoogle,
       logout,
       recargarEnviosDelDia,
       findShipment: (idOrCode) =>

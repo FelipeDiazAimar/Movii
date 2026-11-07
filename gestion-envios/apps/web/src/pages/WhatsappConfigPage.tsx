@@ -8,7 +8,7 @@ import { PageHeader, PAGE_NARROW } from "@/components/ui/PageHeader";
 import { getApiErrorMessage } from "@/services/api-client";
 
 import { MessageCircle } from "lucide-react";
-/** Supervisor: vincula la cuenta de WhatsApp que manda los códigos de acceso y los avisos (HU-16/HU-17). */
+/** Admin: vincula la cuenta de WhatsApp que manda los códigos de acceso y los avisos (HU-16/HU-17). */
 export function WhatsappConfigPage() {
   const queryClient = useQueryClient();
   const { data, isLoading, isError, error } = useQuery({

@@ -7,9 +7,13 @@ import { LoginPage } from "./LoginPage";
 const login = vi.fn();
 const verificarCodigo = vi.fn();
 vi.mock("@/hooks/useAuth", () => ({
-  useAuth: () => ({ sesion: null, cargando: false, login, verificarCodigo, logout: vi.fn() }),
+  useAuth: () => ({ sesion: null, cargando: false, login, verificarCodigo, abrirSesion: vi.fn(), logout: vi.fn() }),
 }));
-vi.mock("@/features/auth/api", () => ({ reenviarCodigo: vi.fn() }));
+vi.mock("@/features/auth/api", () => ({
+  reenviarCodigo: vi.fn(),
+  obtenerConfigAuth: vi.fn().mockResolvedValue({ google: false }),
+  urlLoginGoogle: () => "http://api.test/auth/google",
+}));
 vi.mock("@/services/api-client", () => ({
   getApiErrorMessage: (_e: unknown, fallback?: string) => fallback ?? "error",
 }));
@@ -25,7 +29,7 @@ function renderPage() {
   );
 }
 
-const sesion = { token: "t", usuarioId: "u1", rol: "supervisor", email: "supervisor@movii.demo" };
+const sesion = { token: "t", usuarioId: "u1", rol: "admin", email: "supervisor@movii.demo" };
 
 describe("LoginPage — login en dos pasos (HU-16)", () => {
   beforeEach(() => {

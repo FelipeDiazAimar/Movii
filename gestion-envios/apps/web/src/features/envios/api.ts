@@ -62,3 +62,7 @@ export async function descargarFotoIncidencia(envioId: string, eventoId: string)
   });
   return data;
 }
+
+export async function eliminarEnvio(id: string): Promise<void> {
+  await apiClient.delete(`/envios/${id}`);
+}
