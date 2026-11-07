@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { Pressable, RefreshControl, ScrollView, SectionList, StyleSheet, Text, View } from "react-native";
+import { Platform, Pressable, RefreshControl, ScrollView, SectionList, StyleSheet, Text, View } from "react-native";
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -196,7 +196,7 @@ const styles = StyleSheet.create({
   rutaHeaderConteo: { color: "#6E6E73", fontSize: 11, fontWeight: "700" },
   mapAction: { minHeight: 38, borderTopWidth: 1, borderTopColor: "#EDEDEF", paddingTop: 12, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   mapActionChevron: { color: "#6E6E73", fontSize: 24, fontWeight: "300" },
-  stopCard: { minHeight: 111, flexDirection: "row", alignItems: "center", gap: 12, padding: 14, marginTop: 11, borderRadius: 19, backgroundColor: "rgba(255,255,255,0.83)", borderWidth: 1, borderColor: "rgba(255,255,255,0.9)", shadowColor: "#11111A", shadowOpacity: 0.05, shadowRadius: 14, shadowOffset: { width: 0, height: 5 }, elevation: 1 },
+  stopCard: { minHeight: 111, flexDirection: "row", alignItems: "center", gap: 12, padding: 14, marginTop: 11, borderRadius: 19, backgroundColor: "rgba(255,255,255,0.83)", borderWidth: 1, borderColor: "rgba(255,255,255,0.9)", shadowColor: "#11111A", shadowOpacity: 0.05, shadowRadius: 14, shadowOffset: { width: 0, height: 5 }, elevation: Platform.OS === "android" ? 0 : 1 },
   stopNumber: { width: 30, height: 30, borderRadius: 15, backgroundColor: "#FFF4CC", alignItems: "center", justifyContent: "center", alignSelf: "flex-start", marginTop: 2 },
   stopNumberText: { color: "#806700", fontSize: 13, fontWeight: "800" },
   stopMain: { flex: 1, gap: 4 },

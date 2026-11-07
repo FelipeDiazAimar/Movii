@@ -1,4 +1,4 @@
-import { Pressable, StyleSheet, Text, View, type PressableProps, type StyleProp, type TextStyle, type ViewStyle } from "react-native";
+import { Platform, Pressable, StyleSheet, Text, View, type PressableProps, type StyleProp, type TextStyle, type ViewStyle } from "react-native";
 
 import { haptic } from "@/lib/haptics";
 
@@ -66,7 +66,7 @@ export function AppInput({ label, value, onChangeText, placeholder, autoCapitali
 }
 
 const styles = StyleSheet.create({
-  card: { backgroundColor: "rgba(255,255,255,0.76)", borderWidth: 1, borderColor: "rgba(255,255,255,0.9)", borderRadius: 22, padding: 16, shadowColor: "#11111A", shadowOpacity: 0.08, shadowRadius: 22, shadowOffset: { width: 0, height: 8 }, elevation: 2 },
+  card: { backgroundColor: "rgba(255,255,255,0.76)", borderWidth: 1, borderColor: "rgba(255,255,255,0.9)", borderRadius: 22, padding: 16, shadowColor: "#11111A", shadowOpacity: 0.08, shadowRadius: 22, shadowOffset: { width: 0, height: 8 }, elevation: Platform.OS === "android" ? 0 : 2 },
   button: { minHeight: 48, borderRadius: 14, alignItems: "center", justifyContent: "center", flexDirection: "row", gap: 8, paddingHorizontal: 18 },
   primary: { backgroundColor: "#FFD60A" },
   secondary: { backgroundColor: "rgba(255,255,255,0.7)", borderWidth: 1, borderColor: "#E2E2E6" },
