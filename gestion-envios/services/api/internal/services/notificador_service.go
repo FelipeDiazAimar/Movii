@@ -113,63 +113,217 @@ func (n *Notificador) Procesar(ctx context.Context) {
 	}
 }
 
-var franjas = map[string]string{"manana": "mañana", "tarde": "tarde", "noche": "noche"}
+// franjas son las franjas horarias de reprogramación (HU-09) con su horario.
+var franjas = map[string]string{
+	"manana": "mañana (8 a 13 h)",
+	"tarde":  "tarde (13 a 18 h)",
+	"noche":  "noche (18 a 21 h)",
+}
+
+var relaciones = map[string]string{
+	"destinatario": "el destinatario",
+	"familiar":     "un familiar",
+	"vecino":       "un vecino",
+	"encargado":    "el encargado",
+}
+
+var (
+	diasSemana = [...]string{"domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado"}
+	meses      = [...]string{"enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"}
+)
+
+// FechaLarga convierte "2026-11-09" en "lunes 9 de noviembre" (o "hoy" / "mañana").
+func FechaLarga(iso string, ahora time.Time) string {
+	f, err := time.ParseInLocation("2006-01-02", iso, ZonaAR)
+	if err != nil {
+		return iso
+	}
+	hoy := ahora.In(ZonaAR).Format("2006-01-02")
+	manana := ahora.In(ZonaAR).AddDate(0, 0, 1).Format("2006-01-02")
+	texto := fmt.Sprintf("%s %d de %s", diasSemana[f.Weekday()], f.Day(), meses[f.Month()-1])
+	switch iso {
+	case hoy:
+		return "hoy, " + texto
+	case manana:
+		return "mañana, " + texto
+	}
+	return texto
+}
+
+func primerNombre(nombre string) string {
+	if p := strings.Fields(nombre); len(p) > 0 {
+		return p[0]
+	}
+	return ""
+}
+
+func saludo(nombre string) string {
+	if n := primerNombre(nombre); n != "" {
+		return "Hola, " + n + " 👋"
+	}
+	return "Hola 👋"
+}
+
+// firma cierra todos los mensajes, igual en todos los avisos.
+const firma = "\n\n— *Movii* · Envíos y distribución"
 
 // MensajeEnvio redacta el aviso al destinatario. Devuelve tipo "" si el estado
 // no amerita aviso (ej. recién asignado a una ruta).
 func MensajeEnvio(d repository.DatosAvisoEnvio, webURL string) (tipo, texto string) {
+	return mensajeEnvio(d, webURL, time.Now())
+}
+
+func mensajeEnvio(d repository.DatosAvisoEnvio, webURL string, ahora time.Time) (tipo, texto string) {
 	link := webURL + "/tracking/" + d.CodigoGuia
-	nombre := strings.Fields(d.Destinatario)
-	saludo := "Hola"
-	if len(nombre) > 0 {
-		saludo = "Hola " + nombre[0]
+	var b strings.Builder
+	linea := func(format string, args ...any) { fmt.Fprintf(&b, format+"\n", args...) }
+	remitente := ""
+	if d.Remitente != "" {
+		remitente = " de *" + d.Remitente + "*"
 	}
+
 	switch d.Estado {
 	case domain.EstadoEnvioEnCamino:
-		return AvisoEnCamino, fmt.Sprintf("%s! 🚚 Tu envío *%s* salió a reparto y hoy llega a %s.\nSeguilo en vivo: %s", saludo, d.CodigoGuia, d.Direccion, link)
+		linea("🚚 *Tu envío está en camino*")
+		linea("")
+		linea("%s", saludo(d.Destinatario))
+		linea("Tu paquete%s salió del depósito y *hoy* lo llevamos a:", remitente)
+		linea("📍 %s", d.Direccion)
+		linea("")
+		linea("📦 Código: *%s*", d.CodigoGuia)
+		if d.Repartidor != nil {
+			if d.Patente != nil {
+				linea("👤 Lo lleva *%s* en el vehículo *%s*", primerNombre(*d.Repartidor), *d.Patente)
+			} else {
+				linea("👤 Lo lleva *%s*", primerNombre(*d.Repartidor))
+			}
+		}
+		linea("")
+		linea("🗺️ Seguí el camión en vivo:")
+		b.WriteString(link)
+		b.WriteString("\n\n_Si no vas a estar, dejá aviso a alguien de confianza para que lo reciba._")
+		b.WriteString(firma)
+		return AvisoEnCamino, b.String()
+
 	case domain.EstadoEnvioEntregado:
-		return AvisoEntregado, fmt.Sprintf("%s! ✅ Tu envío *%s* fue entregado. ¡Gracias por elegir Movii!\nDetalle: %s", saludo, d.CodigoGuia, link)
+		linea("✅ *¡Tu envío fue entregado!*")
+		linea("")
+		linea("%s", saludo(d.Destinatario))
+		if d.HoraEntrega != nil {
+			linea("Entregamos tu paquete%s *hoy a las %s*.", remitente, *d.HoraEntrega)
+		} else {
+			linea("Entregamos tu paquete%s.", remitente)
+		}
+		linea("")
+		linea("📦 Código: *%s*", d.CodigoGuia)
+		linea("📍 %s", d.Direccion)
+		if d.Receptor != nil {
+			quien := ""
+			if d.RelacionReceptor != nil && *d.RelacionReceptor != "destinatario" {
+				quien = " (" + relaciones[*d.RelacionReceptor] + ")"
+			}
+			linea("✍️ Recibió y firmó: *%s*%s", *d.Receptor, quien)
+		}
+		linea("")
+		linea("🧾 Comprobante y detalle:")
+		b.WriteString(link)
+		b.WriteString("\n\n¡Gracias por elegirnos! 💛")
+		b.WriteString(firma)
+		return AvisoEntregado, b.String()
+
 	case domain.EstadoEnvioNoEntregado:
 		motivo := "no pudimos completar la entrega"
 		if d.Motivo != nil {
 			if e, ok := domain.EtiquetasMotivo[*d.Motivo]; ok {
-				motivo = strings.ToLower(e)
+				motivo = e
 			}
 		}
-		return AvisoNoEntregado, fmt.Sprintf("%s. ⚠️ Hoy no pudimos entregar tu envío *%s* (%s). Lo vamos a reprogramar y te avisamos.\nDetalle: %s", saludo, d.CodigoGuia, motivo, link)
+		linea("⚠️ *No pudimos entregar tu envío*")
+		linea("")
+		linea("%s", saludo(d.Destinatario))
+		linea("Hoy pasamos por tu domicilio con tu paquete%s, pero no pudimos entregarlo.", remitente)
+		linea("")
+		linea("📦 Código: *%s*", d.CodigoGuia)
+		linea("📍 %s", d.Direccion)
+		linea("❗ Motivo: *%s*", motivo)
+		linea("")
+		linea("🔁 Vamos a reprogramar la visita y te avisamos por acá la nueva fecha.")
+		linea("")
+		linea("Seguimiento:")
+		b.WriteString(link)
+		b.WriteString(firma)
+		return AvisoNoEntregado, b.String()
+
 	case domain.EstadoEnvioPendiente:
 		if d.ReprogramadoPara == nil {
 			return "", ""
 		}
-		cuando := *d.ReprogramadoPara
+		linea("📅 *Nueva fecha de entrega*")
+		linea("")
+		linea("%s", saludo(d.Destinatario))
+		linea("Reprogramamos la entrega de tu paquete%s:", remitente)
+		linea("")
+		linea("🗓️ *%s*", mayuscula(FechaLarga(*d.ReprogramadoPara, ahora)))
 		if d.Franja != nil {
-			cuando += " por la " + franjas[*d.Franja]
+			if f, ok := franjas[*d.Franja]; ok {
+				linea("🕒 Por la *%s*", f)
+			}
 		}
-		return AvisoReprogramado, fmt.Sprintf("%s! 📅 Reprogramamos la entrega de tu envío *%s* para el %s.\nSeguilo: %s", saludo, d.CodigoGuia, cuando, link)
+		linea("📍 %s", d.Direccion)
+		linea("📦 Código: *%s*", d.CodigoGuia)
+		linea("")
+		linea("Ese día te avisamos cuando el camión salga para tu domicilio. Seguimiento:")
+		b.WriteString(link)
+		b.WriteString(firma)
+		return AvisoReprogramado, b.String()
 	}
 	return "", ""
 }
 
+func mayuscula(s string) string {
+	if s == "" {
+		return s
+	}
+	r := []rune(s)
+	return strings.ToUpper(string(r[0])) + string(r[1:])
+}
+
 // MensajeRuta redacta el aviso al repartidor.
 func MensajeRuta(d repository.DatosAvisoRuta, appURL string) string {
-	vehiculo := ""
-	if d.Patente != "" {
-		vehiculo = fmt.Sprintf(" en el vehículo *%s*", d.Patente)
-	}
+	return mensajeRuta(d, appURL, time.Now())
+}
+
+func mensajeRuta(d repository.DatosAvisoRuta, appURL string, ahora time.Time) string {
+	var b strings.Builder
+	linea := func(format string, args ...any) { fmt.Fprintf(&b, format+"\n", args...) }
 	envios := "1 envío"
 	if d.Envios != 1 {
 		envios = fmt.Sprintf("%d envíos", d.Envios)
 	}
-	nombre := strings.Fields(d.Repartidor)
-	saludo := "Hola"
-	if len(nombre) > 0 {
-		saludo = "Hola " + nombre[0]
+	linea("📦 *Tenés una ruta asignada*")
+	linea("")
+	linea("%s", saludo(d.Repartidor))
+	linea("Esta es tu ruta para *%s*:", FechaLarga(d.Fecha, ahora))
+	linea("")
+	if d.Zona != "" {
+		linea("🛣️ *%s* · zona %s", d.Nombre, d.Zona)
+	} else {
+		linea("🛣️ *%s*", d.Nombre)
 	}
-	texto := fmt.Sprintf("%s! 📦 Tenés asignada la ruta *%s* (%s) para el %s con %s%s.", saludo, d.Nombre, d.Zona, d.Fecha, envios, vehiculo)
+	linea("📦 %s para entregar", envios)
+	if d.Patente != "" {
+		linea("🚚 Vehículo: *%s*", d.Patente)
+	}
+	linea("🏁 Salida: depósito central")
 	if appURL != "" {
-		texto += "\nAbrí la app de Movii para ver el recorrido: " + appURL
+		linea("")
+		linea("Abrí la app para ver el recorrido por calles y el orden de las paradas:")
+		b.WriteString(appURL)
+		b.WriteString("\n")
 	}
-	return texto
+	b.WriteString("\n¡Buen viaje y manejá con cuidado! 🙌")
+	b.WriteString(firma)
+	return b.String()
 }
 
 func (n *Notificador) avisarEnvio(ctx context.Context, envioID string) error {

@@ -141,7 +141,12 @@ func (s *OTPService) Iniciar(ctx context.Context, u domain.Usuario) (Desafio, er
 	if err := s.repo.CrearCodigo(ctx, id, u.Telefono, &u.ID, s.hash(id, codigo), ahora.Add(vigenciaOTP)); err != nil {
 		return Desafio{}, err
 	}
-	texto := fmt.Sprintf("Tu código de verificación de Movii es *%s*.\nVence en 5 minutos. No lo compartas con nadie: el equipo de Movii nunca te lo va a pedir.", codigo)
+	texto := fmt.Sprintf("🔐 *Movii · Código de verificación*\n\n"+
+		"Para terminar de iniciar sesión, ingresá este código en la app:\n\n"+
+		"```%s```\n\n"+
+		"⏱️ Vence en *5 minutos* y sirve una sola vez.\n"+
+		"🚫 No lo compartas con nadie: el equipo de Movii *nunca* te lo va a pedir.\n\n"+
+		"_Si no fuiste vos, ignorá este mensaje: tu cuenta sigue protegida._", codigo)
 	tel := EnmascararTelefono(u.Telefono)
 	desafio := Desafio{ID: id, Telefono: tel, VenceEn: int(vigenciaOTP.Seconds())}
 

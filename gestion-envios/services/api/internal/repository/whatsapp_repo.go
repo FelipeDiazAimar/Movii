@@ -82,26 +82,40 @@ type DatosAvisoEnvio struct {
 	Destinatario     string
 	Telefono         string
 	Direccion        string
+	Remitente        string
 	Motivo           *string
-	ReprogramadoPara *string
+	ReprogramadoPara *string // YYYY-MM-DD
 	Franja           *string
+	Repartidor       *string // de la ruta asignada
+	Patente          *string // vehículo de la ruta
+	Receptor         *string // quién recibió (entregado)
+	RelacionReceptor *string
+	HoraEntrega      *string // HH:MM, hora argentina
 }
 
-// DatosAvisoEnvio lee el envío, su destinatario y el último evento del historial.
+// DatosAvisoEnvio lee el envío, su destinatario, su ruta y el último evento del historial.
 func (r *WhatsappRepo) DatosAvisoEnvio(ctx context.Context, envioID string) (DatosAvisoEnvio, error) {
 	var d DatosAvisoEnvio
 	err := r.pool.QueryRow(ctx, `
 		SELECT e.id, e.codigo_guia, e.estado::text, COALESCE(ev.id::text, ''), dst.nombre, COALESCE(dst.telefono, ''),
-		       trim(dst.calle || ' ' || dst.numero) || ', ' || dst.localidad,
-		       ev.motivo::text, to_char(e.reprogramado_para, 'DD/MM/YYYY'), e.franja::text
+		       trim(dst.calle || ' ' || dst.numero) || ', ' || dst.localidad, COALESCE(rem.nombre, ''),
+		       ev.motivo::text, to_char(e.reprogramado_para, 'YYYY-MM-DD'), e.franja::text,
+		       u.nombre, v.patente, c.receptor_nombre, c.receptor_relacion::text,
+		       to_char(c.confirmada_at AT TIME ZONE 'America/Argentina/Cordoba', 'HH24:MI')
 		FROM envios e
 		JOIN destinatarios dst ON dst.id = e.destinatario_id
+		LEFT JOIN remitentes rem ON rem.id = e.remitente_id
+		LEFT JOIN rutas ru ON ru.id = e.ruta_id
+		LEFT JOIN usuarios u ON u.id = ru.repartidor_id
+		LEFT JOIN vehiculos v ON v.id = ru.vehiculo_id
+		LEFT JOIN confirmaciones_entrega c ON c.envio_id = e.id
 		LEFT JOIN LATERAL (
 			SELECT id, motivo FROM eventos_envio WHERE envio_id = e.id ORDER BY created_at DESC, id DESC LIMIT 1
 		) ev ON true
 		WHERE e.id::text = $1
 	`, envioID).Scan(&d.EnvioID, &d.CodigoGuia, &d.Estado, &d.UltimoEventoID, &d.Destinatario, &d.Telefono,
-		&d.Direccion, &d.Motivo, &d.ReprogramadoPara, &d.Franja)
+		&d.Direccion, &d.Remitente, &d.Motivo, &d.ReprogramadoPara, &d.Franja,
+		&d.Repartidor, &d.Patente, &d.Receptor, &d.RelacionReceptor, &d.HoraEntrega)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return DatosAvisoEnvio{}, ErrNoEncontrado
 	}
@@ -113,7 +127,7 @@ type DatosAvisoRuta struct {
 	RutaID     string
 	Nombre     string
 	Zona       string
-	Fecha      string
+	Fecha      string // YYYY-MM-DD
 	Repartidor string
 	Telefono   string
 	Envios     int
@@ -124,7 +138,7 @@ type DatosAvisoRuta struct {
 func (r *WhatsappRepo) DatosAvisoRuta(ctx context.Context, rutaID string) (DatosAvisoRuta, error) {
 	var d DatosAvisoRuta
 	err := r.pool.QueryRow(ctx, `
-		SELECT r.id, r.nombre, r.zona, to_char(r.fecha, 'DD/MM/YYYY'), u.nombre, COALESCE(u.telefono, ''),
+		SELECT r.id, r.nombre, r.zona, to_char(r.fecha, 'YYYY-MM-DD'), u.nombre, COALESCE(u.telefono, ''),
 		       (SELECT count(*) FROM envios WHERE ruta_id = r.id), COALESCE(v.patente, '')
 		FROM rutas r
 		JOIN usuarios u ON u.id = r.repartidor_id

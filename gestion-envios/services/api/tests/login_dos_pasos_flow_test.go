@@ -41,7 +41,7 @@ func (w *whatsappDeTest) Estado() whatsapp.Estado {
 	return whatsapp.Estado{Habilitado: true, Vinculado: true}
 }
 
-var codigoEnMensaje = regexp.MustCompile(`\*(\d{6})\*`)
+var codigoEnMensaje = regexp.MustCompile("```(\\d{6})```")
 
 func TestFlujoCompleto_LoginEnDosPasos(t *testing.T) {
 	url := os.Getenv("DATABASE_URL")

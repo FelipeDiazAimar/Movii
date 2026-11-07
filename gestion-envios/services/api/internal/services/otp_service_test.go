@@ -134,7 +134,7 @@ func TestOTP_FlujoCompleto(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "+54 9 3564 ••••45", d.Telefono)
 	require.Equal(t, 300, d.VenceEn)
-	require.Contains(t, sender.enviados[telCarla], "*123456*")
+	require.Contains(t, sender.enviados[telCarla], "```123456```")
 	require.NotContains(t, repo.codigos[d.ID].CodigoHash, "123456", "el código nunca se guarda en claro")
 
 	token, err := svc.Verificar(ctx, d.ID, "123456")
@@ -227,7 +227,9 @@ func (s senderLento) Enviar(ctx context.Context, _, _ string) error {
 	}
 	return ctx.Err()
 }
-func (senderLento) Estado() whatsapp.Estado { return whatsapp.Estado{Habilitado: true, Vinculado: true} }
+func (senderLento) Estado() whatsapp.Estado {
+	return whatsapp.Estado{Habilitado: true, Vinculado: true}
+}
 
 func TestOTP_WhatsAppColgadoNoTrabaElLogin(t *testing.T) {
 	lento := senderLento{bloqueo: make(chan struct{})}
