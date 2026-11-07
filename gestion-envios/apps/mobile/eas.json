@@ -7,11 +7,11 @@
     "preview": {
       "distribution": "internal",
       "android": { "buildType": "apk" },
-      "env": { "EXPO_PUBLIC_API_URL": "https://REEMPLAZAR-por-la-api.up.railway.app" }
+      "env": { "EXPO_PUBLIC_API_URL": "https://movii-production.up.railway.app/api" }
     },
     "production": {
       "android": { "buildType": "app-bundle" },
-      "env": { "EXPO_PUBLIC_API_URL": "https://REEMPLAZAR-por-la-api.up.railway.app" }
+      "env": { "EXPO_PUBLIC_API_URL": "https://movii-production.up.railway.app/api" }
     },
     "development": {
       "developmentClient": true,

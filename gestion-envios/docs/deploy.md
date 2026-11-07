@@ -28,12 +28,12 @@
    WHATSAPP_HABILITADO=true
    ```
    (`PORT`, `MIGRATE_ON_START` y los directorios ya vienen en la imagen.)
-3. Settings → Networking → **Generate Domain**. Esa URL es `MOVII_API_URL`.
+3. Settings → Networking → **Generate Domain**. La API queda en `https://<dominio>/api` (eso es `MOVII_API_URL`); en `https://<dominio>/` ya funciona también la web y en `/app/` la app del repartidor.
 4. Datos de demo para la presentación (rutas de hoy con camiones moviéndose): desde la PC, con el `DATABASE_URL` de producción, `go run ./cmd/demo` en `services/api`.
 
 ## 3. Vercel (web + PWA)
 1. Add New Project → importar el repo → **Root Directory** `gestion-envios`. `vercel.json` ya define install, build y salida.
-2. Environment Variables: `MOVII_API_URL=https://<api>.up.railway.app`.
+2. Environment Variables: `MOVII_API_URL=https://<api>.up.railway.app/api` (con `/api` al final: la imagen de Railway sirve la API bajo `/api`).
 3. Deploy. Panel: `https://<proyecto>.vercel.app` · App del repartidor: `https://<proyecto>.vercel.app/app/`.
 
 La web y la PWA llaman directo a la API de Railway (CORS habilitado para el dominio de Vercel), así el stream SSE del mapa no pasa por un proxy.
