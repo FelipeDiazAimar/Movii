@@ -112,8 +112,10 @@ Nueva ruta</Button>
         {asignables.length === 0 ? (
           <p className="text-sm text-gray-500">No hay otras rutas planificadas para reasignar.</p>
         ) : (
-          <div className="flex items-end gap-3">
-            <div className="w-80">
+          // En columna angosta el select ocupa todo el ancho y el botón va abajo;
+          // con lugar quedan en una fila. Antes el select fijo (w-80) empujaba el botón afuera.
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+            <div className="min-w-0 flex-1">
               <SelectField label="Ruta" value={rutaElegida} onChange={(e) => setRutaElegida(e.target.value)}>
                 <option value="">Seleccionar…</option>
                 {asignables.map((r) => (
@@ -123,7 +125,7 @@ Nueva ruta</Button>
                 ))}
               </SelectField>
             </div>
-            <Button type="button" disabled={!rutaElegida} loading={asignar.isPending} onClick={() => asignar.mutate()}>
+            <Button type="button" className="shrink-0" disabled={!rutaElegida} loading={asignar.isPending} onClick={() => asignar.mutate()}>
               Asignar
             </Button>
           </div>

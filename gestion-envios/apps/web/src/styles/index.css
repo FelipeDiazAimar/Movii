@@ -65,3 +65,17 @@ body {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* Recorridos del mapa: la línea punteada avanza en el sentido del viaje
+   (del camión hacia las paradas). stroke-dashoffset negativo = hacia adelante. */
+.ruta-flujo {
+  animation: ruta-flujo 0.8s linear infinite;
+}
+.ruta-flujo-lenta {
+  animation: ruta-flujo 1.4s linear infinite;
+}
+@keyframes ruta-flujo {
+  to {
+    stroke-dashoffset: -24;
+  }
+}

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { CircleMarker, MapContainer, Marker, Polyline, Popup, TileLayer, Tooltip, useMap } from "react-leaflet";
@@ -23,7 +23,19 @@ export interface VehiculoEnMapa {
   rumbo: number;
   velocidad: number;
   destacado?: boolean;
+  /** Color de la ruta del camión (aro del marcador). */
+  color?: string;
 }
+
+/** Un recorrido de la flota, con su color, para ver varias rutas a la vez. */
+export interface RutaEnMapa {
+  id: string;
+  nombre: string;
+  color: string;
+  geometria: LatLng[];
+  destacada?: boolean;
+}
+
 
 interface MapaMoviiProps {
   paradas?: ParadaEnMapa[];
@@ -32,6 +44,8 @@ interface MapaMoviiProps {
   recorrido?: LatLng[] | null;
   /** Camino resaltado (ej. camión → destino elegido). */
   trayecto?: LatLng[] | null;
+  /** Varias rutas a la vez, cada una de su color y animada en su sentido. */
+  rutas?: RutaEnMapa[];
   deposito?: LatLng | null;
   className?: string;
   onParadaClick?: (id: string) => void;
@@ -53,7 +67,7 @@ function iconoParada(orden: number, estado: string, destacada: boolean) {
   });
 }
 
-function iconoCamion(rumbo: number, destacado: boolean) {
+function iconoCamion(rumbo: number, destacado: boolean, aro = "#ffffff") {
   const fondo = destacado ? "#f4b400" : "#1a1a1a";
   const trazo = destacado ? "#1a1a1a" : "#f4b400";
   // La flecha apunta al rumbo (0 = norte); el camión queda siempre derecho.
@@ -63,7 +77,7 @@ function iconoCamion(rumbo: number, destacado: boolean) {
       <div style="position:absolute;inset:0;transform:rotate(${rumbo}deg);transition:transform .8s">
         <div style="position:absolute;left:50%;top:-2px;transform:translateX(-50%);width:0;height:0;border-left:7px solid transparent;border-right:7px solid transparent;border-bottom:10px solid ${fondo}"></div>
       </div>
-      <div style="position:absolute;inset:5px;border-radius:50%;background:${fondo};border:3px solid #fff;box-shadow:0 3px 10px rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center">
+      <div style="position:absolute;inset:5px;border-radius:50%;background:${fondo};border:3px solid ${aro};box-shadow:0 3px 10px rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="${trazo}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 3h15v13H1z"/><path d="M16 8h4l3 3v5h-7z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
       </div>
     </div>`,
@@ -108,7 +122,7 @@ function useDeslizar(destino: LatLng, ms = 1900): LatLng {
 
 function Camion({ v, onClick }: { v: VehiculoEnMapa; onClick?: (id: string) => void }) {
   const pos = useDeslizar(v.pos);
-  const icono = useMemo(() => iconoCamion(v.rumbo, Boolean(v.destacado)), [v.rumbo, v.destacado]);
+  const icono = useMemo(() => iconoCamion(v.rumbo, Boolean(v.destacado), v.color), [v.rumbo, v.destacado, v.color]);
   return (
     <Marker
       position={pos}
@@ -133,6 +147,9 @@ function Encuadrar({ puntos, clave }: { puntos: LatLng[]; clave?: string }) {
     // Si el contenedor cambió de tamaño desde que se creó el mapa (layout,
     // pestañas, sidebar), Leaflet calcula mal el zoom: primero se re-mide.
     map.invalidateSize();
+    const lats = ps.map((p) => p[0]);
+    const lngs = ps.map((p) => p[1]);
+    console.debug("[mapa] encuadre " + JSON.stringify({ puntos: ps.length, lat: [Math.min(...lats), Math.max(...lats)], lng: [Math.min(...lngs), Math.max(...lngs)], tam: map.getSize() }));
     if (ps.length === 1) map.setView(ps[0], 15);
     else map.fitBounds(ps, { padding: [36, 36], maxZoom: 16 });
   };
@@ -168,6 +185,7 @@ export function MapaMovii({
   vehiculos = [],
   recorrido,
   trayecto,
+  rutas = [],
   deposito,
   className = "h-96",
   onParadaClick,
@@ -179,8 +197,9 @@ export function MapaMovii({
     if (deposito) ps.push(deposito);
     if (trayecto?.length) ps.push(...trayecto);
     else if (recorrido?.length) ps.push(...recorrido);
+    for (const r of rutas) if (r.destacada) ps.push(...r.geometria);
     return ps;
-  }, [paradas, vehiculos, deposito, trayecto, recorrido]);
+  }, [paradas, vehiculos, deposito, trayecto, recorrido, rutas]);
 
   const centro: LatLng = puntos[0] ?? [-31.4279718, -62.0826608];
 
@@ -192,13 +211,36 @@ export function MapaMovii({
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
         <Encuadrar puntos={puntos} clave={encuadre} />
+        {rutas
+          .filter((r) => r.geometria.length > 1)
+          .map((r) => (
+            <Fragment key={r.id}>
+              <Polyline positions={r.geometria} pathOptions={{ color: r.color, weight: r.destacada ? 9 : 7, opacity: r.destacada ? 0.28 : 0.16, lineCap: "round" }} />
+              <Polyline
+                positions={r.geometria}
+                pathOptions={{
+                  color: r.color,
+                  weight: r.destacada ? 4.5 : 3.5,
+                  opacity: r.destacada ? 1 : 0.85,
+                  dashArray: "2 10",
+                  lineCap: "round",
+                  className: r.destacada ? "ruta-flujo" : "ruta-flujo-lenta",
+                }}
+              >
+                <Tooltip sticky>{r.nombre}</Tooltip>
+              </Polyline>
+            </Fragment>
+          ))}
         {recorrido && recorrido.length > 1 && (
-          <Polyline positions={recorrido} pathOptions={{ color: "#6b7280", weight: 4, opacity: 0.7, dashArray: "8 8" }} />
+          <>
+            <Polyline positions={recorrido} pathOptions={{ color: "#1a1a1a", weight: 7, opacity: 0.12, lineCap: "round" }} />
+            <Polyline positions={recorrido} pathOptions={{ color: "#1a1a1a", weight: 4, opacity: 0.75, dashArray: "2 10", lineCap: "round", className: "ruta-flujo-lenta" }} />
+          </>
         )}
         {trayecto && trayecto.length > 1 && (
           <>
-            <Polyline positions={trayecto} pathOptions={{ color: "#1a1a1a", weight: 9, opacity: 0.25 }} />
-            <Polyline positions={trayecto} pathOptions={{ color: "#f4b400", weight: 5, opacity: 1 }} />
+            <Polyline positions={trayecto} pathOptions={{ color: "#1a1a1a", weight: 10, opacity: 0.22, lineCap: "round" }} />
+            <Polyline positions={trayecto} pathOptions={{ color: "#f4b400", weight: 5, opacity: 1, dashArray: "2 10", lineCap: "round", className: "ruta-flujo" }} />
           </>
         )}
         {deposito && (

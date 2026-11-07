@@ -19,7 +19,7 @@ vi.mock("react-leaflet", () => ({
   Popup: () => null,
   Tooltip: () => null,
   CircleMarker: () => null,
-  useMap: () => ({ fitBounds: vi.fn(), setView: vi.fn(), invalidateSize: vi.fn(), getContainer: () => document.createElement("div") }),
+  useMap: () => ({ fitBounds: vi.fn(), setView: vi.fn(), invalidateSize: vi.fn(), getSize: () => ({ x: 600, y: 400 }), getContainer: () => document.createElement("div") }),
 }));
 
 const mapa: MapaRuta = {

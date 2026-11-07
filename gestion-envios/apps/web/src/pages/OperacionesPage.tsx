@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useQueries, useQuery } from "@tanstack/react-query";
 import { obtenerDashboard } from "@/features/analitica/api";
 import { listarFlota, obtenerTrayecto, obtenerVehiculo } from "@/features/flota/api";
 import { useFlotaEnVivo } from "@/features/flota/useFlotaEnVivo";
-import { MapaMovii, type ParadaEnMapa, type VehiculoEnMapa } from "@/features/flota/MapaMovii";
+import { MapaMovii, type ParadaEnMapa, type RutaEnMapa, type VehiculoEnMapa } from "@/features/flota/MapaMovii";
 import { TruckIllustration } from "@/features/flota/TruckIllustration";
+import { ContenedorPaquetes } from "@/features/flota/ContenedorPaquetes";
+import { COLORES_RUTA } from "@/features/flota/colores";
 import { CapacityGauge } from "@/features/flota/CapacityGauge";
 import { VehicleSlider } from "@/features/flota/VehicleSlider";
 import { LineaDeParadas } from "@/features/flota/LineaDeParadas";
@@ -101,6 +103,32 @@ export function OperacionesPage() {
     refetchInterval: 15_000,
   });
 
+  // Recorrido de cada camión con ruta hoy: un color por ruta para verlas todas a la vez.
+  const conRuta = useMemo(() => vehiculos.filter((v) => v.ruta_id), [vehiculos]);
+  const colorDe = useMemo(() => {
+    const m: Record<string, string> = {};
+    conRuta.forEach((v, i) => (m[v.id] = COLORES_RUTA[i % COLORES_RUTA.length]));
+    return m;
+  }, [conRuta]);
+  const detalles = useQueries({
+    queries: conRuta.map((v) => ({
+      queryKey: ["operaciones", "flota", v.id],
+      queryFn: () => obtenerVehiculo(v.id),
+      refetchInterval: 20_000,
+    })),
+  });
+  const rutasEnMapa = useMemo<RutaEnMapa[]>(
+    () =>
+      conRuta.flatMap((v, i) => {
+        const geo = detalles[i]?.data?.recorrido?.geometria;
+        return geo
+          ? [{ id: v.id, nombre: `${v.ruta_nombre} (${v.patente})`, color: colorDe[v.id], geometria: geo, destacada: v.id === seleccionado?.id }]
+          : [];
+      }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [conRuta, colorDe, seleccionado?.id, ...detalles.map((d) => d.dataUpdatedAt)],
+  );
+
   const enMapa = useMemo<VehiculoEnMapa[]>(
     () =>
       vehiculos.map((v) => {
@@ -112,9 +140,10 @@ export function OperacionesPage() {
           rumbo: vivo?.rumbo ?? v.rumbo,
           velocidad: vivo?.velocidad ?? v.velocidad,
           destacado: v.id === seleccionado?.id,
+          color: colorDe[v.id],
         };
       }),
-    [vehiculos, posiciones, seleccionado?.id],
+    [vehiculos, posiciones, seleccionado?.id, colorDe],
   );
 
   const paquetes = useMemo(() => detalle.data?.paquetes ?? [], [detalle.data]);
@@ -229,7 +258,10 @@ export function OperacionesPage() {
                     </dl>
                   </div>
                   <div className="relative md:col-span-3">
-                    <TruckIllustration containerCode={seleccionado.patente} color={seleccionado.estado === "mantenimiento" ? "blanco" : "amarillo"} />
+                    <div className="relative">
+                      <TruckIllustration containerCode={seleccionado.patente} color={seleccionado.estado === "mantenimiento" ? "blanco" : "amarillo"} />
+                      <ContenedorPaquetes key={seleccionado.id} paquetes={paquetes} />
+                    </div>
                     <div aria-hidden className="mx-4 -mt-3 h-1 rounded-full bg-[repeating-linear-gradient(90deg,#f4b400_0_28px,transparent_28px_52px)] opacity-70" />
                   </div>
                 </div>
@@ -262,12 +294,30 @@ export function OperacionesPage() {
                   className="h-[420px]"
                   vehiculos={enMapa}
                   paradas={paradas}
-                  recorrido={trayecto.data?.recorrido ? null : (detalle.data?.recorrido?.geometria ?? null)}
+                  rutas={trayecto.data?.recorrido ? rutasEnMapa.map((r) => ({ ...r, destacada: false })) : rutasEnMapa}
                   trayecto={trayecto.data?.recorrido?.geometria ?? null}
                   onVehiculoClick={(id) => setSeleccionadoId(id)}
                   onParadaClick={(id) => setEnvioElegido(id)}
                   encuadre={`${seleccionado.id}-${envioElegido ?? ""}-${detalle.data ? "ok" : ""}`}
                 />
+                {rutasEnMapa.length > 0 && (
+                  <ul className="mt-3 flex flex-wrap gap-2" aria-label="Rutas en el mapa">
+                    {rutasEnMapa.map((r) => (
+                      <li key={r.id}>
+                        <button
+                          type="button"
+                          onClick={() => setSeleccionadoId(r.id)}
+                          className={`flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold transition-colors ${
+                            r.destacada ? "border-asfalto-900 bg-asfalto-900 text-white" : "border-hormigon-200 bg-white text-gray-700 hover:border-hormigon-300"
+                          }`}
+                        >
+                          <span className="h-2.5 w-5 rounded-full" style={{ background: `repeating-linear-gradient(90deg, ${r.color} 0 4px, transparent 4px 7px)` }} />
+                          {r.nombre}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
                 {trayecto.data && (
                   <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-xl bg-amber-50 px-3 py-2 text-sm">
                     <span>
