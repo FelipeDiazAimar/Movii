@@ -190,14 +190,29 @@ func (c *Cliente) Enviar(ctx context.Context, telefono, texto string) error {
 	c.mu.Lock()
 	cli := c.cli
 	c.mu.Unlock()
-	if cli == nil || cli.Store.ID == nil || !cli.IsLoggedIn() {
+	if cli == nil || cli.Store.ID == nil {
 		return ErrNoVinculado
 	}
+	if !cli.IsConnected() || !cli.IsLoggedIn() {
+		log.Printf("whatsapp: enviar: conectado=%v sesión=%v; reintentando conexión", cli.IsConnected(), cli.IsLoggedIn())
+		if !cli.IsConnected() {
+			_ = cli.Connect()
+		}
+		if !cli.WaitForConnection(10 * time.Second) {
+			return fmt.Errorf("whatsapp: sin conexión con los servidores de WhatsApp")
+		}
+	}
+	inicio := time.Now()
 	jid, err := c.resolverJID(ctx, cli, telefono)
 	if err != nil {
+		log.Printf("whatsapp: no se pudo resolver el número (%s): %v", time.Since(inicio).Round(time.Millisecond), err)
 		return err
 	}
+	log.Printf("whatsapp: número resuelto en %s; enviando", time.Since(inicio).Round(time.Millisecond))
 	_, err = cli.SendMessage(ctx, jid, &waE2E.Message{Conversation: proto.String(texto)})
+	if err != nil {
+		log.Printf("whatsapp: SendMessage falló (%s): %v", time.Since(inicio).Round(time.Millisecond), err)
+	}
 	return err
 }
 

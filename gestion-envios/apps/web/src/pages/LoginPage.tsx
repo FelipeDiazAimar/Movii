@@ -53,11 +53,20 @@ export function LoginPage() {
     e.preventDefault();
     setError(null);
     setEnviando(true);
+    const t0 = performance.now();
+    console.info("[login] paso 1: validando email y contraseña", { email });
     try {
       const r = await login({ email, password });
-      if ("desafio_id" in r) empezarDesafio(r);
-      else entrar(r);
+      const ms = Math.round(performance.now() - t0);
+      if ("desafio_id" in r) {
+        console.info(`[login] contraseña OK en ${ms} ms: se pidió el código por WhatsApp`, { telefono: r.telefono, desafio: r.desafio_id });
+        empezarDesafio(r);
+      } else {
+        console.info(`[login] contraseña OK en ${ms} ms: sesión iniciada (sin segundo paso)`, { rol: r.rol });
+        entrar(r);
+      }
     } catch (err) {
+      console.error(`[login] paso 1 falló después de ${Math.round(performance.now() - t0)} ms`, err);
       setError(getApiErrorMessage(err, "No se pudo iniciar sesión"));
     } finally {
       setEnviando(false);
@@ -69,9 +78,13 @@ export function LoginPage() {
     if (!desafio) return;
     setError(null);
     setEnviando(true);
+    console.info("[login] paso 2: verificando el código", { desafio: desafio.desafio_id });
     try {
-      entrar(await verificarCodigo(desafio.desafio_id, codigo.trim(), email));
+      const nueva = await verificarCodigo(desafio.desafio_id, codigo.trim(), email);
+      console.info("[login] código correcto: sesión iniciada", { rol: nueva.rol });
+      entrar(nueva);
     } catch (err) {
+      console.error("[login] paso 2 falló", err);
       setError(getApiErrorMessage(err, "No se pudo verificar el código"));
     } finally {
       setEnviando(false);
@@ -81,6 +94,7 @@ export function LoginPage() {
   async function handleReenviar() {
     if (!desafio) return;
     setError(null);
+    console.info("[login] reenviando código", { desafio: desafio.desafio_id });
     try {
       empezarDesafio(await reenviarCodigo(desafio.desafio_id));
       setAviso("Te mandamos un código nuevo.");

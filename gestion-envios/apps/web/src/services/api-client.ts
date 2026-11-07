@@ -13,6 +13,8 @@ export function setOnUnauthorized(handler: (() => void) | null) {
 
 export const apiClient = axios.create({
   baseURL: API_URL,
+  // Ninguna pantalla queda "cargando" para siempre si la API no responde.
+  timeout: 30_000,
 });
 
 apiClient.interceptors.request.use((config) => {
@@ -46,6 +48,9 @@ export function getApiErrorMessage(error: unknown, fallback = "Ocurrió un error
   if (axios.isAxiosError<ApiErrorBody>(error)) {
     const message = error.response?.data?.error?.message;
     if (message) return message;
+    if (error.code === "ECONNABORTED") {
+      return "El servidor tardó demasiado en responder. Probá de nuevo.";
+    }
     if (error.code === "ERR_NETWORK") {
       return "No se pudo conectar con el servidor. Verificá que la API esté corriendo.";
     }

@@ -216,3 +216,28 @@ func TestEnmascararTelefono(t *testing.T) {
 	require.Equal(t, "+54 9 3564 ••••45", EnmascararTelefono("5493564412345"))
 	require.Equal(t, "••••", EnmascararTelefono("123"))
 }
+
+// senderLento simula un WhatsApp que no responde.
+type senderLento struct{ bloqueo chan struct{} }
+
+func (s senderLento) Enviar(ctx context.Context, _, _ string) error {
+	select {
+	case <-s.bloqueo:
+	case <-ctx.Done():
+	}
+	return ctx.Err()
+}
+func (senderLento) Estado() whatsapp.Estado { return whatsapp.Estado{Habilitado: true, Vinculado: true} }
+
+func TestOTP_WhatsAppColgadoNoTrabaElLogin(t *testing.T) {
+	lento := senderLento{bloqueo: make(chan struct{})}
+	defer close(lento.bloqueo)
+	svc := NewOTPService(nuevoOTPRepo(), usuariosFalsos{carla.ID: carla}, tokensFalsos{}, lento, "secreto")
+	svc.EsperaEnvio = 50 * time.Millisecond
+
+	inicio := time.Now()
+	d, err := svc.Iniciar(context.Background(), carla)
+	require.NoError(t, err, "si WhatsApp tarda, se responde con el desafío igual")
+	require.NotEmpty(t, d.ID)
+	require.Less(t, time.Since(inicio), 2*time.Second, "el login no queda colgado")
+}

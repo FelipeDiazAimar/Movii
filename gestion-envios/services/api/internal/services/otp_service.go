@@ -74,11 +74,14 @@ type OTPService struct {
 	secreto  []byte
 	ahora    func() time.Time
 	generar  func() (string, error)
+	// EsperaEnvio es cuánto espera el login a que WhatsApp confirme el envío
+	// antes de responder igual (el mensaje sigue saliendo en segundo plano).
+	EsperaEnvio time.Duration
 }
 
 // NewOTPService crea un OTPService. secreto firma los hashes de los códigos.
 func NewOTPService(repo otpRepo, usuarios usuariosPorID, tokens emisorToken, sender whatsapp.Sender, secreto string) *OTPService {
-	return &OTPService{repo: repo, usuarios: usuarios, tokens: tokens, sender: sender, secreto: []byte(secreto), ahora: time.Now, generar: generarCodigo}
+	return &OTPService{repo: repo, usuarios: usuarios, tokens: tokens, sender: sender, secreto: []byte(secreto), ahora: time.Now, generar: generarCodigo, EsperaEnvio: 8 * time.Second}
 }
 
 func generarCodigo() (string, error) {
@@ -139,12 +142,38 @@ func (s *OTPService) Iniciar(ctx context.Context, u domain.Usuario) (Desafio, er
 		return Desafio{}, err
 	}
 	texto := fmt.Sprintf("Tu código de verificación de Movii es *%s*.\nVence en 5 minutos. No lo compartas con nadie: el equipo de Movii nunca te lo va a pedir.", codigo)
-	if err := s.sender.Enviar(ctx, u.Telefono, texto); err != nil {
-		log.Printf("2fa: no se pudo mandar el código a %s: %v", EnmascararTelefono(u.Telefono), err)
-		return Desafio{}, fmt.Errorf("no se pudo enviar el código por WhatsApp: %w", err)
+	tel := EnmascararTelefono(u.Telefono)
+	desafio := Desafio{ID: id, Telefono: tel, VenceEn: int(vigenciaOTP.Seconds())}
+
+	// El envío corre aparte con su propio límite: si WhatsApp tarda, el login
+	// no queda colgado. Se espera hasta EsperaEnvio; si para entonces no
+	// falló, se devuelve el desafío y el mensaje termina de salir solo.
+	inicio := time.Now()
+	resultado := make(chan error, 1)
+	go func() {
+		c, cancel := context.WithTimeout(context.Background(), limiteEnvioOTP)
+		defer cancel()
+		err := s.sender.Enviar(c, u.Telefono, texto)
+		if err != nil {
+			log.Printf("2fa: falló el envío del código a %s después de %s: %v", tel, time.Since(inicio).Round(time.Millisecond), err)
+		} else {
+			log.Printf("2fa: código enviado a %s en %s", tel, time.Since(inicio).Round(time.Millisecond))
+		}
+		resultado <- err
+	}()
+	select {
+	case err := <-resultado:
+		if err != nil {
+			return Desafio{}, fmt.Errorf("no se pudo enviar el código por WhatsApp: %w", err)
+		}
+	case <-time.After(s.EsperaEnvio):
+		log.Printf("2fa: el envío a %s sigue en curso después de %s; se responde igual", tel, s.EsperaEnvio)
 	}
-	return Desafio{ID: id, Telefono: EnmascararTelefono(u.Telefono), VenceEn: int(vigenciaOTP.Seconds())}, nil
+	return desafio, nil
 }
+
+// limiteEnvioOTP es el tiempo máximo para que WhatsApp acepte el mensaje.
+const limiteEnvioOTP = 45 * time.Second
 
 // nuevoUUID genera un UUID v4.
 func nuevoUUID() (string, error) {
