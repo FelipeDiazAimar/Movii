@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react";
-import { InputField } from "@/components/ui/Field";
+import { DateField, InputField } from "@/components/ui/Field";
 import { Button } from "@/components/ui/Button";
 import { Alert } from "@/components/ui/Alert";
 import { RepartidorSelect } from "./RepartidorSelect";
@@ -43,14 +43,7 @@ export function RutaForm({ valoresIniciales, onSubmit, enviando, errorServidor, 
 
       <InputField label="Nombre" value={nombre} onChange={(e) => setNombre(e.target.value)} error={errores.nombre} />
       <InputField label="Zona" value={zona} onChange={(e) => setZona(e.target.value)} error={errores.zona} />
-      <InputField
-        label="Fecha *"
-        type="date"
-        required
-        value={fecha}
-        onChange={(e) => setFecha(e.target.value)}
-        error={errores.fecha}
-      />
+      <DateField label="Fecha *" value={fecha} onChange={setFecha} error={errores.fecha} />
       <RepartidorSelect value={repartidorId} onChange={setRepartidorId} error={errores.repartidor_id} />
 
       <div>

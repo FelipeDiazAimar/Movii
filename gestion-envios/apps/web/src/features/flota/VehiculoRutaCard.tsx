@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card } from "@/components/ui/Card";
 import { Alert } from "@/components/ui/Alert";
+import { Select } from "@/components/ui/Select";
 import { getApiErrorMessage } from "@/services/api-client";
 import { asignarVehiculoARuta, listarFlota } from "./api";
 import { ETIQUETA_ESTADO_VEHICULO } from "./types";
@@ -26,25 +27,27 @@ export function VehiculoRutaCard({ rutaId, fecha }: { rutaId: string; fecha: str
           Ver en el mapa →
         </Link>
       </div>
-      <select
-        aria-label="Vehículo de la ruta"
-        className="mt-3 w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
-        disabled={flota.isLoading || asignar.isPending}
-        value={actual?.id ?? ""}
-        onChange={(e) => asignar.mutate(e.target.value)}
-      >
-        <option value="">Sin vehículo</option>
-        {vehiculos.map((v) => {
-          const ocupado = Boolean(v.ruta_id) && v.ruta_id !== rutaId;
-          const taller = v.estado === "mantenimiento";
-          return (
-            <option key={v.id} value={v.id} disabled={ocupado || taller}>
-              {v.patente} — {v.modelo} ({v.capacidad_peso} kg)
-              {ocupado ? ` · ocupado en ${v.ruta_nombre}` : taller ? ` · ${ETIQUETA_ESTADO_VEHICULO.mantenimiento}` : ""}
-            </option>
-          );
-        })}
-      </select>
+      <div className="mt-3">
+        <Select
+          aria-label="Vehículo de la ruta"
+          disabled={flota.isLoading || asignar.isPending}
+          value={actual?.id ?? ""}
+          onChange={(id) => asignar.mutate(id)}
+          opciones={[
+            { value: "", label: "Sin vehículo" },
+            ...vehiculos.map((v) => {
+              const ocupado = Boolean(v.ruta_id) && v.ruta_id !== rutaId;
+              const taller = v.estado === "mantenimiento";
+              return {
+                value: v.id,
+                label: `${v.patente} — ${v.modelo} (${v.capacidad_peso} kg)`,
+                disabled: ocupado || taller,
+                detalle: ocupado ? `Ocupado en ${v.ruta_nombre}` : taller ? ETIQUETA_ESTADO_VEHICULO.mantenimiento : undefined,
+              };
+            }),
+          ]}
+        />
+      </div>
       {actual && (
         <p className="mt-2 text-xs text-gray-500">
           Carga {actual.carga_actual_peso} de {actual.capacidad_peso} kg ({actual.capacidad_porcentaje}%)

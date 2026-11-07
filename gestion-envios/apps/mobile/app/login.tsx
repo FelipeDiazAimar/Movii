@@ -82,11 +82,11 @@ export default function LoginScreen() {
     }, "No se pudo reenviar el código.");
 
   return (
-    <AuroraBackground>
+    <AuroraBackground variante="oscuro">
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={styles.flex}>
         <View style={styles.content}>
           <View style={styles.brandBlock}>
-            <AppMark size="hero" />
+            <AppMark size="hero" inverted />
             <Text style={styles.kicker}>OPERACIÓN DE ÚLTIMA MILLA</Text>
             <Text style={styles.title}>Tu jornada, siempre en movimiento.</Text>
             <Text style={styles.subtitle}>Ingresá y continuá con la ruta asignada a tu perfil.</Text>
@@ -181,10 +181,10 @@ const styles = StyleSheet.create({
   flex: { flex: 1 },
   content: { flex: 1, width: "100%", maxWidth: 500, alignSelf: "center", justifyContent: "center", paddingHorizontal: 22, paddingVertical: 28, gap: 22 },
   brandBlock: { alignItems: "flex-start", gap: 8 },
-  kicker: { color: "#6E6E73", fontSize: 11, fontWeight: "800", letterSpacing: 1.05, marginTop: 9 },
-  title: { color: "#1C1C1E", fontSize: 29, lineHeight: 34, fontWeight: "800", letterSpacing: -0.95, maxWidth: 330 },
-  subtitle: { color: "#6E6E73", fontSize: 14, lineHeight: 20, maxWidth: 305 },
-  card: { gap: 16, padding: 20 },
+  kicker: { color: "#F4B400", fontSize: 11, fontWeight: "900", letterSpacing: 1.6, marginTop: 12 },
+  title: { color: "#FFFFFF", fontSize: 34, lineHeight: 38, fontWeight: "900", letterSpacing: -1.5, maxWidth: 340 },
+  subtitle: { color: "#9A9AA0", fontSize: 14.5, lineHeight: 21, maxWidth: 320 },
+  card: { gap: 16, padding: 22, borderRadius: 28, borderColor: "transparent" },
   cardIntro: { gap: 4, alignItems: "center" },
   cardTitle: { color: "#1C1C1E", fontSize: 21, lineHeight: 25, fontWeight: "800", letterSpacing: -0.55, textAlign: "center" },
   cardDescription: { color: "#6E6E73", fontSize: 14, lineHeight: 20, textAlign: "center" },
@@ -195,7 +195,7 @@ const styles = StyleSheet.create({
   aviso: { color: "#1E7F3C", backgroundColor: "#E8F7EC", borderRadius: 12, padding: 11, fontSize: 13, textAlign: "center" },
   keepSession: { flexDirection: "row", alignItems: "center", gap: 9, alignSelf: "flex-start", minHeight: 30, marginTop: -2 },
   checkbox: { width: 20, height: 20, borderRadius: 6, borderWidth: 1.5, borderColor: "#AEAEB2", alignItems: "center", justifyContent: "center", backgroundColor: "#FFFFFF" },
-  checkboxChecked: { backgroundColor: "#FFD60A", borderColor: "#D7AA00" },
+  checkboxChecked: { backgroundColor: "#F4B400", borderColor: "#D7AA00" },
   checkboxCheck: { color: "#1C1C1E", fontSize: 13, fontWeight: "900", marginTop: -1 },
   keepSessionText: { color: "#3A3A3C", fontSize: 13, fontWeight: "600" },
   forgotButton: { minHeight: 28, justifyContent: "center", alignSelf: "center", marginTop: -7 },

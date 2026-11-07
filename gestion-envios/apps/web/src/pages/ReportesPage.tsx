@@ -12,7 +12,7 @@ import { hoyISO, primerDiaMesISO } from "@/features/analitica/fechas";
 import { EstadoEnvioBadge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card, EmptyState } from "@/components/ui/Card";
-import { InputField, SelectField } from "@/components/ui/Field";
+import { DateField, SelectField } from "@/components/ui/Field";
 import { Spinner } from "@/components/ui/Spinner";
 import { Alert } from "@/components/ui/Alert";
 import { getApiErrorMessage } from "@/services/api-client";
@@ -237,8 +237,8 @@ export function ReportesPage() {
 
       <div className="flex flex-wrap items-start gap-3 rounded-panel border border-hormigon-200 bg-white p-4 shadow-panel">
         <CalendarRange className="mt-8 h-5 w-5 text-gray-400" aria-hidden />
-        <InputField label="Desde" type="date" value={desde} onChange={(e) => setDesde(e.target.value)} />
-        <InputField label="Hasta" type="date" value={hasta} onChange={(e) => setHasta(e.target.value)} error={errorPeriodo} />
+        <DateField label="Desde" value={desde} onChange={setDesde} />
+        <DateField label="Hasta" value={hasta} onChange={setHasta} error={errorPeriodo} />
       </div>
 
       <div role="tablist" aria-label="Reportes" className="flex gap-1 border-b border-gray-200">

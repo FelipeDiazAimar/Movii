@@ -5,9 +5,9 @@ import { obtenerDashboard } from "@/features/analitica/api";
 import { listarFlota, obtenerTrayecto, obtenerVehiculo } from "@/features/flota/api";
 import { useFlotaEnVivo } from "@/features/flota/useFlotaEnVivo";
 import { MapaMovii, type ParadaEnMapa, type RutaEnMapa, type VehiculoEnMapa } from "@/features/flota/MapaMovii";
-import { TruckIllustration } from "@/features/flota/TruckIllustration";
+import { REGION_CARGA, VehiculoIllustration } from "@/features/flota/VehiculoIllustration";
 import { ContenedorPaquetes } from "@/features/flota/ContenedorPaquetes";
-import { COLORES_RUTA } from "@/features/flota/colores";
+import { colorDeFlota } from "@/features/flota/colores";
 import { CapacityGauge } from "@/features/flota/CapacityGauge";
 import { VehicleSlider } from "@/features/flota/VehicleSlider";
 import { LineaDeParadas } from "@/features/flota/LineaDeParadas";
@@ -105,11 +105,7 @@ export function OperacionesPage() {
 
   // Recorrido de cada camión con ruta hoy: un color por ruta para verlas todas a la vez.
   const conRuta = useMemo(() => vehiculos.filter((v) => v.ruta_id), [vehiculos]);
-  const colorDe = useMemo(() => {
-    const m: Record<string, string> = {};
-    conRuta.forEach((v, i) => (m[v.id] = COLORES_RUTA[i % COLORES_RUTA.length]));
-    return m;
-  }, [conRuta]);
+  const colorDe = useMemo(() => colorDeFlota(vehiculos), [vehiculos]);
   const detalles = useQueries({
     queries: conRuta.map((v) => ({
       queryKey: ["operaciones", "flota", v.id],
@@ -270,8 +266,12 @@ export function OperacionesPage() {
                   </div>
                   <div className="relative md:col-span-3">
                     <div className="relative">
-                      <TruckIllustration containerCode={seleccionado.patente} color={seleccionado.estado === "mantenimiento" ? "blanco" : "amarillo"} />
-                      <ContenedorPaquetes key={seleccionado.id} paquetes={paquetes} />
+                      <VehiculoIllustration
+                        tipo={seleccionado.tipo}
+                        containerCode={seleccionado.patente}
+                        color={seleccionado.estado === "mantenimiento" ? "#e9ecef" : colorDe[seleccionado.id]}
+                      />
+                      <ContenedorPaquetes key={seleccionado.id} paquetes={paquetes} region={REGION_CARGA[seleccionado.tipo]} />
                     </div>
                     <div aria-hidden className="mx-4 -mt-3 h-1 rounded-full bg-[repeating-linear-gradient(90deg,#f4b400_0_28px,transparent_28px_52px)] opacity-70" />
                   </div>

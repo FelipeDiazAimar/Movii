@@ -158,7 +158,7 @@ export default function FailureScreen() {
 }
 
 const styles = StyleSheet.create({
-  page: { flex: 1, backgroundColor: "#F7F7F8" },
+  page: { flex: 1, backgroundColor: "#EEF0F2" },
   content: { padding: 16, paddingTop: 10, paddingBottom: 34, gap: 12, maxWidth: 620, width: "100%", alignSelf: "center" },
   introTitle: { color: "#1C1C1E", fontSize: 16, fontWeight: "800" },
   introCopy: { color: "#6E6E73", fontSize: 13, lineHeight: 18, marginTop: 6 },
@@ -166,10 +166,10 @@ const styles = StyleSheet.create({
   required: { color: "#B42318", textTransform: "none" },
   reasons: { gap: 8 },
   reason: { minHeight: 51, paddingHorizontal: 14, flexDirection: "row", alignItems: "center", gap: 10, borderRadius: 14, backgroundColor: "rgba(255,255,255,0.7)", borderWidth: 1, borderColor: "#E5E5EA" },
-  reasonActive: { backgroundColor: "#FFF4CC", borderColor: "#FFD60A" },
+  reasonActive: { backgroundColor: "#FFF4CC", borderColor: "#F4B400" },
   radio: { width: 19, height: 19, borderRadius: 10, borderWidth: 1.5, borderColor: "#AEAEB2", alignItems: "center", justifyContent: "center" },
   radioActive: { borderColor: "#806700" },
-  radioInner: { width: 9, height: 9, borderRadius: 5, backgroundColor: "#FFD60A" },
+  radioInner: { width: 9, height: 9, borderRadius: 5, backgroundColor: "#F4B400" },
   reasonText: { color: "#1C1C1E", fontSize: 14, fontWeight: "600" },
   reasonTextActive: { fontWeight: "800" },
   note: { minHeight: 105, borderRadius: 15, borderWidth: 1, borderColor: "#E5E5EA", backgroundColor: "rgba(255,255,255,0.8)", padding: 13, color: "#1C1C1E", textAlignVertical: "top", fontSize: 14 },

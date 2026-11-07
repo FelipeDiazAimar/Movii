@@ -16,10 +16,10 @@ export function AppHeader({ title, subtitle }: { title: string; subtitle?: strin
 
 const styles = StyleSheet.create({
   root: { height: 52, flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 16 },
-  back: { width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,0.7)", borderWidth: 1, borderColor: "rgba(255,255,255,0.9)" },
-  backText: { color: "#1C1C1E", fontSize: 33, fontWeight: "300", lineHeight: 36, marginTop: -4 },
+  back: { width: 42, height: 42, borderRadius: 14, alignItems: "center", justifyContent: "center", backgroundColor: "#1A1A1A" },
+  backText: { color: "#F4B400", fontSize: 33, fontWeight: "300", lineHeight: 36, marginTop: -4 },
   copy: { maxWidth: "62%", alignItems: "center" },
-  title: { color: "#1C1C1E", fontSize: 15, fontWeight: "800" },
+  title: { color: "#1C1C1E", fontSize: 16, fontWeight: "900", letterSpacing: -0.3 },
   subtitle: { color: "#6E6E73", fontSize: 11, marginTop: 2 },
   balance: { width: 40 },
   pressed: { opacity: 0.65, transform: [{ scale: 0.96 }] },

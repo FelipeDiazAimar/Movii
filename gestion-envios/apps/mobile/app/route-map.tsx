@@ -214,13 +214,13 @@ export default function RouteMapScreen() {
 }
 
 const styles = StyleSheet.create({
-  page: { flex: 1, backgroundColor: "#F7F7F8" },
+  page: { flex: 1, backgroundColor: "#EEF0F2" },
   content: { padding: 16, paddingTop: 11, gap: 18, maxWidth: 620, width: "100%", alignSelf: "center" },
   mapCard: { padding: 10, gap: 12 },
   map: { height: 320 },
   loading: { alignItems: "center", justifyContent: "center", borderRadius: 16, backgroundColor: "#E9EDEF" },
   expandPill: { position: "absolute", right: 11, bottom: 11, minHeight: 35, paddingHorizontal: 11, borderRadius: 18, backgroundColor: "rgba(28,28,30,0.9)", flexDirection: "row", alignItems: "center", gap: 6 },
-  expandIcon: { color: "#FFD60A", fontSize: 14 },
+  expandIcon: { color: "#F4B400", fontSize: 14 },
   expandText: { color: "#FFFFFF", fontSize: 11, fontWeight: "800" },
   legend: { flexDirection: "row", flexWrap: "wrap", gap: 14, paddingHorizontal: 5 },
   legendItem: { flexDirection: "row", alignItems: "center", gap: 6 },
@@ -235,7 +235,7 @@ const styles = StyleSheet.create({
   stopRow: { minHeight: 64, flexDirection: "row", alignItems: "center", gap: 11, paddingHorizontal: 13, borderRadius: 12 },
   stopRowActive: { backgroundColor: "#FFF4CC" },
   order: { width: 28, height: 28, borderRadius: 14, backgroundColor: "#EFEFF2", alignItems: "center", justifyContent: "center" },
-  orderActive: { backgroundColor: "#FFD60A" },
+  orderActive: { backgroundColor: "#F4B400" },
   orderDone: { backgroundColor: "#16a34a" },
   orderText: { color: "#1C1C1E", fontSize: 12, fontWeight: "800" },
   orderTextDone: { color: "#FFFFFF" },

@@ -8,7 +8,7 @@ export default function RootLayout() {
   return (
     <ThemeProvider>
       <MoviiProvider>
-        <StatusBar style="dark" />
+        <StatusBar style="auto" />
         <Stack screenOptions={{ headerShown: false, animation: "fade" }}>
           <Stack.Screen name="login" />
           <Stack.Screen name="forgot-password" options={{ animation: "slide_from_right" }} />

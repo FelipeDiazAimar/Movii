@@ -70,9 +70,10 @@ describe("ReportesPage", () => {
   it("desde posterior a hasta muestra error de validacion", async () => {
     const user = userEvent.setup();
     renderPage();
-    const hasta = screen.getByLabelText("Hasta");
-    await user.clear(hasta);
-    await user.type(hasta, "2000-01-01");
+    // Hasta: retrocede un mes en el calendario y elige un día anterior al "desde".
+    await user.click(screen.getByLabelText("Hasta"));
+    await user.click(screen.getByRole("button", { name: "Mes anterior" }));
+    await user.click(screen.getAllByRole("gridcell").find((c) => /^15 de /.test(c.getAttribute("aria-label") ?? ""))!);
     expect(screen.getAllByText("La fecha desde no puede ser posterior a hasta").length).toBeGreaterThan(0);
   });
 });

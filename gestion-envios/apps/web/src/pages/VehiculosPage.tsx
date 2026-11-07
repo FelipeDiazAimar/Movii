@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { useMemo, useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { actualizarVehiculo, crearVehiculo, listarFlota } from "@/features/flota/api";
@@ -20,12 +20,14 @@ import { getApiErrorMessage } from "@/services/api-client";
 
 import { Box, Gauge, Package, Pencil, Plus, Route, Truck, Weight } from "lucide-react";
 import { SpotlightCard } from "@/components/ui/Efectos";
-import { TruckIllustration } from "@/features/flota/TruckIllustration";
-const VACIO: VehiculoInput = { patente: "", modelo: "", tipo: "camion", capacidad_peso: 3500, capacidad_volumen: 20, estado: "en_base" };
+import { VehiculoIllustration } from "@/features/flota/VehiculoIllustration";
+import { ColorPicker } from "@/components/ui/ColorPicker";
+import { colorDeFlota } from "@/features/flota/colores";
+const VACIO: VehiculoInput = { patente: "", modelo: "", tipo: "camion", capacidad_peso: 3500, capacidad_volumen: 20, estado: "en_base", color: "" };
 
 const PUNTO_ESTADO: Record<EstadoVehiculo, string> = { activo: "bg-green-500", en_base: "bg-gray-400", mantenimiento: "bg-red-500" };
 
-function FormVehiculo({ inicial, editando, onListo }: { inicial: VehiculoInput; editando?: string; onListo: () => void }) {
+function FormVehiculo({ inicial, editando, autoColor, onListo }: { inicial: VehiculoInput; editando?: string; autoColor: string; onListo: () => void }) {
   const queryClient = useQueryClient();
   const [v, setV] = useState<VehiculoInput>(inicial);
   const guardar = useMutation({
@@ -43,6 +45,17 @@ function FormVehiculo({ inicial, editando, onListo }: { inicial: VehiculoInput; 
 
   return (
     <form onSubmit={submit} className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3" noValidate>
+      {/* Vista previa: cambia sola al elegir el tipo y el color */}
+      <div className="relative overflow-hidden rounded-2xl bg-[radial-gradient(120%_100%_at_70%_0%,#ffffff_0%,#f1f3f5_60%,#e4e7ea_100%)] px-4 pt-3 sm:col-span-2 lg:col-span-3">
+        <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">Vista previa</p>
+        <VehiculoIllustration
+          key={v.tipo}
+          tipo={v.tipo}
+          containerCode={v.patente || "PATENTE"}
+          color={v.estado === "mantenimiento" ? "#e9ecef" : v.color || autoColor}
+          className={`mx-auto -mb-2 max-w-md ${v.estado === "mantenimiento" ? "opacity-70 grayscale" : ""}`}
+        />
+      </div>
       <InputField
         label="Patente"
         required
@@ -81,6 +94,11 @@ function FormVehiculo({ inicial, editando, onListo }: { inicial: VehiculoInput; 
           </option>
         ))}
       </SelectField>
+      <div className="flex flex-col gap-1 sm:col-span-2 lg:col-span-3">
+        <span className="text-sm font-medium text-gray-700">Color</span>
+        <ColorPicker value={v.color} onChange={(color) => setV({ ...v, color })} automatico={autoColor} />
+        <p className="text-xs text-gray-500">Se usa en el vehículo, en su ruta y en el marcador del mapa del panel.</p>
+      </div>
       {guardar.isError && (
         <div className="sm:col-span-2 lg:col-span-3">
           <Alert variant="error">{getApiErrorMessage(guardar.error, "No se pudo guardar el vehículo")}</Alert>
@@ -99,7 +117,7 @@ function FormVehiculo({ inicial, editando, onListo }: { inicial: VehiculoInput; 
 }
 
 function aInput(v: Vehiculo): VehiculoInput {
-  return { patente: v.patente, modelo: v.modelo, tipo: v.tipo, capacidad_peso: v.capacidad_peso, capacidad_volumen: v.capacidad_volumen, estado: v.estado };
+  return { patente: v.patente, modelo: v.modelo, tipo: v.tipo, capacidad_peso: v.capacidad_peso, capacidad_volumen: v.capacidad_volumen, estado: v.estado, color: v.color };
 }
 
 /** HU-18: alta y estado de los vehículos de la flota. */
@@ -107,6 +125,9 @@ export function VehiculosPage() {
   const [nuevo, setNuevo] = useState(false);
   const [editando, setEditando] = useState<string | null>(null);
   const { data, isLoading, isError, error } = useQuery({ queryKey: ["operaciones", "flota"], queryFn: () => listarFlota() });
+
+  const colores = useMemo(() => colorDeFlota(data ?? []), [data]);
+  const colorAuto = useMemo(() => ({ nuevo: colorDeFlota([...(data ?? []), { id: "nuevo" }]).nuevo }), [data]);
 
   return (
     <div className={PAGE_WIDE}>
@@ -125,7 +146,7 @@ export function VehiculosPage() {
       {nuevo && (
         <Card>
           <h2 className="mb-3 text-sm font-semibold text-gray-900">Nuevo vehículo</h2>
-          <FormVehiculo inicial={VACIO} onListo={() => setNuevo(false)} />
+          <FormVehiculo inicial={VACIO} autoColor={colorAuto.nuevo} onListo={() => setNuevo(false)} />
         </Card>
       )}
       {isLoading && <Spinner label="Cargando flota…" />}
@@ -137,7 +158,7 @@ export function VehiculosPage() {
             <SpotlightCard key={v.id} className="flex flex-col">
               {editando === v.id ? (
                 <div className="p-5">
-                  <FormVehiculo inicial={aInput(v)} editando={v.id} onListo={() => setEditando(null)} />
+                  <FormVehiculo inicial={aInput(v)} editando={v.id} autoColor={colores[v.id]} onListo={() => setEditando(null)} />
                 </div>
               ) : (
                 <>
@@ -154,9 +175,10 @@ export function VehiculosPage() {
                         {ETIQUETA_ESTADO_VEHICULO[v.estado]}
                       </span>
                     </div>
-                    <TruckIllustration
+                    <VehiculoIllustration
+                      tipo={v.tipo}
                       containerCode={v.patente}
-                      color={v.estado === "mantenimiento" ? "blanco" : "amarillo"}
+                      color={v.estado === "mantenimiento" ? "#e9ecef" : colores[v.id]}
                       className={`-mb-2 mt-1 ${v.estado === "mantenimiento" ? "opacity-70 grayscale" : ""}`}
                     />
                   </div>

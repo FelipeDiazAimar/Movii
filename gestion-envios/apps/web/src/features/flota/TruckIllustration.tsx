@@ -1,21 +1,17 @@
 import { useId } from "react";
 
+import { paletaCarroceria } from "./colores";
+
 type TruckIllustrationProps = {
   /** Texto pintado en la caja (la patente). */
   containerCode?: string;
   className?: string;
-  /** Color de la caja de carga. */
-  color?: "amarillo" | "naranja" | "blanco";
-};
-
-const CAJAS = {
-  amarillo: { base: "#F4B400", claro: "#FFD452", oscuro: "#B98600", nervio: "#D99E00" },
-  naranja: { base: "#F07A1A", claro: "#FFA552", oscuro: "#B4520A", nervio: "#D9640F" },
-  blanco: { base: "#E9ECEF", claro: "#FFFFFF", oscuro: "#AEB5BD", nervio: "#CFD4DA" },
+  /** Color de la caja de carga (#RRGGBB). */
+  color?: string;
 };
 
 /** Rueda con cubierta, llanta de aluminio, cubo y bulones. */
-function Rueda({ x, y, r, id }: { x: number; y: number; r: number; id: string }) {
+export function Rueda({ x, y, r, id }: { x: number; y: number; r: number; id: string }) {
   const bulones = Array.from({ length: 8 }, (_, i) => {
     const a = (i / 8) * Math.PI * 2;
     return { cx: x + Math.cos(a) * r * 0.33, cy: y + Math.sin(a) * r * 0.33 };
@@ -45,9 +41,9 @@ function Rueda({ x, y, r, id }: { x: number; y: number; r: number; id: string })
  * Camión de reparto en vista lateral, con volumen y luces (SVG, sin imágenes
  * externas). La caja lleva la patente pintada.
  */
-export function TruckIllustration({ containerCode = "MOVII", className = "", color = "amarillo" }: TruckIllustrationProps) {
+export function TruckIllustration({ containerCode = "MOVII", className = "", color = "#f4b400" }: TruckIllustrationProps) {
   const id = useId().replace(/:/g, "");
-  const c = CAJAS[color];
+  const c = paletaCarroceria(color);
   const nervios = Array.from({ length: 22 }, (_, i) => 62 + i * 20.5);
 
   return (

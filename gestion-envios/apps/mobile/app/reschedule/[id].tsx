@@ -127,19 +127,19 @@ export default function RescheduleScreen() {
 }
 
 const styles = StyleSheet.create({
-  page: { flex: 1, backgroundColor: "#F7F7F8" },
+  page: { flex: 1, backgroundColor: "#EEF0F2" },
   content: { padding: 16, paddingTop: 10, paddingBottom: 34, gap: 14, maxWidth: 620, width: "100%", alignSelf: "center" },
   title: { color: "#1C1C1E", fontSize: 16, fontWeight: "800" },
   copy: { color: "#6E6E73", fontSize: 13, lineHeight: 18, marginTop: 6 },
   section: { color: "#6E6E73", fontSize: 12, fontWeight: "800", letterSpacing: 0.75, textTransform: "uppercase", marginTop: 4 },
   dayRow: { flexDirection: "row", gap: 8 },
   day: { flex: 1, minHeight: 70, borderRadius: 15, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,0.7)", borderWidth: 1, borderColor: "#E5E5EA" },
-  dayActive: { backgroundColor: "#FFF4CC", borderColor: "#FFD60A" },
+  dayActive: { backgroundColor: "#FFF4CC", borderColor: "#F4B400" },
   dayText: { color: "#6E6E73", fontSize: 12, fontWeight: "700", textAlign: "center", lineHeight: 18 },
   dayTextActive: { color: "#1C1C1E", fontWeight: "800" },
   slots: { gap: 8 },
   slot: { minHeight: 51, borderRadius: 14, paddingHorizontal: 14, flexDirection: "row", alignItems: "center", justifyContent: "space-between", backgroundColor: "rgba(255,255,255,0.7)", borderWidth: 1, borderColor: "#E5E5EA" },
-  slotActive: { backgroundColor: "#FFF4CC", borderColor: "#FFD60A" },
+  slotActive: { backgroundColor: "#FFF4CC", borderColor: "#F4B400" },
   slotText: { color: "#1C1C1E", fontSize: 14, fontWeight: "700" },
   slotTextActive: { fontWeight: "800" },
   check: { color: "#806700", fontWeight: "900", fontSize: 16 },

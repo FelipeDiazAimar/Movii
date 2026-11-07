@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { AlertTriangle, Plus, Wine, X } from "lucide-react";
 import type { PaqueteVehiculo } from "./types";
+import { REGION_CARGA } from "./VehiculoIllustration";
 
 const ESTADO: Record<string, string> = {
   asignado: "Asignado",
@@ -78,14 +79,14 @@ function Caja({ p, onAbrir }: { p: PaqueteVehiculo; onAbrir: () => void }) {
  * caja en corte y muestra los paquetes que lleva, apilados desde el piso.
  * Las coordenadas coinciden con la caja del SVG (x 40–530, y 36–242 de 820×330).
  */
-export function ContenedorPaquetes({ paquetes }: { paquetes: PaqueteVehiculo[] }) {
+export function ContenedorPaquetes({ paquetes, region = REGION_CARGA.camion }: { paquetes: PaqueteVehiculo[]; region?: { left: string; top: string; width: string; height: string } }) {
   const [abierto, setAbierto] = useState(false);
   const navigate = useNavigate();
   const aBordo = paquetes.filter((p) => p.estado !== "entregado");
   const entregados = paquetes.length - aBordo.length;
 
   return (
-    <div className="absolute" style={{ left: "4.9%", top: "10.9%", width: "59.8%", height: "62.4%" }}>
+    <div className="absolute" style={region}>
       {abierto && (
         <div className="absolute inset-0 overflow-visible rounded-md bg-[linear-gradient(180deg,#151515,#262626)] shadow-[inset_0_0_0_3px_rgba(244,180,0,0.55)]">
           {/* Piso y paredes del contenedor */}

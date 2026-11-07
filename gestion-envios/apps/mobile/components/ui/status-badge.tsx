@@ -3,10 +3,10 @@ import { StyleSheet, Text, View } from "react-native";
 import { statusCopy, type ShipmentStatus } from "@/types/logistics";
 
 const tones: Record<ShipmentStatus, { background: string; color: string; dot: string }> = {
-  pendiente: { background: "#EFEFF2", color: "#59595F", dot: "#8E8E93" },
-  en_camino: { background: "#FFF0DB", color: "#A54B00", dot: "#FF9F0A" },
-  entregado: { background: "#E9F8EC", color: "#207B34", dot: "#34C759" },
-  no_entregado: { background: "#FFEAE8", color: "#B42318", dot: "#FF3B30" },
+  pendiente: { background: "#E8EBEF", color: "#3F4650", dot: "#6B7280" },
+  en_camino: { background: "#FFF1D6", color: "#92400E", dot: "#D97706" },
+  entregado: { background: "#DCFCE7", color: "#166534", dot: "#16A34A" },
+  no_entregado: { background: "#FEE2E2", color: "#991B1B", dot: "#DC2626" },
 };
 
 export function StatusBadge({ status }: { status: ShipmentStatus }) {
@@ -17,5 +17,5 @@ export function StatusBadge({ status }: { status: ShipmentStatus }) {
 const styles = StyleSheet.create({
   badge: { flexDirection: "row", alignItems: "center", alignSelf: "flex-start", gap: 6, borderRadius: 999, minHeight: 28, paddingHorizontal: 10 },
   dot: { width: 7, height: 7, borderRadius: 4 },
-  text: { fontSize: 12, fontWeight: "700" },
+  text: { fontSize: 11.5, fontWeight: "900", letterSpacing: 0.1 },
 });

@@ -1,14 +1,16 @@
-import { useMemo } from "react";
-import { Platform, Pressable, RefreshControl, ScrollView, SectionList, StyleSheet, Text, View } from "react-native";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Animated, Easing, Pressable, RefreshControl, ScrollView, SectionList, StyleSheet, Text, View, type LayoutChangeEvent } from "react-native";
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { AuroraBackground } from "@/components/aurora-background";
-import { GlassCard, IconAction, SectionHeading } from "@/components/ui/movii-ui";
+import { MiniCamion } from "@/components/mini-camion";
+import { Aparecer, Carril, NumeroAnimado, Presionable, PuntoVivo } from "@/components/ui/efectos";
 import { StatusBadge } from "@/components/ui/status-badge";
+import { M, SOMBRA } from "@/constants/movii-design";
 import { useMovii } from "@/lib/movii-context";
 import { contadoresDelDia, filtrarPorEstado, type EstadoEnvioAPI } from "@/lib/envios-del-dia";
-import { type Shipment } from "@/types/logistics";
+import { type Shipment, type ShipmentStatus } from "@/types/logistics";
 
 /**
  * Filtros por estado del CA-04 de HU-05. Se usa el vocabulario de la API
@@ -23,18 +25,40 @@ const FILTROS: { valor: EstadoEnvioAPI | null; etiqueta: string }[] = [
   { valor: "no_entregado", etiqueta: "No entregados" },
 ];
 
-function StopCard({ shipment, onPress }: { shipment: Shipment; onPress: () => void }) {
-  const meta = `${shipment.recipient.address} · ${shipment.recipient.locality}`;
+const COLOR_ESTADO: Record<ShipmentStatus, string> = { pendiente: "#6B7280", en_camino: M.naranja, entregado: M.verde, no_entregado: M.rojo };
+
+/** Parada con su riel: el círculo (número o tilde) y la línea que la une con la siguiente. */
+function Parada({ shipment, indice, ultima, onPress }: { shipment: Shipment; indice: number; ultima: boolean; onPress: () => void }) {
+  const color = COLOR_ESTADO[shipment.status];
+  const hecha = shipment.status === "entregado";
+  const activa = shipment.status === "en_camino";
   return (
-    <Pressable accessibilityRole="button" accessibilityLabel={`Ver parada ${shipment.stopOrder}, ${shipment.recipient.name}`} onPress={onPress} style={({ pressed }) => [styles.stopCard, pressed && styles.pressed]}>
-      <View style={styles.stopNumber}><Text style={styles.stopNumberText}>{shipment.stopOrder}</Text></View>
-      <View style={styles.stopMain}>
-        <View style={styles.stopHeadline}><Text numberOfLines={1} style={styles.stopName}>{shipment.recipient.name}</Text><Text style={styles.stopWindow}>{shipment.weight}</Text></View>
-        <Text numberOfLines={1} style={styles.stopAddress}>{meta}</Text>
-        <View style={styles.stopFooter}><StatusBadge status={shipment.status} /><Text style={styles.stopCode}>{shipment.code}</Text></View>
+    <Aparecer indice={indice} style={styles.paradaFila}>
+      <View style={styles.rail}>
+        <View style={[styles.railNumero, { borderColor: color, backgroundColor: hecha ? color : "#FFFFFF" }]}>
+          {hecha ? <Text style={styles.railCheck}>✓</Text> : <Text style={[styles.railNumeroTexto, { color }]}>{shipment.stopOrder}</Text>}
+        </View>
+        {!ultima ? <View style={[styles.railLinea, hecha && { backgroundColor: color }]} /> : null}
       </View>
-      <Text style={styles.chevron}>›</Text>
-    </Pressable>
+      <Presionable
+        accessibilityRole="button"
+        accessibilityLabel={`Ver parada ${shipment.stopOrder}, ${shipment.recipient.name}`}
+        onPress={onPress}
+        escala={0.975}
+        style={[styles.parada, activa && styles.paradaActiva]}
+      >
+        {activa ? <View style={styles.paradaBarra} /> : null}
+        <View style={styles.paradaCabeza}>
+          <Text numberOfLines={1} style={styles.paradaNombre}>{shipment.recipient.name}</Text>
+          <Text style={styles.paradaPeso}>{shipment.weight}</Text>
+        </View>
+        <Text numberOfLines={1} style={styles.paradaDireccion}>{shipment.recipient.address} · {shipment.recipient.locality}</Text>
+        <View style={styles.paradaPie}>
+          <StatusBadge status={shipment.status} />
+          <Text style={styles.paradaCodigo}>{shipment.code}</Text>
+        </View>
+      </Presionable>
+    </Aparecer>
   );
 }
 
@@ -57,6 +81,15 @@ function FiltroEstado({ activo, onChange }: { activo: EstadoEnvioAPI | null; onC
         );
       })}
     </ScrollView>
+  );
+}
+
+function Dato({ valor, etiqueta, color = "#FFFFFF" }: { valor: number; etiqueta: string; color?: string }) {
+  return (
+    <View style={styles.dato}>
+      <NumeroAnimado valor={valor} style={[styles.datoNumero, { color }]} />
+      <Text style={styles.datoEtiqueta}>{etiqueta}</Text>
+    </View>
   );
 }
 
@@ -101,40 +134,84 @@ export default function RouteScreen() {
         : `${rutasDelDia.length} rutas asignadas`;
 
   // CA-03: el encabezado por ruta solo aporta cuando hay más de una; con una
-  // sola, el nombre ya está en la tarjeta de resumen.
+  // sola, el nombre ya está en el panel de resumen.
   const mostrarEncabezadosDeRuta = rutasDelDia.length > 1;
 
   const vacioPorFiltro = total > 0 && secciones.length === 0;
 
+  // El camión recorre la calzada según el avance del día.
+  const [pista, setPista] = useState(0);
+  const avance = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    Animated.timing(avance, { toValue: progreso, duration: 1200, easing: Easing.out(Easing.cubic), useNativeDriver: false }).start();
+  }, [progreso, avance]);
+  const camionAncho = 78;
+  const camionX = avance.interpolate({ inputRange: [0, 100], outputRange: [0, Math.max(pista - camionAncho, 0)], extrapolate: "clamp" });
+  const estela = avance.interpolate({ inputRange: [0, 100], outputRange: [camionAncho / 2, Math.max(pista - camionAncho / 2, camionAncho / 2)], extrapolate: "clamp" });
+
   return (
     <View style={styles.page}>
-      <AuroraBackground style={StyleSheet.absoluteFill} />
+      <AuroraBackground barra="light" style={StyleSheet.absoluteFill} />
       <SectionList
         sections={secciones}
         keyExtractor={(item) => item.id}
-        contentContainerStyle={[styles.content, { paddingTop: insets.top + 18 }]}
+        contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
         stickySectionHeadersEnabled={false}
         refreshControl={<RefreshControl refreshing={cargandoEnviosDelDia} onRefresh={recargarEnviosDelDia} />}
         ListHeaderComponent={
-          <View style={styles.headerStack}>
-            <View style={styles.topBar}><View><Text style={styles.greeting}>Buen día,</Text><Text style={styles.driverName}>{driver.name.split(" ")[0]}.</Text></View><View style={styles.avatar}><Text style={styles.avatarText}>{driver.initials}</Text></View></View>
-            {errorEnviosDelDia ? <Text style={styles.errorBanner}>{errorEnviosDelDia}</Text> : null}
-            <GlassCard style={styles.summaryCard}>
-              <View style={styles.summaryTop}><View style={styles.summaryTitleBox}><Text style={styles.summaryEyebrow}>MI RUTA DE HOY</Text><Text numberOfLines={2} style={styles.summaryTitle}>{nombreRuta}</Text></View><View style={styles.progressValue}><Text style={styles.progressNumber}>{progreso}%</Text><Text style={styles.progressText}>listo</Text></View></View>
-              <View style={styles.progressTrack}><View style={[styles.progressFill, { width: `${progreso}%` }]} /></View>
-              <View style={styles.summaryStats}>
-                <View style={styles.stat}><Text style={styles.statNumber}>{total}</Text><Text style={styles.statLabel}>total</Text></View>
-                <View style={styles.statDivider} />
-                <View style={styles.stat}><Text style={styles.statNumber}>{entregados}</Text><Text style={styles.statLabel}>entregados</Text></View>
-                <View style={styles.statDivider} />
-                <View style={styles.stat}><Text style={styles.statNumber}>{pendientes}</Text><Text style={styles.statLabel}>pendientes</Text></View>
-                <View style={styles.statDivider} />
-                <View style={styles.stat}><Text style={styles.statNumber}>{noEntregados}</Text><Text style={styles.statLabel}>no entregados</Text></View>
+          <View>
+            {/* Panel de asfalto */}
+            <View style={[styles.hero, { paddingTop: insets.top + 18 }]}>
+              <View style={styles.heroGlow} pointerEvents="none" />
+              <View style={styles.topBar}>
+                <View>
+                  <View style={styles.vivoFila}><PuntoVivo color={M.amarillo} tam={8} /><Text style={styles.saludo}>EN SERVICIO</Text></View>
+                  <Text style={styles.nombre}>{driver.name ? `Buen día, ${driver.name}.` : "Buen día."}</Text>
+                </View>
+                <View style={styles.avatar}><Text style={styles.avatarTexto}>{driver.initials}</Text></View>
               </View>
-              <View style={styles.mapAction}><IconAction label="Ver ruta en el mapa" icon="⌖" onPress={() => router.push("/route-map")} /><Text style={styles.mapActionChevron}>›</Text></View>
-            </GlassCard>
-            <SectionHeading eyebrow="PRÓXIMAS PARADAS" title="Tu recorrido" action="Mapa" onAction={() => router.push("/route-map")} />
+              {errorEnviosDelDia ? <Text style={styles.errorBanner}>{errorEnviosDelDia}</Text> : null}
+
+              <Text style={styles.heroEyebrow}>MI RUTA DE HOY</Text>
+              <View style={styles.heroTitulo}>
+                <Text numberOfLines={2} style={styles.rutaNombre}>{nombreRuta}</Text>
+                <View style={styles.porcentaje}>
+                  <NumeroAnimado valor={progreso} sufijo="%" style={styles.porcentajeNumero} />
+                  <Text style={styles.porcentajeTexto}>listo</Text>
+                </View>
+              </View>
+
+              {/* Calzada con el camión */}
+              <View style={styles.calzada} onLayout={(e: LayoutChangeEvent) => setPista(e.nativeEvent.layout.width)}>
+                <View style={styles.calzadaFondo} />
+                <View style={styles.calzadaCarril}><Carril color="#FFFFFF" alto={3} opacidad={0.35} /></View>
+                <Animated.View style={[styles.estela, { width: estela }]} />
+                <Animated.View style={[styles.camion, { transform: [{ translateX: camionX }] }]}><MiniCamion ancho={camionAncho} /></Animated.View>
+                <View style={styles.bandera}><Text style={styles.banderaTexto}>⚑</Text></View>
+              </View>
+
+              <View style={styles.datos}>
+                <Dato valor={total} etiqueta="total" />
+                <View style={styles.datoDivisor} />
+                <Dato valor={entregados} etiqueta="entregados" color="#4ADE80" />
+                <View style={styles.datoDivisor} />
+                <Dato valor={pendientes} etiqueta="pendientes" color={M.amarillo} />
+                <View style={styles.datoDivisor} />
+                <Dato valor={noEntregados} etiqueta="no entreg." color="#F87171" />
+              </View>
+
+              <Presionable onPress={() => router.push("/route-map")} accessibilityRole="button" accessibilityLabel="Ver ruta en el mapa" style={styles.botonMapa}>
+                <Text style={styles.botonMapaIcono}>⌖</Text>
+                <Text style={styles.botonMapaTexto}>Ver ruta en el mapa</Text>
+                <Text style={styles.botonMapaFlecha}>→</Text>
+              </Presionable>
+            </View>
+
+            <View style={styles.listaCabeza}>
+              <View style={styles.eyebrowFila}><View style={styles.eyebrowBarra} /><Text style={styles.eyebrow}>PRÓXIMAS PARADAS</Text></View>
+              <Text style={styles.listaTitulo}>Tu recorrido</Text>
+            </View>
             <FiltroEstado activo={filtroEstado} onChange={setFiltroEstado} />
           </View>
         }
@@ -146,7 +223,9 @@ export default function RouteScreen() {
             </View>
           ) : null
         }
-        renderItem={({ item }) => <StopCard shipment={item} onPress={() => router.push({ pathname: "/stop/[id]", params: { id: item.id } })} />}
+        renderItem={({ item, index, section }) => (
+          <Parada shipment={item} indice={index} ultima={index === section.data.length - 1} onPress={() => router.push({ pathname: "/stop/[id]", params: { id: item.id } })} />
+        )}
         ListEmptyComponent={
           cargandoEnviosDelDia ? null : (
             <Text style={styles.emptyText}>
@@ -154,58 +233,74 @@ export default function RouteScreen() {
             </Text>
           )
         }
-        ListFooterComponent={<View style={{ height: 16 }} />}
+        ListFooterComponent={<View style={{ height: 8 }} />}
       />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  page: { flex: 1, backgroundColor: "#F7F7F8" },
-  content: { paddingHorizontal: 16, paddingTop: 62, paddingBottom: 26, gap: 11, maxWidth: 620, width: "100%", alignSelf: "center" },
-  headerStack: { gap: 17, marginBottom: 12 },
-  topBar: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 5 },
-  greeting: { color: "#6E6E73", fontSize: 15, fontWeight: "600" },
-  driverName: { color: "#1C1C1E", fontSize: 30, lineHeight: 34, fontWeight: "800", letterSpacing: -1.1 },
-  avatar: { width: 42, height: 42, borderRadius: 21, backgroundColor: "#1C1C1E", justifyContent: "center", alignItems: "center" },
-  avatarText: { color: "#FFD60A", fontWeight: "800", fontSize: 13 },
-  errorBanner: { color: "#D70015", fontSize: 12, fontWeight: "700", textAlign: "center", paddingVertical: 6 },
-  emptyText: { color: "#6E6E73", fontSize: 13, textAlign: "center", paddingTop: 40 },
-  summaryCard: { padding: 18, gap: 16 },
-  summaryTop: { flexDirection: "row", justifyContent: "space-between", gap: 12 },
-  summaryTitleBox: { flex: 1 },
-  summaryEyebrow: { color: "#6E6E73", fontSize: 10, fontWeight: "800", letterSpacing: 0.9 },
-  summaryTitle: { color: "#1C1C1E", fontSize: 21, fontWeight: "800", letterSpacing: -0.55, marginTop: 3 },
-  progressValue: { alignItems: "flex-end", justifyContent: "center" },
-  progressNumber: { color: "#1C1C1E", fontSize: 20, fontWeight: "800", letterSpacing: -0.6 },
-  progressText: { color: "#6E6E73", fontSize: 11, fontWeight: "600" },
-  progressTrack: { height: 8, overflow: "hidden", borderRadius: 99, backgroundColor: "#EFEFF2" },
-  progressFill: { height: "100%", borderRadius: 99, backgroundColor: "#FFD60A" },
-  summaryStats: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  stat: { flex: 1 },
-  statNumber: { color: "#1C1C1E", fontSize: 18, fontWeight: "800", textAlign: "center", letterSpacing: -0.4 },
-  statLabel: { color: "#6E6E73", fontSize: 10, marginTop: 2, textAlign: "center" },
-  statDivider: { width: 1, height: 27, backgroundColor: "#E5E5EA" },
-  filtros: { gap: 8, paddingHorizontal: 2, paddingVertical: 2 },
-  chip: { minHeight: 34, justifyContent: "center", paddingHorizontal: 14, borderRadius: 999, backgroundColor: "rgba(255,255,255,0.83)", borderWidth: 1, borderColor: "#E5E5EA" },
-  chipActivo: { backgroundColor: "#1C1C1E", borderColor: "#1C1C1E" },
-  chipTexto: { color: "#59595F", fontSize: 12, fontWeight: "700" },
-  chipTextoActivo: { color: "#FFD60A" },
-  rutaHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 4, paddingTop: 14, paddingBottom: 6 },
-  rutaHeaderTitulo: { flex: 1, color: "#1C1C1E", fontSize: 14, fontWeight: "800", letterSpacing: -0.2 },
-  rutaHeaderConteo: { color: "#6E6E73", fontSize: 11, fontWeight: "700" },
-  mapAction: { minHeight: 38, borderTopWidth: 1, borderTopColor: "#EDEDEF", paddingTop: 12, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  mapActionChevron: { color: "#6E6E73", fontSize: 24, fontWeight: "300" },
-  stopCard: { minHeight: 111, flexDirection: "row", alignItems: "center", gap: 12, padding: 14, marginTop: 11, borderRadius: 19, backgroundColor: "rgba(255,255,255,0.83)", borderWidth: 1, borderColor: "rgba(255,255,255,0.9)", shadowColor: "#11111A", shadowOpacity: 0.05, shadowRadius: 14, shadowOffset: { width: 0, height: 5 }, elevation: Platform.OS === "android" ? 0 : 1 },
-  stopNumber: { width: 30, height: 30, borderRadius: 15, backgroundColor: "#FFF4CC", alignItems: "center", justifyContent: "center", alignSelf: "flex-start", marginTop: 2 },
-  stopNumberText: { color: "#806700", fontSize: 13, fontWeight: "800" },
-  stopMain: { flex: 1, gap: 4 },
-  stopHeadline: { flexDirection: "row", alignItems: "center", gap: 8 },
-  stopName: { flex: 1, color: "#1C1C1E", fontSize: 15, fontWeight: "800" },
-  stopWindow: { color: "#6E6E73", fontSize: 11, fontWeight: "700" },
-  stopAddress: { color: "#6E6E73", fontSize: 12 },
-  stopFooter: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 4 },
-  stopCode: { color: "#AEAEB2", fontSize: 11, fontWeight: "700" },
-  chevron: { color: "#6E6E73", fontSize: 25, fontWeight: "300" },
+  page: { flex: 1, backgroundColor: M.hormigon100 },
+  content: { paddingBottom: 130, maxWidth: 620, width: "100%", alignSelf: "center" },
+  hero: { backgroundColor: M.asfalto, borderBottomLeftRadius: 34, borderBottomRightRadius: 34, paddingHorizontal: 20, paddingBottom: 20, gap: 14, overflow: "hidden", ...SOMBRA.lift },
+  heroGlow: { position: "absolute", top: -90, right: -70, width: 260, height: 260, borderRadius: 130, backgroundColor: M.amarillo, opacity: 0.16 },
+  topBar: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  vivoFila: { flexDirection: "row", alignItems: "center", gap: 8 },
+  saludo: { color: M.amarillo, fontSize: 10.5, fontWeight: "900", letterSpacing: 1.3 },
+  nombre: { color: "#FFFFFF", fontSize: 27, lineHeight: 32, fontWeight: "900", letterSpacing: -1, marginTop: 4 },
+  avatar: { width: 46, height: 46, borderRadius: 16, backgroundColor: M.amarillo, justifyContent: "center", alignItems: "center", transform: [{ rotate: "6deg" }] },
+  avatarTexto: { color: M.asfalto, fontWeight: "900", fontSize: 15 },
+  errorBanner: { color: "#FCA5A5", fontSize: 12, fontWeight: "800", textAlign: "center" },
+  heroEyebrow: { color: "#9A9AA0", fontSize: 10.5, fontWeight: "900", letterSpacing: 1.2, marginTop: 4 },
+  heroTitulo: { flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between", gap: 12, marginTop: -8 },
+  rutaNombre: { flex: 1, color: "#FFFFFF", fontSize: 21, lineHeight: 25, fontWeight: "900", letterSpacing: -0.6 },
+  porcentaje: { alignItems: "flex-end" },
+  porcentajeNumero: { color: M.amarillo, fontSize: 34, lineHeight: 36, fontWeight: "900", letterSpacing: -1.5 },
+  porcentajeTexto: { color: "#9A9AA0", fontSize: 11, fontWeight: "800", marginTop: -2 },
+  calzada: { height: 52, justifyContent: "flex-end", marginTop: 2 },
+  calzadaFondo: { position: "absolute", left: 0, right: 0, bottom: 0, height: 22, borderRadius: 11, backgroundColor: M.asfalto3 },
+  calzadaCarril: { position: "absolute", left: 10, right: 10, bottom: 9 },
+  estela: { position: "absolute", left: 0, bottom: 0, height: 22, borderRadius: 11, backgroundColor: "rgba(244,180,0,0.28)" },
+  camion: { position: "absolute", left: 0, bottom: 5 },
+  bandera: { position: "absolute", right: 4, bottom: 2, width: 22, height: 22, borderRadius: 11, backgroundColor: M.amarillo, alignItems: "center", justifyContent: "center" },
+  banderaTexto: { color: M.asfalto, fontSize: 12, fontWeight: "900", marginTop: -1 },
+  datos: { flexDirection: "row", alignItems: "center", backgroundColor: "rgba(255,255,255,0.06)", borderRadius: 20, paddingVertical: 13, borderWidth: 1, borderColor: "rgba(255,255,255,0.08)" },
+  dato: { flex: 1, alignItems: "center" },
+  datoNumero: { fontSize: 22, fontWeight: "900", letterSpacing: -0.8 },
+  datoEtiqueta: { color: "#9A9AA0", fontSize: 10, fontWeight: "700", marginTop: 1 },
+  datoDivisor: { width: 1, height: 28, backgroundColor: "rgba(255,255,255,0.1)" },
+  botonMapa: { minHeight: 50, flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 16, borderRadius: 16, backgroundColor: M.amarillo },
+  botonMapaIcono: { fontSize: 19, fontWeight: "900", color: M.asfalto },
+  botonMapaTexto: { flex: 1, color: M.asfalto, fontSize: 15, fontWeight: "900", letterSpacing: -0.2 },
+  botonMapaFlecha: { color: M.asfalto, fontSize: 20, fontWeight: "900" },
+  listaCabeza: { paddingHorizontal: 20, paddingTop: 24, paddingBottom: 12 },
+  eyebrowFila: { flexDirection: "row", alignItems: "center", gap: 7, marginBottom: 5 },
+  eyebrowBarra: { width: 16, height: 4, borderRadius: 2, backgroundColor: M.amarillo },
+  eyebrow: { color: M.gris, fontSize: 11, fontWeight: "900", letterSpacing: 1.1 },
+  listaTitulo: { color: M.texto, fontSize: 27, lineHeight: 31, fontWeight: "900", letterSpacing: -1 },
+  filtros: { gap: 8, paddingHorizontal: 20, paddingBottom: 6 },
+  chip: { minHeight: 36, justifyContent: "center", paddingHorizontal: 15, borderRadius: 999, backgroundColor: "#FFFFFF", borderWidth: 1.5, borderColor: M.hormigon200 },
+  chipActivo: { backgroundColor: M.asfalto, borderColor: M.asfalto },
+  chipTexto: { color: "#4B5563", fontSize: 12.5, fontWeight: "800" },
+  chipTextoActivo: { color: M.amarillo },
+  rutaHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 20, paddingTop: 18, paddingBottom: 4 },
+  rutaHeaderTitulo: { flex: 1, color: M.texto, fontSize: 14, fontWeight: "900", letterSpacing: -0.2 },
+  rutaHeaderConteo: { color: M.gris, fontSize: 11, fontWeight: "800" },
+  paradaFila: { flexDirection: "row", paddingLeft: 16, paddingRight: 16, marginTop: 10, gap: 10 },
+  rail: { width: 34, alignItems: "center" },
+  railNumero: { width: 32, height: 32, borderRadius: 16, borderWidth: 2.5, alignItems: "center", justifyContent: "center", marginTop: 14, zIndex: 1 },
+  railNumeroTexto: { fontSize: 13, fontWeight: "900" },
+  railCheck: { color: "#FFFFFF", fontSize: 14, fontWeight: "900", marginTop: -1 },
+  railLinea: { position: "absolute", top: 46, bottom: -22, width: 3, borderRadius: 2, backgroundColor: M.hormigon300, opacity: 0.8 },
+  parada: { flex: 1, gap: 5, padding: 15, borderRadius: 22, backgroundColor: "#FFFFFF", borderWidth: 1, borderColor: M.hormigon200, overflow: "hidden", ...SOMBRA.panel },
+  paradaActiva: { borderColor: M.amarillo, borderWidth: 1.5 },
+  paradaBarra: { position: "absolute", left: 0, top: 0, bottom: 0, width: 5, backgroundColor: M.amarillo },
+  paradaCabeza: { flexDirection: "row", alignItems: "center", gap: 8 },
+  paradaNombre: { flex: 1, color: M.texto, fontSize: 16, fontWeight: "900", letterSpacing: -0.3 },
+  paradaPeso: { color: M.gris, fontSize: 11, fontWeight: "800", backgroundColor: M.hormigon100, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, overflow: "hidden" },
+  paradaDireccion: { color: M.gris, fontSize: 12.5 },
+  paradaPie: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 6 },
+  paradaCodigo: { color: M.grisClaro, fontSize: 11, fontWeight: "800", letterSpacing: 0.3 },
+  emptyText: { color: M.gris, fontSize: 13, textAlign: "center", paddingTop: 40, paddingHorizontal: 20 },
   pressed: { opacity: 0.7, transform: [{ scale: 0.985 }] },
 });

@@ -5,7 +5,7 @@ import { incidenciaSchema, reprogramacionSchema } from "./schema";
 import { motivoLegible } from "./HistorialTimeline";
 import { FRANJAS, MOTIVOS_FALLO, type EstadoEnvio } from "./types";
 import { Button } from "@/components/ui/Button";
-import { FieldWrapper, InputField, SelectField } from "@/components/ui/Field";
+import { DateField, FieldWrapper, InputField, SelectField } from "@/components/ui/Field";
 import { Alert } from "@/components/ui/Alert";
 import { getApiErrorMessage } from "@/services/api-client";
 
@@ -267,15 +267,7 @@ export function ReprogramarForm({ envioId }: { envioId: string }) {
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-3" noValidate>
       {mutation.isError && <Alert variant="error">{getApiErrorMessage(mutation.error, "No se pudo reprogramar la entrega")}</Alert>}
-      <InputField
-        label="Nueva fecha *"
-        name="nueva_fecha"
-        type="date"
-        required
-        value={nuevaFecha}
-        onChange={(e) => setNuevaFecha(e.target.value)}
-        error={errores.nueva_fecha}
-      />
+      <DateField label="Nueva fecha *" name="nueva_fecha" value={nuevaFecha} onChange={setNuevaFecha} error={errores.nueva_fecha} />
       <SelectField label="Franja *" name="franja" required value={franja} onChange={(e) => setFranja(e.target.value)} error={errores.franja}>
         {FRANJAS.map((f) => (
           <option key={f} value={f}>
