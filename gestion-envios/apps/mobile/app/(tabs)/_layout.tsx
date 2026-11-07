@@ -5,7 +5,9 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function TabLayout() {
   const insets = useSafeAreaInsets();
-  const bottomPadding = Platform.OS === "web" ? 10 : Math.max(insets.bottom, 9);
+  // La barra de pestañas termina sobre la barra de inicio del iPhone (también en la
+  // PWA: en web los insets salen de env(safe-area-inset-bottom)).
+  const bottomPadding = Math.max(insets.bottom, Platform.OS === "web" ? 10 : 9);
   return (
     <Tabs
       screenOptions={{

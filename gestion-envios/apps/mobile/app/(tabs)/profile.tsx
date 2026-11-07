@@ -1,5 +1,6 @@
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { router } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { AuroraBackground } from "@/components/aurora-background";
 import { GlassCard, PrimaryButton } from "@/components/ui/movii-ui";
@@ -7,6 +8,8 @@ import { contadoresDelDia } from "@/lib/envios-del-dia";
 import { useMovii } from "@/lib/movii-context";
 
 export default function ProfileScreen() {
+  // Margen superior real (notch / barra de estado), también en la PWA instalada.
+  const insets = useSafeAreaInsets();
   const { driverName, rutasDelDia, resumenDelDia, logout } = useMovii();
   const partes = driverName.trim().split(/\s+/).filter(Boolean);
   const nombreCompleto = partes.map((p) => p.charAt(0).toUpperCase() + p.slice(1)).join(" ");
@@ -19,7 +22,7 @@ export default function ProfileScreen() {
   return (
     <View style={styles.page}>
       <AuroraBackground style={StyleSheet.absoluteFill} />
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={[styles.content, { paddingTop: insets.top + 18 }]} showsVerticalScrollIndicator={false}>
         <Text style={styles.eyebrow}>TU CUENTA</Text><Text style={styles.title}>Perfil</Text>
         <GlassCard style={styles.profileCard}><View style={styles.avatar}><Text style={styles.avatarText}>{driver.initials}</Text></View><View style={styles.profileCopy}><Text style={styles.name}>{driver.name}</Text><Text style={styles.detail}>Repartidor · {driver.zone}</Text><View style={styles.online}><View style={styles.onlineDot} /><Text style={styles.onlineText}>{pendientes} pendientes de {total}</Text></View></View></GlassCard>
         <Text style={styles.section}>Rendimiento de hoy</Text>

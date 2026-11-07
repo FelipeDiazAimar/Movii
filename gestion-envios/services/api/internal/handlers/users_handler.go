@@ -29,6 +29,8 @@ type usuarioResponse struct {
 	Email  string `json:"email"`
 	Rol    string `json:"rol"`
 	Activo bool   `json:"activo"`
+	// Telefono en formato internacional sin "+"; vacío si no tiene.
+	Telefono string `json:"telefono"`
 }
 
 // List maneja GET /users.
@@ -41,7 +43,7 @@ func (h *UsuariosHandler) List(w http.ResponseWriter, r *http.Request) {
 
 	resp := make([]usuarioResponse, 0, len(usuarios))
 	for _, u := range usuarios {
-		resp = append(resp, usuarioResponse{ID: u.ID, Nombre: u.Nombre, Email: u.Email, Rol: u.Rol, Activo: u.Activo})
+		resp = append(resp, usuarioResponse{ID: u.ID, Nombre: u.Nombre, Email: u.Email, Rol: u.Rol, Activo: u.Activo, Telefono: u.Telefono})
 	}
 	httpx.WriteJSON(w, http.StatusOK, resp)
 }

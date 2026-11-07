@@ -16,15 +16,21 @@ jobs:
         working-directory: gestion-envios/apps/mobile
     steps:
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 10
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
+          cache: "npm"
+          cache-dependency-path: gestion-envios/apps/mobile/package-lock.json
+      # npm (como el Dockerfile y Vercel): package-lock.json es el lockfile de la app.
       - name: Instalar dependencias
-        run: pnpm install --frozen-lockfile
+        run: npm ci
       - name: Chequeo de tipos
-        run: pnpm check
+        run: npm run check
       - name: Test
-        run: pnpm test
+        run: npm test
+      - name: Build de la PWA (/app)
+        run: npx expo export -p web --output-dir dist-web
+        env:
+          EXPO_BASE_URL: /app
+          EXPO_PUBLIC_API_URL: /api
+          CI: "1"

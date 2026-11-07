@@ -26,8 +26,10 @@ RUN CGO_ENABLED=0 go build -o /out/api ./cmd/api
 FROM alpine:3.20
 RUN apk add --no-cache ca-certificates
 COPY --from=api /out/api /app/api
+COPY --from=api /src/migrations /app/migrations
 COPY --from=web /web/dist /app/web
 COPY --from=app /mobile/dist-web /app/repartidor
-ENV WEB_DIR=/app/web APP_DIR=/app/repartidor PORT=8080
+# Las migraciones se aplican solas al arrancar (deploy en Railway sin pasos manuales).
+ENV WEB_DIR=/app/web APP_DIR=/app/repartidor PORT=8080     MIGRATIONS_DIR=/app/migrations MIGRATE_ON_START=true ENV=production
 EXPOSE 8080
 CMD ["/app/api"]

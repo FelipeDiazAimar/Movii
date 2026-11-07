@@ -14,6 +14,8 @@ import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { apiClient, getApiErrorMessage } from "@/services/api-client";
 import { PageHeader, PAGE_WIDE } from "@/components/ui/PageHeader";
+import { SeguimientoEnvioCard } from "@/features/flota/SeguimientoEnvioCard";
+import { AvisosEnvioCard } from "@/features/whatsapp/AvisosEnvioCard";
 
 const FRANJA_LABELS: Record<string, string> = {
   manana: "mañana",
@@ -142,6 +144,8 @@ export function EnvioDetallePage() {
 
       <div className="grid items-start gap-4 lg:grid-cols-3">
         <div className="flex flex-col gap-4 lg:col-span-2">
+      <SeguimientoEnvioCard envioId={envio.id} />
+
       <Card>
         <h2 className="mb-3 text-sm font-semibold text-gray-900">Historial</h2>
         <HistorialTimeline eventos={envio.historial} envioId={envio.id} />
@@ -178,6 +182,8 @@ export function EnvioDetallePage() {
           <AccionesEnvio envioId={envio.id} estado={envio.estado} />
         </Card>
       )}
+
+      <AvisosEnvioCard envioId={envio.id} />
         </div>
       </div>
     </div>

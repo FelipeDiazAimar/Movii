@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { VehiculoRutaCard } from "@/features/flota/VehiculoRutaCard";
 import { Link, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { obtenerRuta, editarRuta, desasignarEnvio } from "@/features/rutas/api";
@@ -110,7 +111,7 @@ export function RutaDetallePage() {
         )}
       </Card>
 
-      <div className="contents">
+      <div className="flex flex-col gap-4">
         <Card>
           <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Envíos asignados</p>
           <p className="text-2xl font-semibold text-gray-900">{ruta.cantidad_envios}</p>
@@ -120,6 +121,7 @@ export function RutaDetallePage() {
           <p className="text-2xl font-semibold text-gray-900">{ruta.peso_total} kg</p>
         </Card>
       </div>
+      <VehiculoRutaCard rutaId={ruta.id} fecha={ruta.fecha} />
       </div>
 
       <div className="grid gap-4 lg:grid-cols-3">

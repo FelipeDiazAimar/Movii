@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 )
 
@@ -13,6 +14,28 @@ type Config struct {
 	JWTSecret   string
 	CORSOrigins []string
 	Env         string
+
+	// Sprint 3
+	MigrateOnStart     bool    // MIGRATE_ON_START=true aplica las migraciones al arrancar
+	MigrationsDir      string  // MIGRATIONS_DIR (default "migrations")
+	PublicWebURL       string  // PUBLIC_WEB_URL: URL pública de la web (links de tracking en los avisos)
+	PublicAppURL       string  // PUBLIC_APP_URL: URL del panel del repartidor (aviso de ruta asignada)
+	SimuladorGPS       bool    // SIMULADOR_GPS=true mueve los vehículos por sus rutas
+	SimuladorFactor    float64 // SIMULADOR_FACTOR: cuántas veces más rápido que la realidad (default 3)
+	WhatsappHabilitado bool    // WHATSAPP_HABILITADO=true conecta la cuenta de WhatsApp (whatsmeow)
+	NominatimURL       string  // NOMINATIM_URL (vacío = servidor público de OSM)
+	OSRMURL            string  // OSRM_URL (vacío = servidor público de OSRM)
+	Geocodificar       bool    // GEOCODIFICAR=false desactiva la geocodificación (tests sin red)
+}
+
+func envBool(nombre string, porDefecto bool) bool {
+	switch strings.ToLower(strings.TrimSpace(os.Getenv(nombre))) {
+	case "true", "1", "si", "sí", "yes":
+		return true
+	case "false", "0", "no":
+		return false
+	}
+	return porDefecto
 }
 
 // Load lee la configuración desde variables de entorno. DATABASE_URL y
@@ -43,11 +66,36 @@ func Load() (Config, error) {
 		origins = strings.Split(raw, ",")
 	}
 
+	factor := 3.0
+	if raw := os.Getenv("SIMULADOR_FACTOR"); raw != "" {
+		if f, err := strconv.ParseFloat(raw, 64); err == nil && f > 0 {
+			factor = f
+		}
+	}
+	migrationsDir := os.Getenv("MIGRATIONS_DIR")
+	if migrationsDir == "" {
+		migrationsDir = "migrations"
+	}
+	webURL := os.Getenv("PUBLIC_WEB_URL")
+	if webURL == "" {
+		webURL = "http://localhost:5173"
+	}
+
 	return Config{
-		Port:        port,
-		DatabaseURL: dbURL,
-		JWTSecret:   jwtSecret,
-		CORSOrigins: origins,
-		Env:         env,
+		Port:               port,
+		DatabaseURL:        dbURL,
+		JWTSecret:          jwtSecret,
+		CORSOrigins:        origins,
+		Env:                env,
+		MigrateOnStart:     envBool("MIGRATE_ON_START", false),
+		MigrationsDir:      migrationsDir,
+		PublicWebURL:       strings.TrimRight(webURL, "/"),
+		PublicAppURL:       os.Getenv("PUBLIC_APP_URL"),
+		SimuladorGPS:       envBool("SIMULADOR_GPS", true),
+		SimuladorFactor:    factor,
+		WhatsappHabilitado: envBool("WHATSAPP_HABILITADO", false),
+		NominatimURL:       os.Getenv("NOMINATIM_URL"),
+		OSRMURL:            os.Getenv("OSRM_URL"),
+		Geocodificar:       envBool("GEOCODIFICAR", true),
 	}, nil
 }

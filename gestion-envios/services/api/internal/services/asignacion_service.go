@@ -17,6 +17,18 @@ var ErrFechaVencida = errors.New("no se puede asignar a una ruta con fecha venci
 type AsignacionService struct {
 	rutaRepo  *repository.RutaRepo
 	envioRepo *repository.EnvioRepo
+	avisos    AvisosRuta
+}
+
+// AvisosRuta recibe las asignaciones confirmadas para avisar al repartidor (HU-17).
+type AvisosRuta interface {
+	RutaAsignada(rutaID string)
+}
+
+// ConAvisos activa el aviso por WhatsApp al repartidor cuando se le asignan envíos.
+func (s *AsignacionService) ConAvisos(a AvisosRuta) *AsignacionService {
+	s.avisos = a
+	return s
 }
 
 // NewAsignacionService crea un AsignacionService.
@@ -33,21 +45,21 @@ func (s *AsignacionService) Asignar(ctx context.Context, rutaID string, envioIDs
 		return 0, err
 	}
 
-	// time.Parse sin zona da un time.Time en UTC a medianoche; "hoy" se
-	// calcula también en UTC para comparar la misma fecha calendario sin
-	// que el huso horario local corra el resultado (una ruta creada "hoy"
-	// no debe leerse como vencida solo porque la máquina está en UTC-3).
-	fechaRuta, err := time.Parse("2006-01-02", ruta.Fecha)
-	if err != nil {
+	// Las rutas se planifican por día calendario argentino: se compara contra
+	// "hoy" en hora local (UTC-3). Con UTC, después de las 21 h una ruta de
+	// hoy se leía como vencida.
+	if _, err := time.Parse("2006-01-02", ruta.Fecha); err != nil {
 		return 0, err
 	}
-	hoy := time.Now().UTC()
-	hoySinHora := time.Date(hoy.Year(), hoy.Month(), hoy.Day(), 0, 0, 0, 0, time.UTC)
-	if fechaRuta.Before(hoySinHora) {
+	if ruta.Fecha < FechaAR(time.Now()) {
 		return 0, ErrFechaVencida
 	}
 
-	return s.envioRepo.AsignarEnvios(ctx, envioIDs, rutaID)
+	n, err := s.envioRepo.AsignarEnvios(ctx, envioIDs, rutaID)
+	if err == nil && n > 0 && s.avisos != nil {
+		s.avisos.RutaAsignada(rutaID)
+	}
+	return n, err
 }
 
 // Desasignar valida que la ruta esté planificada y quita el envío de ella.

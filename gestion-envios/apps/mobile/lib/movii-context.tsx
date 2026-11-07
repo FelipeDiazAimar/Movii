@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useMemo, useState, type ReactNode
 
 import { allSeedShipments, drivers } from "@/mock/shipments";
 import type { Shipment, ShipmentStatus } from "@/types/logistics";
-import { login as apiLogin, logout as apiLogout, getEnviosDelDia, getToken, decodeJwt, type EstadoEnvioAPI, type ResumenDelDiaAPI } from "@/lib/api-client";
+import { login as apiLogin, verificarCodigoLogin as apiVerificarCodigo, type DesafioLogin, logout as apiLogout, getEnviosDelDia, getToken, decodeJwt, type EstadoEnvioAPI, type ResumenDelDiaAPI } from "@/lib/api-client";
 import { agruparEnviosPorRuta, type RutaDelDia } from "@/lib/envios-del-dia";
 
 type PrototypeRole = "repartidor" | "operador" | null;
@@ -23,7 +23,10 @@ type MoviiContextValue = {
   cargandoEnviosDelDia: boolean;
   errorEnviosDelDia: string | null;
   activeDriverId: string;
-  login: (email: string, password: string) => Promise<void>;
+  /** Devuelve el desafío si hace falta el código de WhatsApp (HU-16); si no, abre la sesión. */
+  login: (email: string, password: string) => Promise<DesafioLogin | null>;
+  /** Segundo paso del login: código de 6 dígitos recibido por WhatsApp. */
+  verificarCodigo: (desafioId: string, codigo: string, email: string) => Promise<void>;
   logout: () => Promise<void>;
   recargarEnviosDelDia: () => Promise<void>;
   findShipment: (idOrCode: string) => Shipment | undefined;
@@ -88,15 +91,25 @@ export function MoviiProvider({ children }: { children: ReactNode }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const login = async (email: string, password: string) => {
-    const claims = await apiLogin(email, password);
+  const abrirSesion = async (claims: { rol: string; nombre?: string }, nombrePorDefecto: string) => {
     const rolValido: PrototypeRole = claims.rol === "repartidor" || claims.rol === "operador" ? claims.rol : null;
     setRole(rolValido);
-    setDriverName(claims.nombre ?? email.split("@")[0]);
+    setDriverName(claims.nombre ?? nombrePorDefecto);
 
     if (rolValido === "repartidor") {
       await recargarEnviosDelDia();
     }
+  };
+
+  const login = async (email: string, password: string): Promise<DesafioLogin | null> => {
+    const r = await apiLogin(email, password);
+    if ("desafio_id" in r) return r;
+    await abrirSesion(r, email.split("@")[0]);
+    return null;
+  };
+
+  const verificarCodigo = async (desafioId: string, codigo: string, email: string) => {
+    await abrirSesion(await apiVerificarCodigo(desafioId, codigo), email.split("@")[0]);
   };
 
   const logout = async () => {
@@ -146,6 +159,7 @@ export function MoviiProvider({ children }: { children: ReactNode }) {
       errorEnviosDelDia,
       activeDriverId,
       login,
+      verificarCodigo,
       logout,
       recargarEnviosDelDia,
       findShipment: (idOrCode) =>

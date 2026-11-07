@@ -72,11 +72,36 @@ export async function clearToken(): Promise<void> {
  * login llama a POST /auth/login, guarda el token y devuelve las claims
  * decodificadas junto con el token crudo.
  */
-export async function login(email: string, password: string): Promise<ClaimsJWT & { token: string }> {
-  const { data } = await api.post<{ token: string }>("/auth/login", { email, password });
+export async function login(email: string, password: string): Promise<(ClaimsJWT & { token: string }) | DesafioLogin> {
+  const { data } = await api.post<{ token?: string } & Partial<DesafioLogin>>("/auth/login", { email, password });
+  if (!data.token) {
+    // Segundo paso (HU-16): el código de 6 dígitos ya salió por WhatsApp.
+    return { desafio_id: data.desafio_id ?? "", telefono: data.telefono ?? "", vence_en_segundos: data.vence_en_segundos ?? 300 };
+  }
   await saveToken(data.token);
   const claims = decodeJwt(data.token);
   return { ...claims, token: data.token };
+}
+
+/** Segundo paso pendiente del login: el código ya salió por WhatsApp. */
+export type DesafioLogin = {
+  desafio_id: string;
+  /** Celular enmascarado (+54 9 3564 ••••45). */
+  telefono: string;
+  vence_en_segundos: number;
+};
+
+/** Canjea el código de WhatsApp por el token y lo guarda (igual que login). */
+export async function verificarCodigoLogin(desafioId: string, codigo: string): Promise<ClaimsJWT & { token: string }> {
+  const { data } = await api.post<{ token: string }>("/auth/login/verificar", { desafio_id: desafioId, codigo });
+  await saveToken(data.token);
+  return { ...decodeJwt(data.token), token: data.token };
+}
+
+/** Manda un código nuevo (invalida el anterior). */
+export async function reenviarCodigoLogin(desafioId: string): Promise<DesafioLogin> {
+  const { data } = await api.post<DesafioLogin>("/auth/login/reenviar", { desafio_id: desafioId });
+  return data;
 }
 
 export async function logout(): Promise<void> {
@@ -231,16 +256,56 @@ export type ParadaMapaAPI = {
   coordenadas: { lat: number; lng: number } | null;
 };
 
+export type PosicionVehiculoAPI = {
+  vehiculo_id: string;
+  patente: string;
+  ruta_id: string | null;
+  lat: number;
+  lng: number;
+  velocidad: number;
+  rumbo: number;
+  en: string;
+};
+
+export type RecorridoAPI = {
+  /** Polilínea por calles [[lat, lng], ...]. */
+  geometria: [number, number][];
+  distancia_m: number;
+  duracion_s: number;
+};
+
 export type MapaRutaAPI = {
   ruta_id: string;
   nombre: string;
   fecha: string;
   repartidor: { id: string; nombre: string };
   paradas: ParadaMapaAPI[];
+  /** Vehículo de la ruta con su última posición (GPS simulado en la demo). */
+  vehiculo?: PosicionVehiculoAPI | null;
+  /** Recorrido por calles depósito → paradas. */
+  recorrido?: RecorridoAPI | null;
+  deposito?: { lat: number; lng: number };
+};
+
+export type TrayectoAPI = {
+  envio_id: string;
+  codigo_guia: string;
+  estado: EstadoEnvioAPI;
+  destino: { lat: number; lng: number } | null;
+  direccion: string;
+  vehiculo: PosicionVehiculoAPI | null;
+  recorrido: RecorridoAPI | null;
+  paradas_antes: number;
 };
 
 /** HU-12: GET /rutas/{id}/mapa (404 si la ruta no existe o es de otro repartidor). */
 export async function obtenerMapaRuta(rutaId: string): Promise<MapaRutaAPI> {
   const { data } = await api.get<MapaRutaAPI>(`/rutas/${encodeURIComponent(rutaId)}/mapa`);
   return { ...data, paradas: data.paradas ?? [] };
+}
+
+/** Camino por calles desde el vehículo hasta el destino del envío (solo envíos de mis rutas). */
+export async function obtenerTrayecto(envioId: string): Promise<TrayectoAPI> {
+  const { data } = await api.get<TrayectoAPI>(`/envios/${encodeURIComponent(envioId)}/trayecto`);
+  return data;
 }

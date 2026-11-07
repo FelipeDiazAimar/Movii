@@ -77,6 +77,26 @@ type EstadoService struct {
 	envios         *repository.EnvioRepo
 	eventos        *repository.EventoRepo
 	confirmaciones *repository.ConfirmacionRepo
+	avisos         AvisosEnvio
+}
+
+// AvisosEnvio recibe cada cambio de estado confirmado de un envío para avisar
+// al destinatario (HU-17). Debe ser no bloqueante: un fallo al avisar nunca
+// revierte ni demora la operación.
+type AvisosEnvio interface {
+	CambioDeEstado(envioID string)
+}
+
+// ConAvisos activa los avisos por WhatsApp al destinatario.
+func (s *EstadoService) ConAvisos(a AvisosEnvio) *EstadoService {
+	s.avisos = a
+	return s
+}
+
+func (s *EstadoService) avisar(envioID string) {
+	if s.avisos != nil {
+		s.avisos.CambioDeEstado(envioID)
+	}
 }
 
 // NewEstadoService crea un EstadoService. confirmaciones es obligatorio
@@ -149,6 +169,7 @@ func (s *EstadoService) CambiarEstado(ctx context.Context, envioID, nuevo, actor
 	}
 
 	detalle.Estado = nuevo
+	s.avisar(detalle.Envio.ID)
 	return detalle.Envio, nil
 }
 
@@ -225,6 +246,7 @@ func (s *EstadoService) RegistrarIncidencia(ctx context.Context, envioID, motivo
 	}
 
 	detalle.Estado = domain.EstadoEnvioNoEntregado
+	s.avisar(detalle.Envio.ID)
 	return detalle.Envio, nil
 }
 
@@ -294,6 +316,7 @@ func (s *EstadoService) Reprogramar(ctx context.Context, envioID, nuevaFecha, fr
 	}
 
 	detalle.Estado = domain.EstadoEnvioPendiente
+	s.avisar(detalle.Envio.ID)
 	return detalle.Envio, nil
 }
 
@@ -402,6 +425,7 @@ func (s *EstadoService) ConfirmarEntrega(ctx context.Context, envioID, receptorN
 	}
 
 	detalle.Estado = domain.EstadoEnvioEntregado
+	s.avisar(detalle.Envio.ID)
 	return detalle.Envio, nil
 }
 

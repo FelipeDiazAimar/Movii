@@ -16,6 +16,11 @@ import { RepartidoresListPage } from "@/pages/repartidores/RepartidoresListPage"
 import { RepartidorDetallePage } from "@/pages/repartidores/RepartidorDetallePage";
 import { UsuariosListPage } from "@/pages/usuarios/UsuariosListPage";
 import { UsuarioNuevoPage } from "@/pages/usuarios/UsuarioNuevoPage";
+import { OperacionesPage } from "@/pages/OperacionesPage";
+import { ReportesPage } from "@/pages/ReportesPage";
+import { VehiculosPage } from "@/pages/VehiculosPage";
+import { WhatsappConfigPage } from "@/pages/WhatsappConfigPage";
+import { RutaMapaPage } from "@/pages/rutas/RutaMapaPage";
 
 export function App() {
   return (
@@ -29,7 +34,10 @@ export function App() {
 
           <Route element={<ProtectedRoute allow={["operador", "supervisor"]} />}>
             <Route element={<AppLayout />}>
-              <Route index element={<Navigate to="/envios" replace />} />
+              <Route index element={<Navigate to="/operaciones" replace />} />
+              <Route path="operaciones" element={<OperacionesPage />} />
+              <Route path="reportes" element={<ReportesPage />} />
+              <Route path="vehiculos" element={<VehiculosPage />} />
 
               <Route path="envios" element={<EnviosListPage />} />
               <Route path="envios/nuevo" element={<EnvioNuevoPage />} />
@@ -38,6 +46,7 @@ export function App() {
               <Route path="rutas" element={<RutasListPage />} />
               <Route path="rutas/nueva" element={<RutaNuevaPage />} />
               <Route path="rutas/:id" element={<RutaDetallePage />} />
+              <Route path="rutas/:id/mapa" element={<RutaMapaPage />} />
 
               <Route path="repartidores" element={<RepartidoresListPage />} />
               <Route path="repartidores/:id" element={<RepartidorDetallePage />} />
@@ -45,6 +54,7 @@ export function App() {
               <Route element={<ProtectedRoute allow={["supervisor"]} />}>
                 <Route path="usuarios" element={<UsuariosListPage />} />
                 <Route path="usuarios/nuevo" element={<UsuarioNuevoPage />} />
+                <Route path="configuracion/whatsapp" element={<WhatsappConfigPage />} />
               </Route>
             </Route>
           </Route>

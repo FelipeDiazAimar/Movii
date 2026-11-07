@@ -55,12 +55,12 @@ export function AppMark({ inverted = false, compact = false, size = "default" }:
   );
 }
 
-export function AppInput({ label, value, onChangeText, placeholder, autoCapitalize = "none", keyboardType = "default", secureTextEntry = false }: { label: string; value: string; onChangeText: (value: string) => void; placeholder: string; autoCapitalize?: "none" | "sentences" | "words" | "characters"; keyboardType?: PressableProps["accessibilityRole"] extends never ? never : "default" | "email-address" | "numeric"; secureTextEntry?: boolean }) {
+export function AppInput({ label, value, onChangeText, placeholder, autoCapitalize = "none", keyboardType = "default", secureTextEntry = false, textContentType, autoComplete }: { label: string; value: string; onChangeText: (value: string) => void; placeholder: string; autoCapitalize?: "none" | "sentences" | "words" | "characters"; keyboardType?: PressableProps["accessibilityRole"] extends never ? never : "default" | "email-address" | "numeric" | "phone-pad" | "number-pad"; secureTextEntry?: boolean; textContentType?: "oneTimeCode" | "telephoneNumber"; autoComplete?: "sms-otp" | "tel" | "one-time-code" }) {
   const { TextInput } = require("react-native") as typeof import("react-native");
   return (
     <View style={styles.inputGroup}>
       <Text style={styles.inputLabel}>{label}</Text>
-      <TextInput value={value} onChangeText={onChangeText} placeholder={placeholder} placeholderTextColor="#AEAEB2" autoCapitalize={autoCapitalize} keyboardType={keyboardType} secureTextEntry={secureTextEntry} returnKeyType="done" style={styles.input} accessibilityLabel={label} />
+      <TextInput value={value} onChangeText={onChangeText} placeholder={placeholder} placeholderTextColor="#AEAEB2" autoCapitalize={autoCapitalize} keyboardType={keyboardType} secureTextEntry={secureTextEntry} textContentType={textContentType} autoComplete={autoComplete} returnKeyType="done" style={styles.input} accessibilityLabel={label} />
     </View>
   );
 }

@@ -18,6 +18,7 @@ export function UsuarioNuevoPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [rol, setRol] = useState<Rol>("operador");
+  const [telefono, setTelefono] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
 
@@ -32,7 +33,7 @@ export function UsuarioNuevoPage() {
 
     setEnviando(true);
     try {
-      await registrarUsuario({ nombre, email, password, rol });
+      await registrarUsuario({ nombre, email, password, rol, telefono: telefono.trim() || undefined });
       await queryClient.invalidateQueries({ queryKey: ["usuarios"] });
       navigate("/usuarios", { replace: true });
     } catch (err) {
@@ -63,6 +64,14 @@ export function UsuarioNuevoPage() {
             hint="Mínimo 8 caracteres"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
+          />
+          <InputField
+            label="Celular (opcional)"
+            type="tel"
+            placeholder="3564 412345"
+            hint="Para entrar con código por WhatsApp y, si es repartidor, recibir el aviso de sus rutas."
+            value={telefono}
+            onChange={(e) => setTelefono(e.target.value)}
           />
           <SelectField label="Rol" value={rol} onChange={(e) => setRol(e.target.value as Rol)}>
             {ROLES.map((r) => (

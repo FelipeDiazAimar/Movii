@@ -23,8 +23,8 @@ const bundleId =
     .join(".") || "space.manus.app";
 // Extract timestamp from bundle ID and prefix with "manus" for deep link scheme
 // e.g., "space.manus.my.app.t20240115103045" -> "manus20240115103045"
-const timestamp = bundleId.split(".").pop()?.replace(/^t/, "") ?? "";
-const schemeFromBundleId = `manus${timestamp}`;
+// Esquema de deep links de la app (movii://...).
+const schemeFromBundleId = "movii";
 
 const env = {
   // App branding - update these values directly (do not use env vars)
@@ -49,6 +49,7 @@ const config: ExpoConfig = {
   // newArchEnabled ya no es una opcion valida: desde Expo SDK 55 la New
   // Architecture es obligatoria (no hay Old Architecture para volver), asi
   // que el flag se elimino del tipo de config.
+  // El APK se genera con EAS Build: `npx eas-cli build -p android --profile preview` (ver docs/deploy.md).
   ios: {
     supportsTablet: true,
     bundleIdentifier: env.iosBundleId,
@@ -58,7 +59,7 @@ const config: ExpoConfig = {
   },
   android: {
     adaptiveIcon: {
-      backgroundColor: "#E6F4FE",
+      backgroundColor: "#FFD60A",
       foregroundImage: "./assets/images/android-icon-foreground.png",
       backgroundImage: "./assets/images/android-icon-background.png",
       monochromeImage: "./assets/images/android-icon-monochrome.png",
@@ -85,6 +86,10 @@ const config: ExpoConfig = {
   },
   web: {
     bundler: "metro",
+    name: "Movii — Repartidor",
+    shortName: "Movii",
+    themeColor: "#F7F7F8",
+    backgroundColor: "#F7F7F8",
     // Con EXPO_BASE_URL (build servido por la API Go en /app) se exporta como SPA única.
     output: process.env.EXPO_BASE_URL ? "single" : "static",
     favicon: "./assets/images/favicon.png",
@@ -136,6 +141,8 @@ const config: ExpoConfig = {
         android: {
           buildArchs: ["armeabi-v7a", "arm64-v8a"],
           minSdkVersion: 24,
+          // Permite probar el APK contra la API por http en la red local (en producción la API es https).
+          usesCleartextTraffic: true,
         },
       },
     ],

@@ -97,3 +97,17 @@ func toString(v interface{}) string {
 func ContextWithClaims(ctx context.Context, c Claims) context.Context {
 	return context.WithValue(ctx, claimsKey, c)
 }
+
+// TokenDesdeQuery permite autenticar con ?access_token= cuando no hay header
+// Authorization. Solo para endpoints de streaming (SSE): EventSource del
+// navegador no puede mandar headers. Montar antes de RequireAuth.
+func TokenDesdeQuery(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("Authorization") == "" {
+			if t := r.URL.Query().Get("access_token"); t != "" {
+				r.Header.Set("Authorization", "Bearer "+t)
+			}
+		}
+		next.ServeHTTP(w, r)
+	})
+}

@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { Pressable, RefreshControl, ScrollView, SectionList, StyleSheet, Text, View } from "react-native";
 import { router } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { AuroraBackground } from "@/components/aurora-background";
 import { GlassCard, IconAction, SectionHeading } from "@/components/ui/movii-ui";
@@ -60,6 +61,8 @@ function FiltroEstado({ activo, onChange }: { activo: EstadoEnvioAPI | null; onC
 }
 
 export default function RouteScreen() {
+  // Margen superior real (notch / barra de estado), también en la PWA instalada.
+  const insets = useSafeAreaInsets();
   const {
     rutasDelDia,
     resumenDelDia,
@@ -109,7 +112,7 @@ export default function RouteScreen() {
       <SectionList
         sections={secciones}
         keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[styles.content, { paddingTop: insets.top + 18 }]}
         showsVerticalScrollIndicator={false}
         stickySectionHeadersEnabled={false}
         refreshControl={<RefreshControl refreshing={cargandoEnviosDelDia} onRefresh={recargarEnviosDelDia} />}

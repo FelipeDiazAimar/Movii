@@ -1,23 +1,259 @@
-import { useState } from "react";
-import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import { router } from "expo-router";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { router, useLocalSearchParams } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { AppHeader } from "@/components/app-header";
 import { AuroraBackground } from "@/components/aurora-background";
+import { MapaRuta } from "@/components/mapa-ruta";
 import { GlassCard, PrimaryButton } from "@/components/ui/movii-ui";
+import { obtenerMapaRuta, obtenerTrayecto, type MapaRutaAPI, type TrayectoAPI } from "@/lib/api-client";
+import type { DatosMapaApp } from "@/lib/mapa-html";
 import { useMovii } from "@/lib/movii-context";
 
-function RouteArtwork({ full = false }: { full?: boolean }) {
-  return <View style={full ? styles.mapFull : styles.mapGrid}><View style={styles.roadVertical} /><View style={styles.roadHorizontal} /><View style={styles.routeLine}><View style={styles.routeLineBend} /></View><View style={[styles.pin, styles.pinStart]}><Text style={styles.pinText}>A</Text></View><View style={[styles.pin, styles.pinMid]}><Text style={styles.pinText}>3</Text></View><View style={[styles.pin, styles.pinEnd]}><Text style={styles.pinText}>7</Text></View><View style={styles.car}><Text style={styles.carText}>▰</Text></View><View style={styles.mapLabel}><Text style={styles.mapLabelText}>MARTÍNEZ</Text></View></View>;
+const ESTADO_TEXTO: Record<string, string> = {
+  asignado: "Pendiente",
+  en_camino: "En camino",
+  entregado: "Entregado",
+  no_entregado: "No entregado",
+  pendiente: "Sin ruta",
+};
+
+function km(m: number) {
+  return `${(m / 1000).toFixed(1).replace(".", ",")} km`;
+}
+function minutos(s: number) {
+  return `${Math.max(1, Math.round(s / 60))} min`;
 }
 
+/** HU-12: la ruta del día en un mapa real, con el recorrido por calles y el camión en vivo. */
 export default function RouteMapScreen() {
-  const { shipments, activeDriverId } = useMovii();
+  const insets = useSafeAreaInsets();
+  const { rutaId: rutaParam } = useLocalSearchParams<{ rutaId?: string }>();
+  const { rutasDelDia } = useMovii();
+  const rutaId = rutaParam ?? rutasDelDia[0]?.rutaId;
+
+  const [mapa, setMapa] = useState<MapaRutaAPI | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [elegida, setElegida] = useState<string | null>(null);
+  const [trayecto, setTrayecto] = useState<TrayectoAPI | null>(null);
   const [expanded, setExpanded] = useState(false);
-  const stops = shipments.filter((shipment) => shipment.driverId === activeDriverId && shipment.code <= "MOV-2026-000780").slice(0, 5);
-  return <View style={styles.page}><AuroraBackground style={StyleSheet.absoluteFill} /><AppHeader title="Ruta Norte 02" subtitle="10 paradas · 23,4 km" /><ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}><GlassCard style={styles.mapCard}><Pressable onPress={() => setExpanded(true)} style={({ pressed }) => [styles.mapPressable, pressed && styles.pressed]} accessibilityRole="button" accessibilityLabel="Ampliar mapa de ruta"><RouteArtwork /><View style={styles.expandPill}><Text style={styles.expandIcon}>⛶</Text><Text style={styles.expandText}>Ampliar mapa</Text></View></Pressable><View style={styles.legend}><View style={styles.legendItem}><View style={[styles.legendDot, { backgroundColor: "#1C1C1E" }]} /><Text style={styles.legendText}>Tu ubicación</Text></View><View style={styles.legendItem}><View style={[styles.legendDot, { backgroundColor: "#FFD60A" }]} /><Text style={styles.legendText}>Próxima parada</Text></View></View></GlassCard><Text style={styles.section}>Orden de paradas</Text><GlassCard style={styles.stopsCard}>{stops.map((shipment, index) => <Pressable key={shipment.id} onPress={() => router.push({ pathname: "/stop/[id]", params: { id: shipment.id } })} style={({ pressed }) => [styles.stopRow, pressed && styles.pressed]}><View style={[styles.order, index === 0 && styles.orderActive]}><Text style={styles.orderText}>{shipment.stopOrder}</Text></View><View style={styles.stopCopy}><Text style={styles.stopName}>{shipment.recipient.name}</Text><Text style={styles.stopAddress}>{shipment.recipient.address}, {shipment.recipient.locality}</Text></View><Text style={styles.chevron}>›</Text></Pressable>)}</GlassCard><PrimaryButton label="Volver a mi ruta" onPress={() => router.back()} /></ScrollView><Modal visible={expanded} animationType="fade" onRequestClose={() => setExpanded(false)}><View style={styles.modal}><RouteArtwork full /><View style={styles.modalTop}><Pressable onPress={() => setExpanded(false)} style={({ pressed }) => [styles.closeButton, pressed && styles.pressed]} accessibilityRole="button" accessibilityLabel="Cerrar mapa ampliado"><Text style={styles.closeText}>×</Text></Pressable><View style={styles.modalTitle}><Text style={styles.modalEyebrow}>RUTA NORTE 02</Text><Text style={styles.modalName}>Mapa de ruta</Text></View><View style={styles.modalDistance}><Text style={styles.modalDistanceText}>23,4 km</Text></View></View><View style={styles.modalBottom}><Text style={styles.modalNext}>Próxima parada</Text><Text style={styles.modalAddress}>{stops[0]?.recipient.address}, {stops[0]?.recipient.locality}</Text><PrimaryButton label="Ver detalle" onPress={() => { setExpanded(false); if (stops[0]) router.push({ pathname: "/stop/[id]", params: { id: stops[0].id } }); }} /></View></View></Modal></View>;
+
+  const cargar = useCallback(async () => {
+    if (!rutaId) return;
+    try {
+      setMapa(await obtenerMapaRuta(rutaId));
+      setError(null);
+    } catch {
+      setError("No se pudo cargar el mapa de la ruta.");
+    }
+  }, [rutaId]);
+
+  // El camión se mueve: se refresca la posición cada 5 s.
+  useEffect(() => {
+    void cargar();
+    const t = setInterval(() => void cargar(), 5000);
+    return () => clearInterval(t);
+  }, [cargar]);
+
+  useEffect(() => {
+    if (!elegida) {
+      setTrayecto(null);
+      return;
+    }
+    let vigente = true;
+    const traer = () =>
+      obtenerTrayecto(elegida)
+        .then((t) => vigente && setTrayecto(t))
+        .catch(() => vigente && setTrayecto(null));
+    void traer();
+    const t = setInterval(traer, 15000);
+    return () => {
+      vigente = false;
+      clearInterval(t);
+    };
+  }, [elegida]);
+
+  const paradas = useMemo(() => [...(mapa?.paradas ?? [])].sort((a, b) => a.orden - b.orden), [mapa]);
+  const proxima = paradas.find((p) => p.estado === "en_camino") ?? paradas.find((p) => p.estado === "asignado");
+
+  const datos = useMemo<DatosMapaApp>(
+    () => ({
+      paradas: paradas.flatMap((p) =>
+        p.coordenadas
+          ? [{ id: p.envio_id, orden: p.orden, estado: p.estado, lat: p.coordenadas.lat, lng: p.coordenadas.lng, titulo: p.codigo_guia, destacada: p.envio_id === elegida }]
+          : [],
+      ),
+      recorrido: mapa?.recorrido?.geometria ?? null,
+      trayecto: trayecto?.recorrido?.geometria ?? null,
+      camion: mapa?.vehiculo ? { lat: mapa.vehiculo.lat, lng: mapa.vehiculo.lng, rumbo: mapa.vehiculo.rumbo, patente: mapa.vehiculo.patente } : null,
+      deposito: mapa?.deposito ?? null,
+      encuadre: `${rutaId}-${elegida ?? "ruta"}-${trayecto ? "t" : ""}`,
+    }),
+    [paradas, mapa, trayecto, elegida, rutaId],
+  );
+
+  const elegidaInfo = paradas.find((p) => p.envio_id === elegida);
+  const subtitulo = mapa
+    ? `${paradas.length} paradas${mapa.recorrido ? ` · ${km(mapa.recorrido.distancia_m)}` : ""}${mapa.vehiculo ? ` · ${mapa.vehiculo.patente}` : ""}`
+    : "Cargando…";
+
+  if (!rutaId) {
+    return (
+      <View style={styles.page}>
+        <AuroraBackground style={StyleSheet.absoluteFill} />
+        <AppHeader title="Mapa de ruta" subtitle="Sin ruta asignada hoy" />
+        <View style={styles.content}>
+          <GlassCard>
+            <Text style={styles.empty}>Cuando tengas una ruta asignada para hoy vas a ver acá el recorrido y tus paradas.</Text>
+          </GlassCard>
+          <PrimaryButton label="Volver" onPress={() => router.back()} />
+        </View>
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.page}>
+      <AuroraBackground style={StyleSheet.absoluteFill} />
+      <AppHeader title={mapa?.nombre ?? "Mapa de ruta"} subtitle={subtitulo} />
+      <ScrollView contentContainerStyle={[styles.content, { paddingBottom: 24 + insets.bottom }]} showsVerticalScrollIndicator={false}>
+        <GlassCard style={styles.mapCard}>
+          {mapa ? (
+            <View>
+              <MapaRuta datos={datos} style={styles.map} onParadaPress={setElegida} />
+              <Pressable onPress={() => setExpanded(true)} style={({ pressed }) => [styles.expandPill, pressed && styles.pressed]} accessibilityRole="button" accessibilityLabel="Ampliar mapa de ruta">
+                <Text style={styles.expandIcon}>⛶</Text>
+                <Text style={styles.expandText}>Ampliar</Text>
+              </Pressable>
+            </View>
+          ) : (
+            <View style={[styles.map, styles.loading]}>
+              {error ? <Text style={styles.error}>{error}</Text> : <ActivityIndicator color="#806700" />}
+            </View>
+          )}
+          {trayecto?.recorrido && elegidaInfo ? (
+            <View style={styles.trayecto}>
+              <Text style={styles.trayectoTitulo}>
+                Hasta {elegidaInfo.destinatario_nombre}: {km(trayecto.recorrido.distancia_m)} · {minutos(trayecto.recorrido.duracion_s)}
+              </Text>
+              <Pressable onPress={() => setElegida(null)}>
+                <Text style={styles.trayectoLink}>Ver toda la ruta</Text>
+              </Pressable>
+            </View>
+          ) : (
+            <View style={styles.legend}>
+              <View style={styles.legendItem}><View style={[styles.legendDot, { backgroundColor: "#1C1C1E" }]} /><Text style={styles.legendText}>Tu camión</Text></View>
+              <View style={styles.legendItem}><View style={[styles.legendDot, { backgroundColor: "#2563eb" }]} /><Text style={styles.legendText}>Pendiente</Text></View>
+              <View style={styles.legendItem}><View style={[styles.legendDot, { backgroundColor: "#16a34a" }]} /><Text style={styles.legendText}>Entregado</Text></View>
+              <Text style={styles.legendHint}>Tocá una parada para ver el camino</Text>
+            </View>
+          )}
+        </GlassCard>
+
+        <Text style={styles.section}>Orden de paradas</Text>
+        <GlassCard style={styles.stopsCard}>
+          {paradas.map((p) => {
+            const esProxima = p.envio_id === proxima?.envio_id;
+            return (
+              <Pressable
+                key={p.envio_id}
+                onPress={() => router.push({ pathname: "/stop/[id]", params: { id: p.envio_id } })}
+                onLongPress={() => setElegida(p.envio_id)}
+                style={({ pressed }) => [styles.stopRow, p.envio_id === elegida && styles.stopRowActive, pressed && styles.pressed]}
+              >
+                <View style={[styles.order, esProxima && styles.orderActive, p.estado === "entregado" && styles.orderDone]}>
+                  <Text style={[styles.orderText, p.estado === "entregado" && styles.orderTextDone]}>{p.estado === "entregado" ? "✓" : p.orden}</Text>
+                </View>
+                <View style={styles.stopCopy}>
+                  <Text style={styles.stopName}>{p.destinatario_nombre}</Text>
+                  <Text style={styles.stopAddress}>
+                    {p.direccion}, {p.localidad} · {ESTADO_TEXTO[p.estado] ?? p.estado}
+                  </Text>
+                </View>
+                <Text style={styles.chevron}>›</Text>
+              </Pressable>
+            );
+          })}
+          {mapa && paradas.length === 0 ? <Text style={styles.empty}>La ruta no tiene paradas.</Text> : null}
+        </GlassCard>
+        <PrimaryButton label="Volver a mi ruta" onPress={() => router.back()} />
+      </ScrollView>
+
+      <Modal visible={expanded} animationType="fade" onRequestClose={() => setExpanded(false)}>
+        <View style={styles.modal}>
+          <MapaRuta datos={{ ...datos, encuadre: `${datos.encuadre}-full` }} style={StyleSheet.absoluteFill} onParadaPress={setElegida} />
+          <View style={[styles.modalTop, { paddingTop: insets.top + 12 }]} pointerEvents="box-none">
+            <Pressable onPress={() => setExpanded(false)} style={({ pressed }) => [styles.closeButton, pressed && styles.pressed]} accessibilityRole="button" accessibilityLabel="Cerrar mapa ampliado">
+              <Text style={styles.closeText}>×</Text>
+            </Pressable>
+            <View style={styles.modalTitle}>
+              <Text style={styles.modalEyebrow}>{(mapa?.nombre ?? "").toUpperCase()}</Text>
+              <Text style={styles.modalName}>Mapa de ruta</Text>
+            </View>
+          </View>
+          {proxima ? (
+            <View style={[styles.modalBottom, { bottom: 16 + insets.bottom }]}>
+              <Text style={styles.modalNext}>Próxima parada</Text>
+              <Text style={styles.modalAddress}>
+                {proxima.direccion}, {proxima.localidad}
+              </Text>
+              <PrimaryButton
+                label="Ver detalle"
+                onPress={() => {
+                  setExpanded(false);
+                  router.push({ pathname: "/stop/[id]", params: { id: proxima.envio_id } });
+                }}
+              />
+            </View>
+          ) : null}
+        </View>
+      </Modal>
+    </View>
+  );
 }
 
 const styles = StyleSheet.create({
-  page: { flex: 1, backgroundColor: "#F7F7F8" }, content: { padding: 16, paddingTop: 11, gap: 18, maxWidth: 620, width: "100%", alignSelf: "center" }, mapCard: { padding: 10, gap: 12 }, mapPressable: { position: "relative" }, mapGrid: { height: 300, borderRadius: 16, overflow: "hidden", backgroundColor: "#EAEDEF", position: "relative" }, mapFull: { flex: 1, overflow: "hidden", backgroundColor: "#EAEDEF", position: "relative" }, roadVertical: { position: "absolute", top: -20, bottom: -20, left: "47%", width: 36, backgroundColor: "#FFFFFF", transform: [{ rotate: "15deg" }] }, roadHorizontal: { position: "absolute", left: -30, right: -30, top: "52%", height: 31, backgroundColor: "#FFFFFF", transform: [{ rotate: "-11deg" }] }, routeLine: { position: "absolute", width: 170, height: 150, top: 60, left: 77, borderTopWidth: 5, borderRightWidth: 5, borderColor: "#FFD60A", borderTopRightRadius: 64, transform: [{ rotate: "7deg" }] }, routeLineBend: { position: "absolute", height: 74, bottom: -76, right: -5, borderRightWidth: 5, borderColor: "#FFD60A" }, pin: { position: "absolute", width: 31, height: 31, borderRadius: 16, alignItems: "center", justifyContent: "center", borderWidth: 3, borderColor: "#FFFFFF" }, pinText: { color: "#1C1C1E", fontSize: 11, fontWeight: "800" }, pinStart: { left: 66, top: 184, backgroundColor: "#1C1C1E" }, pinMid: { left: 159, top: 81, backgroundColor: "#FFD60A" }, pinEnd: { right: 68, bottom: 53, backgroundColor: "#FFD60A" }, car: { position: "absolute", left: 135, bottom: 89, width: 28, height: 28, borderRadius: 14, backgroundColor: "#FFFFFF", alignItems: "center", justifyContent: "center", shadowColor: "#11111A", shadowOpacity: 0.15, shadowRadius: 6, shadowOffset: { width: 0, height: 3 } }, carText: { color: "#1C1C1E", fontSize: 12 }, mapLabel: { position: "absolute", right: 21, top: 21, backgroundColor: "rgba(255,255,255,0.78)", borderRadius: 7, paddingHorizontal: 8, paddingVertical: 5 }, mapLabelText: { fontSize: 8, color: "#6E6E73", fontWeight: "800", letterSpacing: 1 }, expandPill: { position: "absolute", right: 11, bottom: 11, minHeight: 35, paddingHorizontal: 11, borderRadius: 18, backgroundColor: "rgba(28,28,30,0.9)", flexDirection: "row", alignItems: "center", gap: 6 }, expandIcon: { color: "#FFD60A", fontSize: 14 }, expandText: { color: "#FFFFFF", fontSize: 11, fontWeight: "800" }, legend: { flexDirection: "row", gap: 18, paddingHorizontal: 5 }, legendItem: { flexDirection: "row", alignItems: "center", gap: 6 }, legendDot: { width: 9, height: 9, borderRadius: 5 }, legendText: { color: "#6E6E73", fontSize: 11 }, section: { color: "#6E6E73", fontSize: 12, fontWeight: "800", letterSpacing: 0.75, textTransform: "uppercase" }, stopsCard: { paddingVertical: 4 }, stopRow: { minHeight: 64, flexDirection: "row", alignItems: "center", gap: 11, paddingHorizontal: 13 }, order: { width: 28, height: 28, borderRadius: 14, backgroundColor: "#EFEFF2", alignItems: "center", justifyContent: "center" }, orderActive: { backgroundColor: "#FFD60A" }, orderText: { color: "#1C1C1E", fontSize: 12, fontWeight: "800" }, stopCopy: { flex: 1 }, stopName: { color: "#1C1C1E", fontSize: 14, fontWeight: "800" }, stopAddress: { color: "#6E6E73", fontSize: 12, marginTop: 3 }, chevron: { color: "#6E6E73", fontSize: 25, fontWeight: "300" }, modal: { flex: 1, backgroundColor: "#EAEDEF" }, modalTop: { position: "absolute", top: 0, left: 0, right: 0, paddingTop: 62, paddingHorizontal: 18, flexDirection: "row", alignItems: "center", gap: 11 }, closeButton: { width: 44, height: 44, borderRadius: 22, backgroundColor: "rgba(255,255,255,0.94)", alignItems: "center", justifyContent: "center", shadowColor: "#11111A", shadowOpacity: 0.15, shadowRadius: 8, shadowOffset: { width: 0, height: 3 } }, closeText: { color: "#1C1C1E", fontSize: 30, lineHeight: 32, fontWeight: "300", marginTop: -4 }, modalTitle: { flex: 1, backgroundColor: "rgba(255,255,255,0.9)", borderRadius: 13, paddingHorizontal: 12, paddingVertical: 7 }, modalEyebrow: { color: "#6E6E73", fontSize: 9, fontWeight: "800", letterSpacing: 0.7 }, modalName: { color: "#1C1C1E", fontSize: 14, fontWeight: "800", marginTop: 1 }, modalDistance: { backgroundColor: "rgba(255,255,255,0.9)", borderRadius: 13, paddingHorizontal: 10, paddingVertical: 13 }, modalDistanceText: { color: "#1C1C1E", fontSize: 11, fontWeight: "800" }, modalBottom: { position: "absolute", right: 16, bottom: 24, left: 16, gap: 4, padding: 16, borderRadius: 22, backgroundColor: "rgba(255,255,255,0.96)", shadowColor: "#11111A", shadowOpacity: 0.18, shadowRadius: 20, shadowOffset: { width: 0, height: 8 } }, modalNext: { color: "#6E6E73", fontSize: 10, fontWeight: "800", letterSpacing: 0.75, textTransform: "uppercase" }, modalAddress: { color: "#1C1C1E", fontSize: 16, fontWeight: "800", marginBottom: 9 }, pressed: { opacity: 0.7, transform: [{ scale: 0.985 }] },
+  page: { flex: 1, backgroundColor: "#F7F7F8" },
+  content: { padding: 16, paddingTop: 11, gap: 18, maxWidth: 620, width: "100%", alignSelf: "center" },
+  mapCard: { padding: 10, gap: 12 },
+  map: { height: 320 },
+  loading: { alignItems: "center", justifyContent: "center", borderRadius: 16, backgroundColor: "#E9EDEF" },
+  expandPill: { position: "absolute", right: 11, bottom: 11, minHeight: 35, paddingHorizontal: 11, borderRadius: 18, backgroundColor: "rgba(28,28,30,0.9)", flexDirection: "row", alignItems: "center", gap: 6 },
+  expandIcon: { color: "#FFD60A", fontSize: 14 },
+  expandText: { color: "#FFFFFF", fontSize: 11, fontWeight: "800" },
+  legend: { flexDirection: "row", flexWrap: "wrap", gap: 14, paddingHorizontal: 5 },
+  legendItem: { flexDirection: "row", alignItems: "center", gap: 6 },
+  legendDot: { width: 9, height: 9, borderRadius: 5 },
+  legendText: { color: "#6E6E73", fontSize: 11 },
+  legendHint: { color: "#806700", fontSize: 11, fontWeight: "700" },
+  trayecto: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8, backgroundColor: "#FFF4CC", borderRadius: 12, paddingHorizontal: 12, paddingVertical: 9 },
+  trayectoTitulo: { flex: 1, color: "#1C1C1E", fontSize: 13, fontWeight: "700" },
+  trayectoLink: { color: "#806700", fontSize: 12, fontWeight: "800" },
+  section: { color: "#6E6E73", fontSize: 12, fontWeight: "800", letterSpacing: 0.75, textTransform: "uppercase" },
+  stopsCard: { paddingVertical: 4 },
+  stopRow: { minHeight: 64, flexDirection: "row", alignItems: "center", gap: 11, paddingHorizontal: 13, borderRadius: 12 },
+  stopRowActive: { backgroundColor: "#FFF4CC" },
+  order: { width: 28, height: 28, borderRadius: 14, backgroundColor: "#EFEFF2", alignItems: "center", justifyContent: "center" },
+  orderActive: { backgroundColor: "#FFD60A" },
+  orderDone: { backgroundColor: "#16a34a" },
+  orderText: { color: "#1C1C1E", fontSize: 12, fontWeight: "800" },
+  orderTextDone: { color: "#FFFFFF" },
+  stopCopy: { flex: 1 },
+  stopName: { color: "#1C1C1E", fontSize: 14, fontWeight: "800" },
+  stopAddress: { color: "#6E6E73", fontSize: 12, marginTop: 3 },
+  chevron: { color: "#6E6E73", fontSize: 25, fontWeight: "300" },
+  empty: { color: "#6E6E73", fontSize: 13, lineHeight: 19, padding: 12, textAlign: "center" },
+  error: { color: "#B42318", fontSize: 13, fontWeight: "700", textAlign: "center", padding: 12 },
+  modal: { flex: 1, backgroundColor: "#EAEDEF" },
+  modalTop: { position: "absolute", top: 0, left: 0, right: 0, paddingHorizontal: 18, flexDirection: "row", alignItems: "center", gap: 11 },
+  closeButton: { width: 44, height: 44, borderRadius: 22, backgroundColor: "rgba(255,255,255,0.94)", alignItems: "center", justifyContent: "center", shadowColor: "#11111A", shadowOpacity: 0.15, shadowRadius: 8, shadowOffset: { width: 0, height: 3 } },
+  closeText: { color: "#1C1C1E", fontSize: 30, lineHeight: 32, fontWeight: "300", marginTop: -4 },
+  modalTitle: { flex: 1, backgroundColor: "rgba(255,255,255,0.9)", borderRadius: 13, paddingHorizontal: 12, paddingVertical: 7 },
+  modalEyebrow: { color: "#6E6E73", fontSize: 9, fontWeight: "800", letterSpacing: 0.7 },
+  modalName: { color: "#1C1C1E", fontSize: 14, fontWeight: "800", marginTop: 1 },
+  modalBottom: { position: "absolute", right: 16, left: 16, gap: 4, padding: 16, borderRadius: 22, backgroundColor: "rgba(255,255,255,0.96)", shadowColor: "#11111A", shadowOpacity: 0.18, shadowRadius: 20, shadowOffset: { width: 0, height: 8 } },
+  modalNext: { color: "#6E6E73", fontSize: 10, fontWeight: "800", letterSpacing: 0.75, textTransform: "uppercase" },
+  modalAddress: { color: "#1C1C1E", fontSize: 16, fontWeight: "800", marginBottom: 9 },
+  pressed: { opacity: 0.7, transform: [{ scale: 0.985 }] },
 });

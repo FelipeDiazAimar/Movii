@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
 import { router } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { AuroraBackground } from "@/components/aurora-background";
 import { StatusBadge } from "@/components/ui/status-badge";
@@ -10,6 +11,8 @@ import type { ShipmentStatus } from "@/types/logistics";
 const filters: { key: "todos" | ShipmentStatus; label: string }[] = [{ key: "todos", label: "Todos" }, { key: "entregado", label: "Entregados" }, { key: "no_entregado", label: "Fallidos" }];
 
 export default function HistoryScreen() {
+  // Margen superior real (notch / barra de estado), también en la PWA instalada.
+  const insets = useSafeAreaInsets();
   const [filter, setFilter] = useState<(typeof filters)[number]["key"]>("todos");
   const { enviosDelDia } = useMovii();
   // Solo lo ya cerrado hoy (entregado / no entregado), con datos reales de la API.
@@ -20,7 +23,7 @@ export default function HistoryScreen() {
       <FlatList
         data={items}
         keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[styles.content, { paddingTop: insets.top + 18 }]}
         ListHeaderComponent={<View style={styles.header}><Text style={styles.eyebrow}>CERRADOS HOY</Text><Text style={styles.title}>Historial</Text><Text style={styles.subtitle}>Entregas e incidencias de tu jornada.</Text><View style={styles.filters}>{filters.map((entry) => <Pressable key={entry.key} onPress={() => setFilter(entry.key)} style={[styles.filter, filter === entry.key && styles.filterActive]}><Text style={[styles.filterText, filter === entry.key && styles.filterTextActive]}>{entry.label}</Text></Pressable>)}</View></View>}
         renderItem={({ item }) => <Pressable onPress={() => router.push({ pathname: "/stop/[id]", params: { id: item.id } })} style={({ pressed }) => [styles.item, pressed && styles.pressed]}><View style={styles.itemHead}><Text style={styles.itemName}>{item.recipient.name}</Text><StatusBadge status={item.status} /></View><Text style={styles.itemAddress}>{item.recipient.address}, {item.recipient.locality}</Text><View style={styles.itemFoot}><Text style={styles.itemCode}>{item.code}</Text><Text style={styles.itemDate}>{item.estimatedDate}</Text></View></Pressable>}
         ListEmptyComponent={<View style={styles.empty}><Text style={styles.emptyTitle}>No hay resultados</Text><Text style={styles.emptyCopy}>Todavía no cerraste ninguna entrega hoy.</Text></View>}

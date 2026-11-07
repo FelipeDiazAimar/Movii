@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/Button";
 import { RolBadge } from "@/components/ui/Badge";
 import { getApiErrorMessage } from "@/services/api-client";
 import { PageHeader, PAGE_WIDE } from "@/components/ui/PageHeader";
+import { TelefonoEditable } from "@/features/whatsapp/TelefonoEditable";
 
 export function UsuariosListPage() {
   const { data, isLoading, isError, error } = useQuery({
@@ -38,6 +39,7 @@ export function UsuariosListPage() {
               <tr>
                 <th className="px-4 py-3">Nombre</th>
                 <th className="px-4 py-3">Email</th>
+                <th className="px-4 py-3">Celular</th>
                 <th className="px-4 py-3">Rol</th>
                 <th className="px-4 py-3">Estado</th>
               </tr>
@@ -47,6 +49,9 @@ export function UsuariosListPage() {
                 <tr key={usuario.id} className="hover:bg-gray-50">
                   <td className="px-4 py-3 font-medium text-gray-900">{usuario.nombre}</td>
                   <td className="px-4 py-3 text-gray-700">{usuario.email}</td>
+                  <td className="px-4 py-3 text-gray-700">
+                    <TelefonoEditable usuarioId={usuario.id} telefono={usuario.telefono ?? ""} />
+                  </td>
                   <td className="px-4 py-3">
                     <RolBadge rol={usuario.rol} />
                   </td>

@@ -51,6 +51,14 @@ type EnvioService struct {
 	envioRepo      *repository.EnvioRepo
 	eventoRepo     *repository.EventoRepo
 	confirmaciones *repository.ConfirmacionRepo
+	geo            *GeoService
+}
+
+// ConGeocodificacion ubica en el mapa el destino de cada envío nuevo (HU-12),
+// en segundo plano para no demorar el alta.
+func (s *EnvioService) ConGeocodificacion(g *GeoService) *EnvioService {
+	s.geo = g
+	return s
 }
 
 // NewEnvioService crea un EnvioService. confirmaciones es obligatorio
@@ -103,6 +111,9 @@ func (s *EnvioService) Create(ctx context.Context, in CrearEnvioInput) (domain.E
 
 	if err := tx.Commit(ctx); err != nil {
 		return domain.Envio{}, fmt.Errorf("envios: no se pudo confirmar la transacción: %w", err)
+	}
+	if s.geo != nil {
+		s.geo.GeocodificarEnvioAsync(envio.ID)
 	}
 	return envio, nil
 }

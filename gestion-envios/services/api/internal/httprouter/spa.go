@@ -1,6 +1,7 @@
 package httprouter
 
 import (
+	"mime"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -30,12 +31,25 @@ func WithSPA(api http.Handler, webDir, appDir string) http.Handler {
 	})
 }
 
+func init() {
+	// Go no conoce estas extensiones: sin esto el manifest de la PWA sale como
+	// text/plain y Chrome no ofrece instalar la app.
+	_ = mime.AddExtensionType(".webmanifest", "application/manifest+json")
+	_ = mime.AddExtensionType(".js", "text/javascript; charset=utf-8")
+}
+
 // serveSPA devuelve el archivo estático pedido o index.html si no existe.
 func serveSPA(w http.ResponseWriter, r *http.Request, dir, urlPath string) {
 	file := filepath.Join(dir, filepath.Clean("/"+urlPath))
 	if st, err := os.Stat(file); err != nil || st.IsDir() {
+		// El HTML no se cachea: así un deploy nuevo se ve al recargar.
+		w.Header().Set("Cache-Control", "no-cache")
 		http.ServeFile(w, r, filepath.Join(dir, "index.html"))
 		return
+	}
+	// El service worker y el manifest tampoco, para que la PWA se actualice.
+	if base := filepath.Base(file); base == "sw.js" || base == "manifest.webmanifest" {
+		w.Header().Set("Cache-Control", "no-cache")
 	}
 	http.ServeFile(w, r, file)
 }

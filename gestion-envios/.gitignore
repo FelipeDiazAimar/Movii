@@ -1,3 +1,6 @@
 node_modules/
 # Overrides locales de compose (puertos, etc. por máquina)
 infra/docker/docker-compose.override.yml
+dist-vercel/
+apps/mobile/dist-web/
+.vercel

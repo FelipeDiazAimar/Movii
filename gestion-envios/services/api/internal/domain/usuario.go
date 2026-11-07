@@ -8,6 +8,8 @@ type Usuario struct {
 	PasswordHash string
 	Rol          string
 	Activo       bool
+	// Telefono en formato internacional sin "+" (ej. 5493564123456); vacío si no tiene.
+	Telefono string
 }
 
 const (

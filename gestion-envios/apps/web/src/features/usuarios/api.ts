@@ -7,6 +7,8 @@ export interface Usuario {
   email: string;
   rol: Rol;
   activo: boolean;
+  /** Formato internacional sin "+" (5493564412345); vacío si no tiene. */
+  telefono: string;
 }
 
 export async function listarUsuarios(): Promise<Usuario[]> {

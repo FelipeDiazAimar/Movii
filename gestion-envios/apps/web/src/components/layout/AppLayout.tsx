@@ -9,10 +9,14 @@ interface NavItem {
 }
 
 const NAV_ITEMS: NavItem[] = [
+  { to: "/operaciones", label: "Operaciones" },
   { to: "/envios", label: "Envíos" },
   { to: "/rutas", label: "Rutas" },
-{ to: "/repartidores", label: "Repartidores" },
+  { to: "/vehiculos", label: "Vehículos" },
+  { to: "/repartidores", label: "Repartidores" },
+  { to: "/reportes", label: "Reportes" },
   { to: "/usuarios", label: "Usuarios", roles: ["supervisor"] },
+  { to: "/configuracion/whatsapp", label: "WhatsApp", roles: ["supervisor"] },
 ];
 
 export function AppLayout() {

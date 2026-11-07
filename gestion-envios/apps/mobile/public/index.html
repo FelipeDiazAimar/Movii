@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta httpEquiv="X-UA-Compatible" content="IE=edge" />
+    <!-- viewport-fit=cover: la app ocupa toda la pantalla (debajo del notch y la barra de inicio)
+         y los márgenes los ponen las safe areas (env(safe-area-inset-*)). -->
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" />
+    <title>Movii — Repartidor</title>
+    <meta name="description" content="Tu ruta del día, paradas, entregas con firma y mapa en vivo." />
+
+    <!-- PWA -->
+    <link rel="manifest" href="/app/manifest.webmanifest" />
+    <meta name="application-name" content="Movii" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <!-- Mismo color que el fondo de la app: la barra del navegador (Android) y la
+         franja de estado se funden con la pantalla en vez de verse como un borde. -->
+    <meta name="theme-color" content="#F7F7F8" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#F7F7F8" media="(prefers-color-scheme: dark)" />
+
+    <!-- iPhone: pantalla completa al abrirse desde "Agregar a inicio", con la barra
+         de estado transparente encima del contenido (black-translucent). -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Movii" />
+    <link rel="apple-touch-icon" href="/app/icons/apple-touch-icon.png" />
+    <meta name="format-detection" content="telephone=no" />
+
+    <style id="expo-reset">
+      html,
+      body {
+        height: 100%;
+        margin: 0;
+        /* El color que se ve detrás de la app al estirar la página (rebote de iOS)
+           y en las franjas del navegador: igual al fondo de las pantallas. */
+        background-color: #F7F7F8;
+      }
+      body {
+        overflow: hidden;
+        overscroll-behavior: none;
+        -webkit-tap-highlight-color: transparent;
+        -webkit-text-size-adjust: 100%;
+      }
+      #root {
+        display: flex;
+        height: 100%;
+        /* 100dvh: en Safari el alto real descuenta las barras del navegador. */
+        min-height: 100dvh;
+        flex: 1;
+      }
+    </style>
+  </head>
+
+  <body>
+    <noscript>Necesitás habilitar JavaScript para usar Movii.</noscript>
+    <div id="root"></div>
+    <script>
+      if ("serviceWorker" in navigator && location.pathname.indexOf("/app") === 0) {
+        window.addEventListener("load", function () {
+          navigator.serviceWorker.register("/app/sw.js", { scope: "/app/" }).catch(function () {});
+        });
+      }
+    </script>
+  </body>
+</html>
