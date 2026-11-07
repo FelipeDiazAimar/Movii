@@ -62,6 +62,29 @@ func (r *TrackingRepo) PorCodigo(ctx context.Context, codigo string) (envioID, c
 	return envioID, codigoGuia, estado, localidad, creadoEn, nil
 }
 
+// DatosPublicos son columnas del envío sin datos de personas.
+type DatosPublicos struct {
+	FechaEntrega string
+	Franja       string
+	Peso         float64
+	Tamano       string
+	Fragil       bool
+	Urgente      bool
+}
+
+// DatosPublicos devuelve fecha y franja de entrega y el paquete del envío.
+func (r *TrackingRepo) DatosPublicos(ctx context.Context, envioID string) (DatosPublicos, error) {
+	var d DatosPublicos
+	err := r.pool.QueryRow(ctx, `
+		SELECT to_char(fecha_entrega, 'YYYY-MM-DD'), COALESCE(franja::text, ''), peso::float8, tamano::text, fragil, urgente
+		FROM envios WHERE id = $1
+	`, envioID).Scan(&d.FechaEntrega, &d.Franja, &d.Peso, &d.Tamano, &d.Fragil, &d.Urgente)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return DatosPublicos{}, ErrNoEncontrado
+	}
+	return d, err
+}
+
 // EventosBlancos devuelve el historial del envío con solo columnas blancas
 // (fecha UTC, estado_anterior, estado_nuevo, motivo), ordenado de más viejo
 // a más nuevo. Devuelve un slice inicializado: sin eventos es [] y no nil,

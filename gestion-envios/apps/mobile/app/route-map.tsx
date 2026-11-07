@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Linking, Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -10,6 +10,8 @@ import { GlassCard, PrimaryButton } from "@/components/ui/movii-ui";
 import { obtenerMapaRuta, obtenerTrayecto, type MapaRutaAPI, type TrayectoAPI } from "@/lib/api-client";
 import type { DatosMapaApp } from "@/lib/mapa-html";
 import { useMovii } from "@/lib/movii-context";
+import { urlGoogleMaps, type ModoMaps } from "@/lib/google-maps";
+import { haptic } from "@/lib/haptics";
 
 const ESTADO_TEXTO: Record<string, string> = {
   asignado: "Pendiente",
@@ -38,6 +40,7 @@ export default function RouteMapScreen() {
   const [elegida, setElegida] = useState<string | null>(null);
   const [trayecto, setTrayecto] = useState<TrayectoAPI | null>(null);
   const [expanded, setExpanded] = useState(false);
+  const [modoMaps, setModoMaps] = useState<ModoMaps>("proximo");
 
   const cargar = useCallback(async () => {
     if (!rutaId) return;
@@ -92,6 +95,16 @@ export default function RouteMapScreen() {
     }),
     [paradas, mapa, trayecto, elegida, rutaId],
   );
+
+  // T5: abrir la navegación en Google Maps (app nativa si está instalada).
+  const pendientes = paradas.filter((p) => p.coordenadas && p.estado !== "entregado" && p.estado !== "no_entregado").map((p) => p.coordenadas!);
+  const origenMaps = mapa?.vehiculo ? { lat: mapa.vehiculo.lat, lng: mapa.vehiculo.lng } : mapa?.deposito;
+  const urlMaps = urlGoogleMaps({ origen: origenMaps, paradas: pendientes, modo: modoMaps });
+  const abrirMaps = () => {
+    if (!urlMaps) return;
+    haptic.medium();
+    void Linking.openURL(urlMaps);
+  };
 
   const elegidaInfo = paradas.find((p) => p.envio_id === elegida);
   const subtitulo = mapa
@@ -149,6 +162,21 @@ export default function RouteMapScreen() {
               <Text style={styles.legendHint}>Tocá una parada para ver el camino</Text>
             </View>
           )}
+        </GlassCard>
+
+        <GlassCard oscura style={styles.mapsCard}>
+          <View style={styles.mapsCabeza}>
+            <Text style={styles.mapsTitulo}>Navegar con Google Maps</Text>
+            <Text style={styles.mapsSub}>{pendientes.length === 0 ? "No quedan paradas pendientes con ubicación." : modoMaps === "proximo" ? "Te lleva a la próxima parada." : `Recorre las ${Math.min(pendientes.length, 10)} paradas pendientes en orden.`}</Text>
+          </View>
+          <View style={styles.segmento}>
+            {(["proximo", "completo"] as const).map((m) => (
+              <Pressable key={m} onPress={() => { haptic.selection(); setModoMaps(m); }} accessibilityRole="radio" accessibilityState={{ selected: modoMaps === m }} style={[styles.segmentoItem, modoMaps === m && styles.segmentoActivo]}>
+                <Text style={[styles.segmentoTexto, modoMaps === m && styles.segmentoTextoActivo]}>{m === "proximo" ? "Próximo destino" : "Ruta completa"}</Text>
+              </Pressable>
+            ))}
+          </View>
+          <PrimaryButton label="Abrir en Maps" icon="⌖" onPress={abrirMaps} disabled={!urlMaps} />
         </GlassCard>
 
         <Text style={styles.section}>Orden de paradas</Text>
@@ -217,6 +245,15 @@ const styles = StyleSheet.create({
   page: { flex: 1, backgroundColor: "#EEF0F2" },
   content: { padding: 16, paddingTop: 16, gap: 18, maxWidth: 760, width: "100%", alignSelf: "center" },
   mapCard: { padding: 10, gap: 12 },
+  mapsCard: { gap: 14, padding: 18 },
+  mapsCabeza: { gap: 3 },
+  mapsTitulo: { color: "#FFFFFF", fontSize: 17, fontWeight: "900", letterSpacing: -0.3 },
+  mapsSub: { color: "#9A9AA0", fontSize: 12.5, fontWeight: "600" },
+  segmento: { flexDirection: "row", padding: 4, borderRadius: 14, backgroundColor: "rgba(255,255,255,0.08)" },
+  segmentoItem: { flex: 1, minHeight: 40, borderRadius: 11, alignItems: "center", justifyContent: "center" },
+  segmentoActivo: { backgroundColor: "#FFFFFF" },
+  segmentoTexto: { color: "#C7C7CC", fontSize: 13, fontWeight: "800" },
+  segmentoTextoActivo: { color: "#1A1A1A" },
   map: { height: 320 },
   loading: { alignItems: "center", justifyContent: "center", borderRadius: 16, backgroundColor: "#E9EDEF" },
   expandPill: { position: "absolute", right: 11, bottom: 11, minHeight: 35, paddingHorizontal: 11, borderRadius: 18, backgroundColor: "rgba(28,28,30,0.9)", flexDirection: "row", alignItems: "center", gap: 6 },

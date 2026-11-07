@@ -158,6 +158,11 @@ func (s *FlotaService) Actualizar(ctx context.Context, id string, v domain.Vehic
 	return s.repo.Get(ctx, id, FechaAR(s.ahora()))
 }
 
+// Vehiculo devuelve un vehículo con su ruta de hoy.
+func (s *FlotaService) Vehiculo(ctx context.Context, id string) (domain.Vehiculo, error) {
+	return s.repo.Get(ctx, id, FechaAR(s.ahora()))
+}
+
 // AsignarARuta asigna el vehículo a la ruta (vehiculoID vacío = quitarlo).
 // Un vehículo en mantenimiento no puede salir a ruta.
 func (s *FlotaService) AsignarARuta(ctx context.Context, rutaID, vehiculoID string) error {

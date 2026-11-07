@@ -358,3 +358,50 @@ export async function obtenerTrayecto(envioId: string): Promise<TrayectoAPI> {
   const { data } = await api.get<TrayectoAPI>(`/envios/${encodeURIComponent(envioId)}/trayecto`);
   return data;
 }
+
+
+// ---------- Perfil del repartidor ----------
+
+export type PerfilRepartidorAPI = {
+  nombre: string;
+  email: string;
+  /** Enmascarado: ••••45 (vacío si no tiene). */
+  telefono: string;
+  rol: string;
+  miembro_desde: string;
+  con_google: boolean;
+  historico: {
+    entregados: number;
+    no_entregados: number;
+    efectividad: number;
+    kg_entregados: number;
+    rutas_completadas: number;
+    dias_trabajados: number;
+    promedio_por_dia: number;
+    mejor_dia: number;
+    fragiles_entregados: number;
+  };
+  /** Últimos 7 días, del más viejo a hoy. */
+  ultimos_dias: { fecha: string; entregados: number; no_entregados: number }[];
+  motivos_fallo: { motivo: string; cantidad: number }[];
+  vehiculo_hoy: {
+    patente: string;
+    modelo: string;
+    tipo: string;
+    color: string;
+    capacidad_peso: number;
+    carga_actual_peso: number;
+    capacidad_porcentaje: number;
+    velocidad: number;
+    temperatura: number;
+  } | null;
+  rutas_hoy: number;
+  primera_entrega_hoy?: string;
+  ultima_entrega_hoy?: string;
+};
+
+/** GET /repartidor/perfil: cuenta, vehículo de hoy y rendimiento histórico. */
+export async function obtenerPerfil(): Promise<PerfilRepartidorAPI> {
+  const { data } = await api.get<PerfilRepartidorAPI>("/repartidor/perfil");
+  return { ...data, ultimos_dias: data.ultimos_dias ?? [], motivos_fallo: data.motivos_fallo ?? [] };
+}

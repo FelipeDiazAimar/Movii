@@ -138,6 +138,36 @@ export interface TrackingResponse {
   localidad: string;
   actualizado_en: string;
   historial: TrackingEvento[];
+  /** YYYY-MM-DD */
+  fecha_entrega?: string;
+  franja?: string;
+  /** Cuándo se entregó (RFC 3339), si ya se entregó. */
+  entregado_en?: string;
+  paquete?: { peso: number; tamano: string; fragil: boolean; urgente: boolean };
+  /** Seguimiento mientras el envío está en reparto (solo el día de entrega). */
+  en_vivo?: TrackingEnVivo;
+}
+
+export interface TrackingEnVivo {
+  vehiculo: {
+    tipo: "camion" | "furgon" | "utilitario" | "moto";
+    modelo: string;
+    color: string;
+    /** Parcial: AB•••CD */
+    patente: string;
+    lat: number;
+    lng: number;
+    rumbo: number;
+    velocidad: number;
+    en: string;
+  };
+  /** Destino aproximado (~100 m). */
+  destino: { lat: number; lng: number } | null;
+  recorrido: { geometria: [number, number][]; distancia_m: number; duracion_s: number } | null;
+  paradas_antes: number;
+  eta_desde?: string;
+  eta_hasta?: string;
+  eta_minutos?: number;
 }
 
 export type CambiarEstadoInput = { estado: EstadoCambiable };

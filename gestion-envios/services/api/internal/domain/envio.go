@@ -166,6 +166,51 @@ type TrackingResponse struct {
 	Localidad     string           `json:"localidad"`
 	ActualizadoEn string           `json:"actualizado_en"`
 	Historial     []TrackingEvento `json:"historial"`
+
+	// Datos extra para el cliente (todos opcionales): fecha y franja de
+	// entrega, el paquete y, mientras el envío está en reparto, el vehículo en
+	// vivo con el recorrido y la hora estimada de llegada.
+	FechaEntrega string           `json:"fecha_entrega,omitempty"`
+	Franja       string           `json:"franja,omitempty"`
+	EntregadoEn  string           `json:"entregado_en,omitempty"`
+	Paquete      *TrackingPaquete `json:"paquete,omitempty"`
+	EnVivo       *TrackingEnVivo  `json:"en_vivo,omitempty"`
+}
+
+// TrackingPaquete describe el paquete sin datos de personas.
+type TrackingPaquete struct {
+	Peso    float64 `json:"peso"`
+	Tamano  string  `json:"tamano"`
+	Fragil  bool    `json:"fragil"`
+	Urgente bool    `json:"urgente"`
+}
+
+// TrackingVehiculo es el vehículo que lleva el envío: tipo, modelo, color,
+// patente parcial y su última posición. Nunca el repartidor.
+type TrackingVehiculo struct {
+	Tipo      string  `json:"tipo"`
+	Modelo    string  `json:"modelo"`
+	Color     string  `json:"color"`
+	Patente   string  `json:"patente"` // parcial: AB•••CD
+	Lat       float64 `json:"lat"`
+	Lng       float64 `json:"lng"`
+	Rumbo     float64 `json:"rumbo"`
+	Velocidad float64 `json:"velocidad"`
+	En        string  `json:"en"`
+}
+
+// TrackingEnVivo es el seguimiento mientras el envío está en reparto. El
+// destino va redondeado (~100 m) y el recorrido se corta antes de llegar,
+// para no revelar la dirección exacta.
+type TrackingEnVivo struct {
+	Vehiculo     TrackingVehiculo `json:"vehiculo"`
+	Destino      *Coordenadas     `json:"destino"`
+	Recorrido    *RecorridoMapa   `json:"recorrido"`
+	ParadasAntes int              `json:"paradas_antes"`
+	// Ventana estimada de llegada (RFC 3339, UTC) y minutos hasta el centro de la ventana.
+	EtaDesde   string `json:"eta_desde,omitempty"`
+	EtaHasta   string `json:"eta_hasta,omitempty"`
+	EtaMinutos int    `json:"eta_minutos,omitempty"`
 }
 
 const (

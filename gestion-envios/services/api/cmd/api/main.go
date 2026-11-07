@@ -101,6 +101,7 @@ func main() {
 	operacionesService := services.NewOperacionesService(operacionesRepo).ConMapa(flotaRepo, router)
 	reportesService := services.NewReportesService(repository.NewReportesRepo(pool))
 	flotaService := services.NewFlotaService(flotaRepo, operacionesRepo, router)
+	trackingService.ConFlota(flotaService)
 	otpService := services.NewOTPService(whatsappRepo, usuarioRepo, authService, wa, cfg.JWTSecret)
 	otpService.TTL = time.Duration(cfg.OTPTTLMin) * time.Minute
 	otpService.MaxIntentos = cfg.OTPMaxIntentos
@@ -147,7 +148,7 @@ func main() {
 		UsuariosHandler:    handlers.NewUsuariosHandler(usuarioRepo),
 		EnvioHandler:       handlers.NewEnvioHandler(envioService),
 		RutaHandler:        rutaHandler,
-		RepartidorHandler:  handlers.NewRepartidorHandler(repartidorService),
+		RepartidorHandler:  handlers.NewRepartidorHandler(repartidorService).ConPerfil(repository.NewPerfilRepo(pool)),
 		EstadoHandler:      handlers.NewEstadoHandler(estadoService),
 		TrackingHandler:    handlers.NewTrackingHandler(trackingService),
 		OperacionesHandler: handlers.NewOperacionesHandler(operacionesService),

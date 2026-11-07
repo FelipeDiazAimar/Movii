@@ -31,3 +31,16 @@ Fecha: 2026-11-07. Estado: spike aprobado para MVP.
 
 - OpenFreeMap es un servicio comunitario sin SLA: para producción evaluar self-host o un proveedor pago (MapTiler, Stadia).
 - No se probó en dispositivos reales ni con GPS real.
+
+## MVP terminado (2026-11-07)
+
+- **Camión en 3D**: cajas extruidas (`fill-extrusion`) que se orientan y avanzan sobre la polilínea; con GPS (SSE) se acerca a la posición real, sin GPS recorre la ruta en simulación acelerada.
+- **Ruta luminosa**: degradé amarillo → color del vehículo (`line-gradient`), halo difuso y "cometas" de luz que viajan en el sentido del viaje. El patrón de trazos animado (`line-dasharray`) rompe el render de MapLibre 6, por eso se usan puntos.
+- **Paradas**: columnas extruidas del color de su estado con el número encima.
+- **Cámaras**: Seguir (detrás del camión, gira con su rumbo), Órbita (vuelo alrededor del camión), General (encuadre de la ruta) y cámara libre al arrastrar. Entrada de cine al cargar.
+- **Día / noche**: estilo `liberty` o `dark` de OpenFreeMap con cielo y niebla (`setSky`); al estilo oscuro se le agregan los edificios 3D desde la misma fuente vectorial.
+- **Panel en vivo**: entregas, velocidad, km, minutos de manejo y próxima parada.
+- **Worker**: MapLibre 6 busca su worker al lado del módulo; con Vite queda en otra carpeta, así que se sirve como asset (`maplibre-gl-worker.mjs?url`) y se indica con `setWorkerUrl`. Sin esto el mapa no carga.
+- **Abrir en Maps** (web y app): modos "Próximo destino" y "Ruta completa" (hasta 9 paradas intermedias, límite de Google).
+
+Costo: cero. OpenFreeMap, el DEM de AWS Open Data y MapLibre son gratuitos y sin key.

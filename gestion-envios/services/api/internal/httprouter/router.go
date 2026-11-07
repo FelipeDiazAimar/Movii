@@ -154,6 +154,7 @@ func New(deps Deps) http.Handler {
 		protected.Group(func(repartidorOnly chi.Router) {
 			repartidorOnly.Use(middleware.RequireRole(domain.RolRepartidor))
 			repartidorOnly.Get("/repartidor/envios-del-dia", deps.RepartidorHandler.EnviosDelDia)
+			repartidorOnly.Get("/repartidor/perfil", deps.RepartidorHandler.Perfil)
 		})
 	})
 

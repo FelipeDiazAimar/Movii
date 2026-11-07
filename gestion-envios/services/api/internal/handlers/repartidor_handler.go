@@ -1,9 +1,12 @@
 package handlers
 
 import (
+	"errors"
 	"net/http"
+	"time"
 
 	"movii/api/internal/middleware"
+	"movii/api/internal/repository"
 	httpx "movii/api/internal/platform/http"
 	"movii/api/internal/services"
 )
@@ -11,7 +14,38 @@ import (
 // RepartidorHandler expone HU-05: el listado de envíos del día del
 // repartidor logueado.
 type RepartidorHandler struct {
-	svc *services.RepartidorService
+	svc    *services.RepartidorService
+	perfil *repository.PerfilRepo
+}
+
+// ConPerfil habilita GET /repartidor/perfil.
+func (h *RepartidorHandler) ConPerfil(p *repository.PerfilRepo) *RepartidorHandler {
+	h.perfil = p
+	return h
+}
+
+// Perfil maneja GET /repartidor/perfil: cuenta, vehículo de hoy y
+// rendimiento histórico del repartidor logueado (siempre el del JWT).
+func (h *RepartidorHandler) Perfil(w http.ResponseWriter, r *http.Request) {
+	claims, ok := middleware.ClaimsFromContext(r.Context())
+	if !ok {
+		httpx.WriteError(w, http.StatusUnauthorized, "sin_token", "falta autenticación")
+		return
+	}
+	if h.perfil == nil {
+		httpx.WriteError(w, http.StatusNotFound, "no_disponible", "el perfil no está disponible")
+		return
+	}
+	p, err := h.perfil.DeRepartidor(r.Context(), claims.UsuarioID, services.FechaAR(time.Now()))
+	if errors.Is(err, repository.ErrNoEncontrado) {
+		httpx.WriteError(w, http.StatusNotFound, "no_encontrado", "el usuario no existe")
+		return
+	}
+	if err != nil {
+		httpx.WriteError(w, http.StatusInternalServerError, "error_interno", "no se pudo obtener el perfil")
+		return
+	}
+	httpx.WriteJSON(w, http.StatusOK, p)
 }
 
 // NewRepartidorHandler crea un RepartidorHandler.

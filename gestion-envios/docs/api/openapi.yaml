@@ -1059,6 +1059,32 @@ paths:
         "500":
           $ref: "#/components/responses/ErrorInterno"
 
+  /repartidor/perfil:
+    get:
+      tags: [repartidor]
+      summary: Perfil del repartidor autenticado
+      description: |
+        Cuenta (email, celular enmascarado, desde cuándo), vehículo de la ruta
+        de hoy con su carga, entregas de los últimos 7 días, histórico y
+        motivos de fallo. Siempre del usuario del JWT. **Rol requerido: repartidor.**
+      operationId: perfilRepartidor
+      x-required-role: [repartidor]
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Perfil del repartidor.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PerfilRepartidor"
+        "401":
+          $ref: "#/components/responses/NoAutenticado"
+        "403":
+          $ref: "#/components/responses/RolNoAutorizado"
+        "500":
+          $ref: "#/components/responses/ErrorInterno"
+
   /envios/{id}/estado:
     put:
       tags: [envios]
@@ -2833,7 +2859,98 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/TrackingEvento"
+        fecha_entrega:
+          type: string
+          format: date
+        franja:
+          type: string
+          enum: [manana, tarde, noche]
+        entregado_en:
+          type: string
+          format: date-time
+        paquete:
+          type: object
+          properties:
+            peso: { type: number }
+            tamano: { type: string }
+            fragil: { type: boolean }
+            urgente: { type: boolean }
+        en_vivo:
+          type: object
+          description: |
+            Solo el día de entrega y mientras el envío está asignado o en camino.
+            El destino va redondeado (~100 m) y el recorrido se corta a 150 m del
+            destino para no revelar la dirección; la patente va parcial.
+          properties:
+            vehiculo:
+              type: object
+              properties:
+                tipo: { type: string }
+                modelo: { type: string }
+                color: { type: string }
+                patente: { type: string, example: "AB•••CD" }
+                lat: { type: number }
+                lng: { type: number }
+                rumbo: { type: number }
+                velocidad: { type: number }
+                en: { type: string, format: date-time }
+            destino:
+              type: object
+              nullable: true
+              properties:
+                lat: { type: number }
+                lng: { type: number }
+            recorrido:
+              type: object
+              nullable: true
+            paradas_antes: { type: integer }
+            eta_desde: { type: string, format: date-time }
+            eta_hasta: { type: string, format: date-time }
+            eta_minutos: { type: integer }
       required: [codigo_guia, estado, localidad, actualizado_en, historial]
+
+    PerfilRepartidor:
+      type: object
+      properties:
+        nombre: { type: string }
+        email: { type: string }
+        telefono: { type: string, description: "Enmascarado: ••••45" }
+        rol: { type: string }
+        miembro_desde: { type: string, format: date }
+        con_google: { type: boolean }
+        historico:
+          type: object
+          properties:
+            entregados: { type: integer }
+            no_entregados: { type: integer }
+            efectividad: { type: number }
+            kg_entregados: { type: number }
+            rutas_completadas: { type: integer }
+            dias_trabajados: { type: integer }
+            promedio_por_dia: { type: number }
+            mejor_dia: { type: integer }
+            fragiles_entregados: { type: integer }
+        ultimos_dias:
+          type: array
+          items:
+            type: object
+            properties:
+              fecha: { type: string, format: date }
+              entregados: { type: integer }
+              no_entregados: { type: integer }
+        motivos_fallo:
+          type: array
+          items:
+            type: object
+            properties:
+              motivo: { type: string }
+              cantidad: { type: integer }
+        vehiculo_hoy:
+          type: object
+          nullable: true
+        rutas_hoy: { type: integer }
+        primera_entrega_hoy: { type: string, format: date-time }
+        ultima_entrega_hoy: { type: string, format: date-time }
 
     # ---- Sprint 3: analítica y mapas (HU-11 a HU-15) ----
     MetricasDia:
