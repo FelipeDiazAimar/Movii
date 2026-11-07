@@ -78,7 +78,7 @@ function textoPlano(n: ReactNode): string {
   return "";
 }
 
-function opcionesDe(children: ReactNode): Opcion[] {
+export function opcionesDe(children: ReactNode): Opcion[] {
   const out: Opcion[] = [];
   Children.forEach(children, (c) => {
     if (!isValidElement<{ value?: string; disabled?: boolean; children?: ReactNode }>(c)) return;

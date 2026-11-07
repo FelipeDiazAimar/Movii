@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { Select } from "@/components/ui/Select";
 import { MapPinned } from "lucide-react";
 import { obtenerMapaRuta } from "@/features/analitica/api";
 import { urlGoogleMaps, type ModoMaps } from "./googleMaps";
@@ -20,15 +21,13 @@ export function BotonAbrirMaps({ rutaId }: { rutaId: string }) {
 
   return (
     <div className="flex items-center gap-2">
-      <select
+      <Select
         aria-label="Modo de navegación"
         value={modo}
-        onChange={(e) => setModo(e.target.value as ModoMaps)}
-        className="rounded-xl border border-hormigon-300 bg-white px-2 py-2 text-sm"
-      >
-        <option value="proximo">Próximo destino</option>
-        <option value="completo">Ruta completa</option>
-      </select>
+        onChange={(v) => setModo(v as ModoMaps)}
+        opciones={[{ value: "proximo", label: "Próximo destino" }, { value: "completo", label: "Ruta completa" }]}
+        className="w-44"
+      />
       {href ? (
         <a
           href={href}

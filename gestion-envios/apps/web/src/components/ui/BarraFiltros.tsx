@@ -1,3 +1,5 @@
+import { Select } from "./Select";
+import { opcionesDe } from "./Field";
 import type { ReactNode } from "react";
 import { Search, X } from "lucide-react";
 
@@ -60,15 +62,9 @@ export function coincide(busqueda: string, ...campos: Array<string | number | nu
 /** Select compacto para usar dentro de BarraFiltros. */
 export function FiltroSelect({ label, value, onChange, children }: { label: string; value: string; onChange: (v: string) => void; children: ReactNode }) {
   return (
-    <label className="flex flex-col gap-1 text-xs font-medium text-gray-500">
+    <div className="flex flex-col gap-1 text-xs font-medium text-gray-500">
       {label}
-      <select
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="rounded-xl border border-hormigon-300 bg-white px-3 py-2.5 text-sm font-normal text-gray-900 shadow-sm focus:border-movii-500 focus:outline-none focus:ring-2 focus:ring-movii-400"
-      >
-        {children}
-      </select>
-    </label>
+      <Select tamano="sm" aria-label={label} value={value} onChange={onChange} opciones={opcionesDe(children)} className="min-w-[9rem] font-normal" />
+    </div>
   );
 }

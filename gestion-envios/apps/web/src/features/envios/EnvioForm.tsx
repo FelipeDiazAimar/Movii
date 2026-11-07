@@ -2,7 +2,7 @@ import { useState, type FormEvent } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { listarRutas } from "@/features/rutas/api";
 import { Button } from "@/components/ui/Button";
-import { InputField, SelectField } from "@/components/ui/Field";
+import { DateField, InputField, SelectField } from "@/components/ui/Field";
 import { Alert } from "@/components/ui/Alert";
 import { envioFormSchema, ENVIO_FORM_DEFAULTS } from "./schema";
 import { TAMANOS } from "./types";
@@ -208,14 +208,12 @@ export function EnvioForm({ onSubmit, enviando, errorServidor }: Props) {
           />
         </div>
         <div className="max-w-xs">
-          <InputField
+          <DateField
             label="Fecha de entrega *"
             name="fechaEntrega"
-            type="date"
-            required
             min={new Date().toLocaleDateString("en-CA")}
             value={valores.fechaEntrega as string}
-            onChange={(e) => setCampo("fechaEntrega", e.target.value)}
+            onChange={(v) => setCampo("fechaEntrega", v)}
             error={errores.fechaEntrega}
             hint="Día en que el repartidor lo ve para entregarlo."
           />
