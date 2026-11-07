@@ -147,6 +147,11 @@ const config: ExpoConfig = {
       },
     ],
   ],
+  // Proyecto de EAS (cuenta felipediazaimar) para generar el APK.
+  owner: "felipediazaimar",
+  extra: {
+    eas: { projectId: "e33eabc1-a45a-4b6f-b679-fead91955e82" },
+  },
   experiments: {
     typedRoutes: true,
     reactCompiler: true,
