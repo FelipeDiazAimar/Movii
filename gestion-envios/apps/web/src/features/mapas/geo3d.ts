@@ -2,6 +2,9 @@
 
 export type LngLat = [number, number];
 
+/** Color de cada parada en la vista 3D según su estado ("destino" = zona del cliente). */
+export const COLOR_PARADA: Record<string, string> = { entregado: "#16a34a", en_camino: "#d97706", asignado: "#2563eb", no_entregado: "#dc2626", pendiente: "#6b7280", destino: "#f4b400" };
+
 const M_POR_GRADO = 111_320;
 const rad = (g: number) => (g * Math.PI) / 180;
 

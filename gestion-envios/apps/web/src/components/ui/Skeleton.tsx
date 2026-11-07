@@ -1,3 +1,4 @@
+import { Truck } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 
 /** Bloque animado con el tono amarillo de Movii. */
@@ -54,18 +55,21 @@ export function SkeletonTarjetas({ cantidad = 6, label = "Cargando…" }: { cant
   );
 }
 
-/** Fallback de página completa (Suspense, detalles, dashboards). */
+/**
+ * Carga de una vista completa (Suspense, detalles, dashboards): centrada en el
+ * espacio de la página, con el camión de Movii avanzando sobre el carril.
+ */
 export function SkeletonPagina({ label = "Cargando…" }: { label?: string }) {
   return (
-    <div className="flex flex-col gap-6" role="status" aria-label={label}>
-      <div className="flex items-center gap-3">
-        <Skeleton className="h-11 w-11 rounded-2xl bg-movii-500/60" />
-        <div className="space-y-2">
-          <Skeleton className="h-5 w-48" />
-          <Skeleton className="h-3 w-72" />
-        </div>
+    <div className="flex min-h-[calc(100vh-10rem)] w-full flex-col items-center justify-center gap-5" role="status" aria-label={label}>
+      <div className="relative flex h-20 w-20 items-center justify-center rounded-3xl bg-asfalto-900 shadow-lift">
+        <span className="absolute inset-0 animate-ping rounded-3xl bg-movii-500/20" aria-hidden />
+        <Truck className="h-9 w-9 animate-bounce text-movii-500 [animation-duration:1.2s]" strokeWidth={2.2} aria-hidden />
       </div>
-      <TablaBase filas={5} />
+      <div className="h-1.5 w-40 overflow-hidden rounded-full bg-hormigon-200" aria-hidden>
+        <div className="h-full w-full animate-carril-x bg-[repeating-linear-gradient(90deg,#f4b400_0_18px,transparent_18px_30px)]" />
+      </div>
+      <p className="text-sm font-semibold text-gray-500">{label}</p>
     </div>
   );
 }

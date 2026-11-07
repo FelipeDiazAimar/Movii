@@ -13,7 +13,7 @@ export function ProtectedRoute({ allow }: { allow?: Rol[] }) {
   const { sesion, cargando } = useAuth();
   const location = useLocation();
 
-  if (cargando) return <Spinner label="Verificando sesión…" />;
+  if (cargando) return <Spinner label="Verificando sesión…" pantalla />;
 
   if (!sesion) {
     return <Navigate to="/login" replace state={{ from: location }} />;

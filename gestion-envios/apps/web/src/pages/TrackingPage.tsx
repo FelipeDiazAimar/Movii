@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent, type ReactNode } from "react";
+import { lazy, Suspense, useEffect, useState, type FormEvent, type ReactNode } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -33,6 +33,10 @@ import { ETIQUETA_TIPO_VEHICULO, type LatLng } from "@/features/flota/types";
 import { getApiErrorMessage } from "@/services/api-client";
 import { useBordesNavegador } from "@/hooks/useBordesNavegador";
 import { Spinner } from "@/components/ui/Spinner";
+import { hayWebGL } from "@/features/mapas/webgl";
+
+// La vista 3D (MapLibre) pesa: se baja solo si la persona la elige.
+const Seguimiento3D = lazy(() => import("@/features/mapas/Seguimiento3D").then((m) => ({ default: m.Seguimiento3D })));
 
 const PASOS = [
   { clave: "pendiente", titulo: "Registrado", icono: Package },
@@ -225,12 +229,43 @@ function Dato({ icono: Icono, etiqueta, valor }: { icono: LucideIcon; etiqueta: 
 }
 
 function MapaEnVivo({ vivo }: { vivo: TrackingEnVivo }) {
+  const [vista, setVista] = useState<"2d" | "3d">("2d");
+  const con3D = typeof window !== "undefined" && hayWebGL();
   const color = esHex(vivo.vehiculo.color) ? vivo.vehiculo.color : "#f4b400";
   const destino = vivo.destino ? ([vivo.destino.lat, vivo.destino.lng] as LatLng) : undefined;
   const geometria = (vivo.recorrido?.geometria ?? []) as LatLng[];
   const km = vivo.recorrido && vivo.recorrido.distancia_m >= 100 ? (vivo.recorrido.distancia_m / 1000).toFixed(1).replace(".", ",") : null;
   return (
     <section className="overflow-hidden rounded-[28px] border border-hormigon-200 bg-white shadow-panel">
+      <div className="flex items-center justify-between gap-3 border-b border-hormigon-100 px-4 py-3">
+        <div>
+          <h2 className="font-expandida text-base font-black text-gray-900">Seguí tu pedido en vivo</h2>
+          <p className="text-xs text-gray-500">La posición del vehículo se actualiza sola.</p>
+        </div>
+        {con3D && (
+          <div className="flex rounded-xl bg-hormigon-100 p-1 text-xs font-bold" role="radiogroup" aria-label="Tipo de mapa">
+            {(["2d", "3d"] as const).map((v) => (
+              <button
+                key={v}
+                type="button"
+                role="radio"
+                aria-checked={vista === v}
+                onClick={() => setVista(v)}
+                className={`rounded-lg px-3 py-1.5 transition ${vista === v ? "bg-asfalto-900 text-movii-500 shadow-panel" : "text-gray-500 hover:text-gray-900"}`}
+              >
+                {v.toUpperCase()}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+      {vista === "3d" ? (
+        <div className="p-2">
+          <Suspense fallback={<div className="flex h-[26rem] items-center justify-center"><Spinner label="Cargando vista 3D…" /></div>}>
+            <Seguimiento3D vivo={vivo} />
+          </Suspense>
+        </div>
+      ) : (
       <div className="relative">
         <MapaMovii
           className="h-[22rem] rounded-none border-0 sm:h-[26rem]"
@@ -254,6 +289,7 @@ function MapaEnVivo({ vivo }: { vivo: TrackingEnVivo }) {
           )}
         </div>
       </div>
+      )}
       <p className="flex items-center gap-1.5 px-4 py-3 text-xs text-gray-500">
         <MapPin className="h-3.5 w-3.5" aria-hidden />
         Por tu privacidad mostramos tu zona de forma aproximada.
@@ -363,7 +399,7 @@ export function TrackingPage() {
     enabled: buscado !== null,
     retry: false,
     // Mientras está en reparto, la posición y la hora estimada se refrescan solas.
-    refetchInterval: (q) => (q.state.data?.en_vivo ? 15_000 : 60_000),
+    refetchInterval: (q) => (q.state.data?.en_vivo ? 8_000 : 60_000),
   });
 
   function handleSubmit(e: FormEvent) {

@@ -42,9 +42,11 @@ export default {
       },
       keyframes: {
         carril: { to: { backgroundPosition: "0 -24px" } },
+        "carril-x": { to: { backgroundPosition: "30px 0" } },
       },
       animation: {
         carril: "carril 1.2s linear infinite",
+        "carril-x": "carril-x 0.6s linear infinite",
       },
     },
   },

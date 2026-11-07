@@ -36,12 +36,22 @@ func init() {
 	// text/plain y Chrome no ofrece instalar la app.
 	_ = mime.AddExtensionType(".webmanifest", "application/manifest+json")
 	_ = mime.AddExtensionType(".js", "text/javascript; charset=utf-8")
+	// El worker de MapLibre (vista 3D) es un módulo .mjs.
+	_ = mime.AddExtensionType(".mjs", "text/javascript; charset=utf-8")
 }
 
 // serveSPA devuelve el archivo estático pedido o index.html si no existe.
 func serveSPA(w http.ResponseWriter, r *http.Request, dir, urlPath string) {
 	file := filepath.Join(dir, filepath.Clean("/"+urlPath))
-	if st, err := os.Stat(file); err != nil || st.IsDir() {
+	st, err := os.Stat(file)
+	// Un archivo de /assets/ que no existe es un 404, no la página: si se
+	// devolviera index.html, el navegador lo recibiría como script con tipo
+	// text/html y el error sería mucho más difícil de entender.
+	if (err != nil || st.IsDir()) && strings.HasPrefix(urlPath, "/assets/") {
+		http.NotFound(w, r)
+		return
+	}
+	if err != nil || st.IsDir() {
 		// El HTML no se cachea: así un deploy nuevo se ve al recargar.
 		w.Header().Set("Cache-Control", "no-cache")
 		http.ServeFile(w, r, filepath.Join(dir, "index.html"))
