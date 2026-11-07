@@ -1,4 +1,4 @@
-import { BarChart3, CalendarRange } from "lucide-react";
+import { Ban, BarChart3, CalendarRange, CircleHelp, Download, Hash, MapPin, MapPinOff, Medal, Package, ShieldAlert, TriangleAlert, Trophy, UserRound, UserX, type LucideIcon } from "lucide-react";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -19,10 +19,10 @@ import { getApiErrorMessage } from "@/services/api-client";
 
 type Pestana = "envios" | "repartidores" | "incidencias";
 
-const PESTANAS: Array<{ id: Pestana; label: string }> = [
-  { id: "envios", label: "Envíos" },
-  { id: "repartidores", label: "Repartidores" },
-  { id: "incidencias", label: "Incidencias" },
+const PESTANAS: Array<{ id: Pestana; label: string; icono: LucideIcon }> = [
+  { id: "envios", label: "Envíos", icono: Package },
+  { id: "repartidores", label: "Repartidores", icono: Trophy },
+  { id: "incidencias", label: "Incidencias", icono: TriangleAlert },
 ];
 
 const ESTADOS = ["pendiente", "asignado", "en_camino", "entregado", "no_entregado"];
@@ -51,6 +51,7 @@ function TabEnvios({ desde, hasta }: { desde: string; hasta: string }) {
           ))}
         </SelectField>
         <Button variant="secondary" loading={csv.isPending} onClick={() => csv.mutate()}>
+          <Download className="h-4 w-4" aria-hidden />
           Descargar CSV
         </Button>
       </div>
@@ -75,9 +76,26 @@ function TabEnvios({ desde, hasta }: { desde: string; hasta: string }) {
               <tbody className="divide-y divide-hormigon-100">
                 {q.data.envios.map((e) => (
                   <tr key={e.codigo_guia}>
-                    <td className="px-3 py-2 font-medium text-gray-900">{e.codigo_guia}</td>
-                    <td className="px-3 py-2 text-gray-700">{e.destinatario}</td>
-                    <td className="px-3 py-2 text-gray-700">{e.localidad}</td>
+                    <td className="px-3 py-2 font-medium text-gray-900">
+                      <span className="inline-flex items-center gap-2 whitespace-nowrap">
+                        <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-hormigon-100 text-gray-600">
+                          <Package className="h-3.5 w-3.5" aria-hidden />
+                        </span>
+                        {e.codigo_guia}
+                      </span>
+                    </td>
+                    <td className="px-3 py-2 text-gray-700">
+                      <span className="inline-flex items-center gap-1.5">
+                        <UserRound className="h-3.5 w-3.5 text-gray-400" aria-hidden />
+                        {e.destinatario}
+                      </span>
+                    </td>
+                    <td className="px-3 py-2 text-gray-700">
+                      <span className="inline-flex items-center gap-1.5">
+                        <MapPin className="h-3.5 w-3.5 text-gray-400" aria-hidden />
+                        {e.localidad}
+                      </span>
+                    </td>
                     <td className="px-3 py-2">
                       <EstadoEnvioBadge estado={e.estado} />
                     </td>
@@ -107,8 +125,9 @@ function TabRepartidores({ desde, hasta }: { desde: string; hasta: string }) {
           <>
             <div className="grid grid-cols-3 gap-4">
               {ranking.slice(0, 3).map((r, i) => (
-                <div key={r.repartidor_id} className={`rounded-lg border p-4 text-center ${medallas[i]}`}>
-                  <p className="text-2xl font-bold text-gray-900">#{r.posicion}</p>
+                <div key={r.repartidor_id} className={`rounded-2xl border p-4 text-center ${medallas[i]}`}>
+                  <Medal className={`mx-auto h-7 w-7 ${["text-amber-500", "text-slate-400", "text-orange-700"][i]}`} aria-hidden />
+                  <p className="font-expandida text-2xl font-black text-gray-900">#{r.posicion}</p>
                   <p className="font-medium text-gray-900">{r.nombre}</p>
                   <p className="text-sm text-gray-600">{r.tasa_efectividad}% efectividad</p>
                 </div>
@@ -129,8 +148,18 @@ function TabRepartidores({ desde, hasta }: { desde: string; hasta: string }) {
               <tbody className="divide-y divide-hormigon-100">
                 {ranking.map((r) => (
                   <tr key={r.repartidor_id}>
-                    <td className="px-3 py-2 text-gray-700">{r.posicion}</td>
-                    <td className="px-3 py-2 font-medium text-gray-900">{r.nombre}</td>
+                    <td className="px-3 py-2 text-gray-700">
+                      <span className="inline-flex items-center gap-1">
+                        {r.posicion <= 3 ? <Trophy className={`h-3.5 w-3.5 ${["", "text-amber-500", "text-slate-400", "text-orange-700"][r.posicion]}`} aria-hidden /> : <Hash className="h-3.5 w-3.5 text-gray-300" aria-hidden />}
+                        {r.posicion}
+                      </span>
+                    </td>
+                    <td className="px-3 py-2 font-medium text-gray-900">
+                      <span className="flex items-center gap-2">
+                        <span className="flex h-7 w-7 items-center justify-center rounded-full bg-asfalto-900 text-xs font-bold text-movii-500">{r.nombre.slice(0, 1)}</span>
+                        {r.nombre}
+                      </span>
+                    </td>
                     <td className="px-3 py-2 text-gray-700">{r.asignados}</td>
                     <td className="px-3 py-2 text-gray-700">{r.entregados}</td>
                     <td className="px-3 py-2 text-gray-700">{r.fallidos}</td>
@@ -145,6 +174,14 @@ function TabRepartidores({ desde, hasta }: { desde: string; hasta: string }) {
     </div>
   );
 }
+
+const ICONO_MOTIVO: Record<string, LucideIcon> = {
+  cliente_ausente: UserX,
+  direccion_incorrecta: MapPinOff,
+  rechazado: Ban,
+  zona_insegura: ShieldAlert,
+  otro: CircleHelp,
+};
 
 function TabIncidencias({ desde, hasta }: { desde: string; hasta: string }) {
   const q = useQuery({ queryKey: ["reportes", "incidencias", desde, hasta], queryFn: () => reporteIncidencias({ desde, hasta }) });
@@ -164,13 +201,19 @@ function TabIncidencias({ desde, hasta }: { desde: string; hasta: string }) {
               {q.data.distribucion.map((d) => (
                 <li key={d.motivo}>
                   <div className="mb-1 flex justify-between text-sm text-gray-700">
-                    <span>{d.etiqueta}</span>
+                    <span className="inline-flex items-center gap-2">
+                      {(() => {
+                        const Icono = ICONO_MOTIVO[d.motivo] ?? CircleHelp;
+                        return <Icono className="h-4 w-4 text-red-500" aria-hidden />;
+                      })()}
+                      {d.etiqueta}
+                    </span>
                     <span>
                       {d.cantidad} ({d.porcentaje}%)
                     </span>
                   </div>
-                  <div className="h-3 rounded-full bg-gray-200">
-                    <div className="h-3 rounded-full bg-red-400" style={{ width: `${d.porcentaje}%` }} />
+                  <div className="h-3 rounded-full bg-hormigon-100">
+                    <div className="h-3 rounded-full bg-gradient-to-r from-red-400 to-red-500" style={{ width: `${d.porcentaje}%` }} />
                   </div>
                 </li>
               ))}
@@ -208,10 +251,11 @@ export function ReportesPage() {
             aria-selected={pestana === p.id}
             aria-controls={`panel-${p.id}`}
             onClick={() => setPestana(p.id)}
-            className={`px-4 py-2 text-sm font-medium ${
+            className={`inline-flex items-center gap-2 px-4 py-2.5 text-sm font-semibold ${
               pestana === p.id ? "border-b-2 border-movii-500 text-gray-900" : "text-gray-500 hover:text-gray-700"
             }`}
           >
+            <p.icono className={`h-4 w-4 ${pestana === p.id ? "text-movii-600" : ""}`} aria-hidden />
             {p.label}
           </button>
         ))}

@@ -121,9 +121,20 @@ export function OperacionesPage() {
     () =>
       conRuta.flatMap((v, i) => {
         const geo = detalles[i]?.data?.recorrido?.geometria;
-        return geo
-          ? [{ id: v.id, nombre: `${v.ruta_nombre} (${v.patente})`, color: colorDe[v.id], geometria: geo, destacada: v.id === seleccionado?.id }]
-          : [];
+        if (!geo) return [];
+        const pendientes = (detalles[i]?.data?.paquetes ?? []).filter((p) => (p.estado === "asignado" || p.estado === "en_camino") && p.coordenadas);
+        const ultimo = pendientes[pendientes.length - 1];
+        return [
+          {
+            id: v.id,
+            nombre: `${v.ruta_nombre} (${v.patente})`,
+            color: colorDe[v.id],
+            geometria: geo,
+            destacada: v.id === seleccionado?.id,
+            destino: ultimo?.coordenadas ? ([ultimo.coordenadas.lat, ultimo.coordenadas.lng] as LatLng) : undefined,
+            destinoTexto: ultimo ? `${v.ruta_nombre}: ${ultimo.direccion}` : v.ruta_nombre,
+          },
+        ];
       }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [conRuta, colorDe, seleccionado?.id, ...detalles.map((d) => d.dataUpdatedAt)],
@@ -295,6 +306,7 @@ export function OperacionesPage() {
                   vehiculos={enMapa}
                   paradas={paradas}
                   rutas={trayecto.data?.recorrido ? rutasEnMapa.map((r) => ({ ...r, destacada: false })) : rutasEnMapa}
+                  deposito={[-31.4279718, -62.0826608]}
                   trayecto={trayecto.data?.recorrido?.geometria ?? null}
                   onVehiculoClick={(id) => setSeleccionadoId(id)}
                   onParadaClick={(id) => setEnvioElegido(id)}

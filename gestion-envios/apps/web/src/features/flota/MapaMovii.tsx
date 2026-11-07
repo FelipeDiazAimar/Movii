@@ -34,6 +34,9 @@ export interface RutaEnMapa {
   color: string;
   geometria: LatLng[];
   destacada?: boolean;
+  /** Última parada pendiente (bandera). Por defecto, el final del recorrido. */
+  destino?: LatLng;
+  destinoTexto?: string;
 }
 
 
@@ -67,22 +70,40 @@ function iconoParada(orden: number, estado: string, destacada: boolean) {
   });
 }
 
-function iconoCamion(rumbo: number, destacado: boolean, aro = "#ffffff") {
-  const fondo = destacado ? "#f4b400" : "#1a1a1a";
-  const trazo = destacado ? "#1a1a1a" : "#f4b400";
+function iconoCamion(rumbo: number, destacado: boolean, color?: string) {
+  // Cada camión del color de su ruta; sin ruta, asfalto con detalle amarillo.
+  const fondo = color ?? (destacado ? "#f4b400" : "#1a1a1a");
+  const trazo = color ? "#ffffff" : destacado ? "#1a1a1a" : "#f4b400";
+  const t = destacado ? 52 : 42;
+  const halo = destacado ? `0 0 0 6px ${fondo}40, 0 4px 14px rgba(0,0,0,.45)` : "0 3px 10px rgba(0,0,0,.4)";
   // La flecha apunta al rumbo (0 = norte); el camión queda siempre derecho.
   return L.divIcon({
     className: "",
-    html: `<div style="position:relative;width:44px;height:44px">
+    html: `<div style="position:relative;width:${t}px;height:${t}px">
       <div style="position:absolute;inset:0;transform:rotate(${rumbo}deg);transition:transform .8s">
-        <div style="position:absolute;left:50%;top:-2px;transform:translateX(-50%);width:0;height:0;border-left:7px solid transparent;border-right:7px solid transparent;border-bottom:10px solid ${fondo}"></div>
+        <div style="position:absolute;left:50%;top:-3px;transform:translateX(-50%);width:0;height:0;border-left:7px solid transparent;border-right:7px solid transparent;border-bottom:11px solid ${fondo}"></div>
       </div>
-      <div style="position:absolute;inset:5px;border-radius:50%;background:${fondo};border:3px solid ${aro};box-shadow:0 3px 10px rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="${trazo}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 3h15v13H1z"/><path d="M16 8h4l3 3v5h-7z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+      <div style="position:absolute;inset:6px;border-radius:50%;background:${fondo};border:3px solid #fff;box-shadow:${halo};display:flex;align-items:center;justify-content:center">
+        <svg width="${destacado ? 20 : 17}" height="${destacado ? 20 : 17}" viewBox="0 0 24 24" fill="none" stroke="${trazo}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 3h15v13H1z"/><path d="M16 8h4l3 3v5h-7z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
       </div>
     </div>`,
-    iconSize: [44, 44],
-    iconAnchor: [22, 22],
+    iconSize: [t, t],
+    iconAnchor: [t / 2, t / 2],
+  });
+}
+
+/** Bandera de destino del color de la ruta. */
+function iconoDestino(color: string) {
+  return L.divIcon({
+    className: "",
+    html: `<div style="position:relative;width:30px;height:38px">
+      <div style="position:absolute;left:4px;top:2px;width:3px;height:34px;border-radius:2px;background:#1a1a1a"></div>
+      <div style="position:absolute;left:7px;top:2px;width:20px;height:14px;border-radius:0 3px 3px 0;background:${color};box-shadow:0 2px 5px rgba(0,0,0,.35);
+        background-image:linear-gradient(45deg,rgba(255,255,255,.35) 25%,transparent 25%,transparent 50%,rgba(255,255,255,.35) 50%,rgba(255,255,255,.35) 75%,transparent 75%);background-size:8px 8px"></div>
+      <div style="position:absolute;left:0;top:32px;width:11px;height:5px;border-radius:50%;background:rgba(0,0,0,.3)"></div>
+    </div>`,
+    iconSize: [30, 38],
+    iconAnchor: [5, 36],
   });
 }
 
@@ -229,6 +250,11 @@ export function MapaMovii({
               >
                 <Tooltip sticky>{r.nombre}</Tooltip>
               </Polyline>
+              <Marker position={r.destino ?? r.geometria[r.geometria.length - 1]} icon={iconoDestino(r.color)} zIndexOffset={r.destacada ? 700 : 300}>
+                <Tooltip direction="top" offset={[8, -34]}>
+                  <strong>Destino</strong> · {r.destinoTexto ?? r.nombre}
+                </Tooltip>
+              </Marker>
             </Fragment>
           ))}
         {recorrido && recorrido.length > 1 && (
@@ -244,8 +270,10 @@ export function MapaMovii({
           </>
         )}
         {deposito && (
-          <Marker position={deposito} icon={iconoDeposito}>
-            <Tooltip direction="top">Depósito central Movii</Tooltip>
+          <Marker position={deposito} icon={iconoDeposito} zIndexOffset={600}>
+            <Tooltip direction="top" offset={[0, -14]}>
+              <strong>Inicio</strong> · Depósito central Movii
+            </Tooltip>
           </Marker>
         )}
         {paradas.map((p) => (

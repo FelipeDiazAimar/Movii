@@ -3,16 +3,15 @@ import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { listarRutas } from "@/features/rutas/api";
 import { EstadoRutaBadge } from "@/components/ui/Badge";
-import { Card, EmptyState } from "@/components/ui/Card";
+import { EmptyState } from "@/components/ui/Card";
 import { Spinner } from "@/components/ui/Spinner";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
-import { InputField } from "@/components/ui/Field";
 import { getApiErrorMessage } from "@/services/api-client";
 import { PageHeader, PAGE_WIDE } from "@/components/ui/PageHeader";
 import { formatearDia } from "@/utils/fechas";
 
-import { Calendar, MapPin, MapPinned, Package, Plus, Route } from "lucide-react";
+import { Calendar, MapPin, MapPinned, Package, Plus, Route, X } from "lucide-react";
 import { SpotlightCard } from "@/components/ui/Efectos";
 export function RutasListPage() {
   const [fecha, setFecha] = useState("");
@@ -28,25 +27,27 @@ export function RutasListPage() {
         title="Rutas" icon={Route}
         description="Rutas de reparto diarias y sus envíos asignados."
         action={
-          <Link to="/rutas/nueva">
-            <Button type="button"><Plus className="h-4 w-4" strokeWidth={2.5} aria-hidden />
-Nueva ruta</Button>
-          </Link>
+          <div className="flex flex-wrap items-center gap-2">
+            <label className="flex h-[42px] items-center gap-2 rounded-xl border border-hormigon-300 bg-white px-3 text-sm text-gray-700 shadow-panel focus-within:ring-2 focus-within:ring-movii-400">
+              <Calendar className="h-4 w-4 text-gray-400" aria-hidden />
+              <span className="sr-only">Fecha</span>
+              <input type="date" aria-label="Fecha" value={fecha} onChange={(e) => setFecha(e.target.value)} className="bg-transparent text-sm outline-none" />
+              {fecha && (
+                <button type="button" onClick={() => setFecha("")} title="Quitar filtro de fecha" className="rounded-md p-0.5 text-gray-400 hover:bg-hormigon-100 hover:text-gray-700">
+                  <X className="h-3.5 w-3.5" aria-hidden />
+                  <span className="sr-only">Quitar filtro de fecha</span>
+                </button>
+              )}
+            </label>
+            <Link to="/rutas/nueva">
+              <Button type="button">
+                <Plus className="h-4 w-4" strokeWidth={2.5} aria-hidden />
+                Nueva ruta
+              </Button>
+            </Link>
+          </div>
         }
       />
-
-      <Card>
-        <div className="flex flex-wrap items-end gap-4">
-          <div className="w-48">
-            <InputField label="Fecha" type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} />
-          </div>
-          {fecha && (
-            <Button type="button" variant="ghost" onClick={() => setFecha("")}>
-              Limpiar filtro
-            </Button>
-          )}
-        </div>
-      </Card>
 
       {isLoading && <Spinner label="Cargando rutas…" />}
       {isError && <Alert variant="error">{getApiErrorMessage(error, "No se pudieron cargar las rutas")}</Alert>}
