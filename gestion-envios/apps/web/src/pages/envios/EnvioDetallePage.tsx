@@ -9,7 +9,7 @@ import { Dato } from "@/components/ui/Dato";
 import { AsignacionCard } from "@/features/envios/AsignacionCard";
 import { EstadoEnvioBadge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
-import { Spinner } from "@/components/ui/Spinner";
+import { SkeletonPagina } from "@/components/ui/Skeleton";
 import { BotonEliminar } from "@/components/ui/BotonEliminar";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
@@ -107,7 +107,7 @@ export function EnvioDetallePage() {
     enabled: Boolean(id),
   });
 
-  if (isLoading) return <Spinner label="Cargando envío…" />;
+  if (isLoading) return <SkeletonPagina label="Cargando envío…" />;
   if (isError) return <Alert variant="error">{getApiErrorMessage(error, "No se pudo cargar el envío")}</Alert>;
   if (!envio) return null;
 

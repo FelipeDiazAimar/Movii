@@ -7,7 +7,7 @@ import { useFlotaEnVivo } from "@/features/flota/useFlotaEnVivo";
 import { MapaMovii, type ParadaEnMapa, type RutaEnMapa, type VehiculoEnMapa } from "@/features/flota/MapaMovii";
 import { TruckIllustration } from "@/features/flota/TruckIllustration";
 import { ContenedorPaquetes } from "@/features/flota/ContenedorPaquetes";
-import { COLORES_RUTA } from "@/features/flota/colores";
+import { colorDeVehiculo } from "@/features/flota/colores";
 import { CapacityGauge } from "@/features/flota/CapacityGauge";
 import { VehicleSlider } from "@/features/flota/VehicleSlider";
 import { LineaDeParadas } from "@/features/flota/LineaDeParadas";
@@ -15,6 +15,7 @@ import { ETIQUETA_ESTADO_VEHICULO, ETIQUETA_TIPO_VEHICULO, type LatLng, type Veh
 import { EstadoEnvioBadge } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/Card";
 import { Spinner } from "@/components/ui/Spinner";
+import { SkeletonPagina } from "@/components/ui/Skeleton";
 import { Alert } from "@/components/ui/Alert";
 import { getApiErrorMessage } from "@/services/api-client";
 import { formatearFecha, formatearHora } from "@/utils/fechas";
@@ -107,7 +108,7 @@ export function OperacionesPage() {
   const conRuta = useMemo(() => vehiculos.filter((v) => v.ruta_id), [vehiculos]);
   const colorDe = useMemo(() => {
     const m: Record<string, string> = {};
-    conRuta.forEach((v, i) => (m[v.id] = COLORES_RUTA[i % COLORES_RUTA.length]));
+    conRuta.forEach((v, i) => (m[v.id] = colorDeVehiculo(v.color, i)));
     return m;
   }, [conRuta]);
   const detalles = useQueries({
@@ -178,7 +179,7 @@ export function OperacionesPage() {
     [paquetes, envioElegido],
   );
 
-  if (dashboard.isLoading || flota.isLoading) return <Spinner label="Cargando el centro de operaciones…" />;
+  if (dashboard.isLoading || flota.isLoading) return <SkeletonPagina label="Cargando el centro de operaciones…" />;
   if (flota.isError) return <Alert variant="error">{getApiErrorMessage(flota.error, "No se pudo cargar la flota")}</Alert>;
 
   const m = dashboard.data?.metricas;

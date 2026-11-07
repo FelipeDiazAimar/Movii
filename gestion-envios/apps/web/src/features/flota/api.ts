@@ -21,6 +21,10 @@ export async function actualizarVehiculo(id: string, input: VehiculoInput): Prom
   return data;
 }
 
+export async function eliminarVehiculo(id: string): Promise<void> {
+  await apiClient.delete(`/vehiculos/${id}`);
+}
+
 /** Asigna el vehículo a la ruta; con vehiculoId vacío lo quita. */
 export async function asignarVehiculoARuta(rutaId: string, vehiculoId: string): Promise<void> {
   await apiClient.put(`/rutas/${rutaId}/vehiculo`, { vehiculo_id: vehiculoId });

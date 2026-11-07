@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { actualizarVehiculo, crearVehiculo, listarFlota } from "@/features/flota/api";
+import { actualizarVehiculo, crearVehiculo, eliminarVehiculo, listarFlota } from "@/features/flota/api";
 import {
   ETIQUETA_ESTADO_VEHICULO,
   ETIQUETA_TIPO_VEHICULO,
@@ -10,6 +10,10 @@ import {
   type Vehiculo,
   type VehiculoInput,
 } from "@/features/flota/types";
+import { BarraFiltros } from "@/components/ui/BarraFiltros";
+import { BotonEliminar } from "@/components/ui/BotonEliminar";
+import { PALETA_VEHICULO, esColorHex } from "@/features/flota/colores";
+import { filtrarVehiculos } from "@/features/flota/filtros";
 import { Card, EmptyState } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Alert } from "@/components/ui/Alert";
@@ -21,7 +25,7 @@ import { getApiErrorMessage } from "@/services/api-client";
 import { Box, Gauge, Package, Pencil, Plus, Route, Truck, Weight } from "lucide-react";
 import { SpotlightCard } from "@/components/ui/Efectos";
 import { TruckIllustration } from "@/features/flota/TruckIllustration";
-const VACIO: VehiculoInput = { patente: "", modelo: "", tipo: "camion", capacidad_peso: 3500, capacidad_volumen: 20, estado: "en_base" };
+const VACIO: VehiculoInput = { patente: "", modelo: "", tipo: "camion", capacidad_peso: 3500, capacidad_volumen: 20, estado: "en_base", color: "" };
 
 const PUNTO_ESTADO: Record<EstadoVehiculo, string> = { activo: "bg-green-500", en_base: "bg-gray-400", mantenimiento: "bg-red-500" };
 
@@ -99,14 +103,66 @@ function FormVehiculo({ inicial, editando, onListo }: { inicial: VehiculoInput; 
 }
 
 function aInput(v: Vehiculo): VehiculoInput {
-  return { patente: v.patente, modelo: v.modelo, tipo: v.tipo, capacidad_peso: v.capacidad_peso, capacidad_volumen: v.capacidad_volumen, estado: v.estado };
+  return { patente: v.patente, modelo: v.modelo, tipo: v.tipo, capacidad_peso: v.capacidad_peso, capacidad_volumen: v.capacidad_volumen, estado: v.estado, color: v.color };
+}
+
+/** Paleta + input de color; guarda al elegir (PUT /vehiculos/{id}). Vacío = automático. */
+function SelectorColor({ v }: { v: Vehiculo }) {
+  const queryClient = useQueryClient();
+  const guardar = useMutation({
+    mutationFn: (color: string) => actualizarVehiculo(v.id, { ...aInput(v), color }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["operaciones", "flota"] }),
+  });
+  return (
+    <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label={`Color de ${v.patente}`}>
+      <button
+        type="button"
+        onClick={() => guardar.mutate("")}
+        disabled={guardar.isPending}
+        className={`rounded-full border px-2 py-0.5 text-[11px] font-semibold ${v.color ? "border-hormigon-200 text-gray-500" : "border-gray-900 text-gray-900"}`}
+      >
+        Auto
+      </button>
+      {PALETA_VEHICULO.map((c) => (
+        <button
+          key={c}
+          type="button"
+          title={c}
+          aria-label={`Color ${c}`}
+          disabled={guardar.isPending}
+          onClick={() => guardar.mutate(c)}
+          style={{ backgroundColor: c }}
+          className={`h-5 w-5 rounded-full border-2 ${v.color.toLowerCase() === c ? "border-gray-900" : "border-white shadow"}`}
+        />
+      ))}
+      <input
+        type="color"
+        aria-label="Color personalizado"
+        value={esColorHex(v.color) ? v.color : "#f4b400"}
+        disabled={guardar.isPending}
+        onChange={(e) => guardar.mutate(e.target.value)}
+        className="h-6 w-8 cursor-pointer rounded border border-hormigon-200 bg-white p-0"
+      />
+      {guardar.isError && <span className="text-xs text-red-600">{getApiErrorMessage(guardar.error, "No se pudo guardar el color")}</span>}
+    </div>
+  );
 }
 
 /** HU-18: alta y estado de los vehículos de la flota. */
 export function VehiculosPage() {
   const [nuevo, setNuevo] = useState(false);
   const [editando, setEditando] = useState<string | null>(null);
+  const [busqueda, setBusqueda] = useState("");
+  const [estado, setEstado] = useState("");
+  const [tipo, setTipo] = useState("");
   const { data, isLoading, isError, error } = useQuery({ queryKey: ["operaciones", "flota"], queryFn: () => listarFlota() });
+  const visibles = data ? filtrarVehiculos(data, { busqueda, estado, tipo }) : [];
+  const hayFiltros = Boolean(busqueda || estado || tipo);
+  const limpiar = () => {
+    setBusqueda("");
+    setEstado("");
+    setTipo("");
+  };
 
   return (
     <div className={PAGE_WIDE}>
@@ -132,8 +188,36 @@ export function VehiculosPage() {
       {isError && <Alert variant="error">{getApiErrorMessage(error, "No se pudo cargar la flota")}</Alert>}
       {data && data.length === 0 && <EmptyState title="Todavía no hay vehículos" />}
       {data && data.length > 0 && (
+        <BarraFiltros
+          busqueda={busqueda}
+          onBusqueda={setBusqueda}
+          placeholder="Buscar por patente, modelo, chofer o ruta…"
+          hayFiltros={hayFiltros}
+          onLimpiar={limpiar}
+          resumen={`${visibles.length} de ${data.length}`}
+        >
+          <SelectField label="Estado" value={estado} onChange={(e) => setEstado(e.target.value)}>
+            <option value="">Todos</option>
+            {Object.entries(ETIQUETA_ESTADO_VEHICULO).map(([k, label]) => (
+              <option key={k} value={k}>
+                {label}
+              </option>
+            ))}
+          </SelectField>
+          <SelectField label="Tipo" value={tipo} onChange={(e) => setTipo(e.target.value)}>
+            <option value="">Todos</option>
+            {Object.entries(ETIQUETA_TIPO_VEHICULO).map(([k, label]) => (
+              <option key={k} value={k}>
+                {label}
+              </option>
+            ))}
+          </SelectField>
+        </BarraFiltros>
+      )}
+      {data && data.length > 0 && visibles.length === 0 && <EmptyState title="Ningún vehículo coincide con la búsqueda" />}
+      {visibles.length > 0 && (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {data.map((v) => (
+          {visibles.map((v) => (
             <SpotlightCard key={v.id} className="flex flex-col">
               {editando === v.id ? (
                 <div className="p-5">
@@ -157,6 +241,7 @@ export function VehiculosPage() {
                     <TruckIllustration
                       containerCode={v.patente}
                       color={v.estado === "mantenimiento" ? "blanco" : "amarillo"}
+                      colorHex={v.estado === "mantenimiento" ? undefined : v.color}
                       className={`-mb-2 mt-1 ${v.estado === "mantenimiento" ? "opacity-70 grayscale" : ""}`}
                     />
                   </div>
@@ -202,7 +287,9 @@ export function VehiculosPage() {
                         <p className="flex-1 text-gray-400">Sin ruta asignada hoy</p>
                       )}
                     </div>
-                    <div className="mt-auto flex justify-end">
+                    <SelectorColor v={v} />
+                    <div className="mt-auto flex justify-end gap-2">
+                      <BotonEliminar nombre={v.patente} eliminar={() => eliminarVehiculo(v.id)} invalidar={[["operaciones", "flota"]]} />
                       <Button type="button" variant="secondary" onClick={() => setEditando(v.id)}>
                         <Pencil className="h-4 w-4" aria-hidden />
                         Editar

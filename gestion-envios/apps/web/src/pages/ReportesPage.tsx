@@ -1,7 +1,7 @@
 import { Ban, BarChart3, CalendarRange, CircleHelp, Download, Hash, MapPin, MapPinOff, Medal, Package, ShieldAlert, TriangleAlert, Trophy, UserRound, UserX, type LucideIcon } from "lucide-react";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { useState } from "react";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery } from "@tanstack/react-query";
 import {
   descargarReporteEnviosCSV,
   rankingRepartidores,
@@ -13,7 +13,7 @@ import { EstadoEnvioBadge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card, EmptyState } from "@/components/ui/Card";
 import { InputField, SelectField } from "@/components/ui/Field";
-import { Spinner } from "@/components/ui/Spinner";
+import { SkeletonTabla } from "@/components/ui/Skeleton";
 import { Alert } from "@/components/ui/Alert";
 import { getApiErrorMessage } from "@/services/api-client";
 
@@ -28,7 +28,7 @@ const PESTANAS: Array<{ id: Pestana; label: string; icono: LucideIcon }> = [
 const ESTADOS = ["pendiente", "asignado", "en_camino", "entregado", "no_entregado"];
 
 function Estado({ cargando, error, fallback }: { cargando: boolean; error: unknown; fallback: string }) {
-  if (cargando) return <Spinner />;
+  if (cargando) return <SkeletonTabla filas={4} label="Cargando reporte…" />;
   if (error) return <Alert variant="error">{getApiErrorMessage(error, fallback)}</Alert>;
   return null;
 }
@@ -36,7 +36,7 @@ function Estado({ cargando, error, fallback }: { cargando: boolean; error: unkno
 function TabEnvios({ desde, hasta }: { desde: string; hasta: string }) {
   const [estado, setEstado] = useState("");
   const filtro = { desde, hasta, estado };
-  const q = useQuery({ queryKey: ["reportes", "envios", desde, hasta, estado], queryFn: () => reporteEnvios(filtro) });
+  const q = useQuery({ queryKey: ["reportes", "envios", desde, hasta, estado], queryFn: () => reporteEnvios(filtro), placeholderData: keepPreviousData });
   const csv = useMutation({ mutationFn: () => descargarReporteEnviosCSV(filtro) });
 
   return (
@@ -111,7 +111,7 @@ function TabEnvios({ desde, hasta }: { desde: string; hasta: string }) {
 }
 
 function TabRepartidores({ desde, hasta }: { desde: string; hasta: string }) {
-  const q = useQuery({ queryKey: ["reportes", "repartidores", desde, hasta], queryFn: () => rankingRepartidores({ desde, hasta }) });
+  const q = useQuery({ queryKey: ["reportes", "repartidores", desde, hasta], queryFn: () => rankingRepartidores({ desde, hasta }), placeholderData: keepPreviousData });
   const ranking = q.data?.ranking ?? [];
   const medallas = ["bg-amber-100 border-amber-300", "bg-gray-100 border-gray-300", "bg-orange-100 border-orange-300"];
 
@@ -184,7 +184,7 @@ const ICONO_MOTIVO: Record<string, LucideIcon> = {
 };
 
 function TabIncidencias({ desde, hasta }: { desde: string; hasta: string }) {
-  const q = useQuery({ queryKey: ["reportes", "incidencias", desde, hasta], queryFn: () => reporteIncidencias({ desde, hasta }) });
+  const q = useQuery({ queryKey: ["reportes", "incidencias", desde, hasta], queryFn: () => reporteIncidencias({ desde, hasta }), placeholderData: keepPreviousData });
 
   return (
     <div className="flex flex-col gap-4">
@@ -233,13 +233,17 @@ export function ReportesPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <PageHeader title="Reportes" icon={BarChart3} description="Envíos, desempeño de repartidores e incidencias del período elegido." />
-
-      <div className="flex flex-wrap items-start gap-3 rounded-panel border border-hormigon-200 bg-white p-4 shadow-panel">
-        <CalendarRange className="mt-8 h-5 w-5 text-gray-400" aria-hidden />
-        <InputField label="Desde" type="date" value={desde} onChange={(e) => setDesde(e.target.value)} />
-        <InputField label="Hasta" type="date" value={hasta} onChange={(e) => setHasta(e.target.value)} error={errorPeriodo} />
-      </div>
+      <PageHeader
+        title="Reportes" icon={BarChart3}
+        description="Envíos, desempeño de repartidores e incidencias del período elegido."
+        action={
+          <div className="flex flex-wrap items-end gap-3">
+            <CalendarRange className="mb-2.5 h-5 w-5 text-gray-400" aria-hidden />
+            <InputField label="Desde" type="date" value={desde} onChange={(e) => setDesde(e.target.value)} />
+            <InputField label="Hasta" type="date" value={hasta} onChange={(e) => setHasta(e.target.value)} aria-invalid={Boolean(errorPeriodo)} />
+          </div>
+        }
+      />
 
       <div role="tablist" aria-label="Reportes" className="flex gap-1 border-b border-gray-200">
         {PESTANAS.map((p) => (

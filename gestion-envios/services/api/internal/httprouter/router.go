@@ -93,6 +93,7 @@ func New(deps Deps) http.Handler {
 				adminOnly.Delete("/users/{id}", deps.EliminarHandler.Usuario)
 				adminOnly.Delete("/rutas/{id}", deps.EliminarHandler.Ruta)
 				adminOnly.Delete("/envios/{id}", deps.EliminarHandler.Envio)
+				adminOnly.Delete("/vehiculos/{id}", deps.EliminarHandler.Vehiculo)
 			}
 			if deps.WhatsappHandler != nil {
 				adminOnly.Put("/users/{id}/telefono", deps.WhatsappHandler.ActualizarTelefono)

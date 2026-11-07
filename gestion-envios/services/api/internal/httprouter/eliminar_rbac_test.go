@@ -27,7 +27,7 @@ func TestDelete_SoloAdmin(t *testing.T) {
 	h := New(Deps{JWTSecret: "s", CORSOrigins: []string{"*"}, EliminarHandler: handlers.NewEliminarHandler(nil)})
 	id := "11111111-1111-1111-1111-111111111111"
 	for _, rol := range []string{domain.RolOperador, domain.RolRepartidor} {
-		for _, path := range []string{"/rutas/" + id, "/envios/" + id, "/users/" + id} {
+		for _, path := range []string{"/rutas/" + id, "/envios/" + id, "/users/" + id, "/vehiculos/" + id} {
 			req := httptest.NewRequest(http.MethodDelete, path, nil)
 			req.Header.Set("Authorization", "Bearer "+tokenDe(t, rol))
 			rec := httptest.NewRecorder()

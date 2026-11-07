@@ -1968,6 +1968,22 @@ paths:
         "401": { $ref: "#/components/responses/NoAutenticado" }
         "403": { $ref: "#/components/responses/RolNoAutorizado" }
         "404": { description: "No existe (`no_encontrado`).", content: { application/json: { schema: { $ref: "#/components/schemas/ApiError" } } } }
+    delete:
+      tags: [flota]
+      summary: Eliminar un vehículo (borrado físico)
+      description: Solo admin. Bloqueado (423 `vehiculo_en_uso`) si tiene una ruta planificada o en curso.
+      operationId: eliminarVehiculo
+      x-required-role: [admin]
+      security:
+        - bearerAuth: []
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "204": { description: Eliminado. }
+        "401": { $ref: "#/components/responses/NoAutenticado" }
+        "403": { $ref: "#/components/responses/RolNoAutorizado" }
+        "404": { description: "No existe (`no_encontrado`).", content: { application/json: { schema: { $ref: "#/components/schemas/ApiError" } } } }
+        "423": { description: "Tiene una ruta planificada o en curso (`vehiculo_en_uso`).", content: { application/json: { schema: { $ref: "#/components/schemas/ApiError" } } } }
 
   /rutas/{id}/vehiculo:
     put:
@@ -3112,6 +3128,7 @@ components:
         capacidad_peso: { type: number, description: kg }
         capacidad_volumen: { type: number, description: m3 }
         estado: { type: string, enum: [activo, en_base, mantenimiento] }
+        color: { type: string, example: "#f4b400", description: "Color propio #RRGGBB; vacío = automático." }
         latitud: { type: number }
         longitud: { type: number }
         velocidad: { type: number, description: km/h }
@@ -3140,6 +3157,7 @@ components:
         capacidad_peso: { type: number, description: "Mayor a 0." }
         capacidad_volumen: { type: number, description: "Mayor a 0." }
         estado: { type: string, enum: [activo, en_base, mantenimiento], default: en_base }
+        color: { type: string, example: "#f4b400", description: "#RRGGBB; vacío = automático. Otro formato da 400 `vehiculo_invalido`." }
 
     PaqueteVehiculo:
       type: object

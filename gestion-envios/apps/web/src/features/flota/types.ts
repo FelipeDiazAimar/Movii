@@ -19,6 +19,8 @@ export interface Vehiculo {
   capacidad_peso: number;
   capacidad_volumen: number;
   estado: EstadoVehiculo;
+  /** #RRGGBB propio; vacío = automático. */
+  color: string;
   latitud: number;
   longitud: number;
   velocidad: number;
@@ -89,6 +91,7 @@ export interface VehiculoInput {
   capacidad_peso: number;
   capacidad_volumen: number;
   estado: EstadoVehiculo;
+  color?: string;
 }
 
 export const ETIQUETA_ESTADO_VEHICULO: Record<EstadoVehiculo, string> = {

@@ -1,12 +1,14 @@
 import { formatearFecha } from "@/utils/fechas";
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { listarEnvios, eliminarEnvio } from "@/features/envios/api";
 import { type EstadoEnvio } from "@/features/envios/types";
 import { EstadoEnvioBadge } from "@/components/ui/Badge";
 import { Card, EmptyState } from "@/components/ui/Card";
-import { Spinner } from "@/components/ui/Spinner";
+import { SkeletonTabla } from "@/components/ui/Skeleton";
+import { BarraFiltros } from "@/components/ui/BarraFiltros";
+import { filtrarEnvios } from "@/utils/filtros";
 import { BotonEliminar } from "@/components/ui/BotonEliminar";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
@@ -27,11 +29,14 @@ const FILTROS: { valor: EstadoEnvio | ""; etiqueta: string; icono: LucideIcon }[
 export function EnviosListPage() {
   const [estado, setEstado] = useState<EstadoEnvio | "">("");
   const [fecha, setFecha] = useState("");
+  const [busqueda, setBusqueda] = useState("");
 
   const { data, isLoading, isError, error } = useQuery({
     queryKey: ["envios", { estado, fecha }],
     queryFn: () => listarEnvios({ estado: estado || undefined, fecha: fecha || undefined }),
+    placeholderData: keepPreviousData,
   });
+  const visibles = data ? filtrarEnvios(data, busqueda) : [];
   // Contadores por estado (misma fecha, sin filtrar por estado).
   const todos = useQuery({ queryKey: ["envios", { fecha }], queryFn: () => listarEnvios({ fecha: fecha || undefined }) });
   const contar = (e: EstadoEnvio | "") => (todos.data ?? []).filter((x) => !e || x.estado === e).length;
@@ -64,6 +69,15 @@ export function EnviosListPage() {
         }
       />
 
+      <BarraFiltros
+        busqueda={busqueda}
+        onBusqueda={setBusqueda}
+        placeholder="Buscar por guía, destinatario, dirección, ruta o repartidor"
+        hayFiltros={Boolean(busqueda || estado || fecha)}
+        onLimpiar={() => { setBusqueda(""); setEstado(""); setFecha(""); }}
+        resumen={data ? `${visibles.length} de ${data.length}` : undefined}
+      />
+
       <div className="flex gap-2 overflow-x-auto pb-1" role="tablist" aria-label="Filtrar por estado">
         {FILTROS.map((f) => {
           const activo = estado === f.valor;
@@ -86,14 +100,16 @@ export function EnviosListPage() {
         })}
       </div>
 
-      {isLoading && <Spinner label="Cargando envíos…" />}
+      {isLoading && <SkeletonTabla label="Cargando envíos…" />}
       {isError && <Alert variant="error">{getApiErrorMessage(error, "No se pudieron cargar los envíos")}</Alert>}
 
       {data && data.length === 0 && (
         <EmptyState title="No hay envíos" description="Todavía no se registró ningún envío con estos filtros." />
       )}
 
-      {data && data.length > 0 && (
+      {data && data.length > 0 && visibles.length === 0 && <EmptyState title="Ningún envío coincide con la búsqueda" />}
+
+      {visibles.length > 0 && (
         <Card className="overflow-x-auto p-0">
           <table className="min-w-full divide-y divide-hormigon-200 text-sm">
             <thead className="bg-hormigon-50 text-left text-xs font-semibold text-gray-500">
@@ -110,7 +126,7 @@ export function EnviosListPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-hormigon-100">
-              {data.map((envio) => (
+              {visibles.map((envio) => (
                 <tr key={envio.id} className="transition-colors hover:bg-movii-50/40">
                   <td className="px-4 py-3 font-medium text-gray-900">
                     <Link to={`/envios/${envio.id}`} className="inline-flex items-center gap-2 hover:text-movii-700">

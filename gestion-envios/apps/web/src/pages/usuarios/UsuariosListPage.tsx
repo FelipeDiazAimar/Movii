@@ -1,8 +1,11 @@
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { listarUsuarios, eliminarUsuario } from "@/features/usuarios/api";
 import { Card, EmptyState } from "@/components/ui/Card";
-import { Spinner } from "@/components/ui/Spinner";
+import { SkeletonTabla } from "@/components/ui/Skeleton";
+import { BarraFiltros, FiltroSelect } from "@/components/ui/BarraFiltros";
+import { filtrarUsuarios } from "@/utils/filtros";
 import { BotonEliminar } from "@/components/ui/BotonEliminar";
 import { useAuth } from "@/hooks/useAuth";
 import { Alert } from "@/components/ui/Alert";
@@ -21,6 +24,10 @@ export function UsuariosListPage() {
     queryKey: ["usuarios"],
     queryFn: listarUsuarios,
   });
+  const [busqueda, setBusqueda] = useState("");
+  const [rol, setRol] = useState("");
+  const [estado, setEstado] = useState("");
+  const visibles = data ? filtrarUsuarios(data, { busqueda, rol, estado }) : [];
 
   return (
     <div className={PAGE_WIDE}>
@@ -35,11 +42,36 @@ Nuevo usuario</Button>
         }
       />
 
-      {isLoading && <Spinner label="Cargando usuarios…" />}
+      {data && data.length > 0 && (
+        <BarraFiltros
+          busqueda={busqueda}
+          onBusqueda={setBusqueda}
+          placeholder="Buscar por nombre, email o teléfono"
+          hayFiltros={Boolean(busqueda || rol || estado)}
+          onLimpiar={() => { setBusqueda(""); setRol(""); setEstado(""); }}
+          resumen={`${visibles.length} de ${data.length}`}
+        >
+          <FiltroSelect label="Rol" value={rol} onChange={setRol}>
+            <option value="">Todos</option>
+            <option value="operador">Operador</option>
+            <option value="repartidor">Repartidor</option>
+            <option value="admin">Admin</option>
+          </FiltroSelect>
+          <FiltroSelect label="Estado" value={estado} onChange={setEstado}>
+            <option value="">Todos</option>
+            <option value="activo">Activo</option>
+            <option value="inactivo">Inactivo</option>
+          </FiltroSelect>
+        </BarraFiltros>
+      )}
+
+      {isLoading && <SkeletonTabla label="Cargando usuarios…" />}
       {isError && <Alert variant="error">{getApiErrorMessage(error, "No se pudieron cargar los usuarios")}</Alert>}
       {data && data.length === 0 && <EmptyState title="No hay usuarios cargados" />}
 
-      {data && data.length > 0 && (
+      {data && data.length > 0 && visibles.length === 0 && <EmptyState title="Ningún usuario coincide con los filtros" />}
+
+      {visibles.length > 0 && (
         <Card className="overflow-x-auto p-0">
           <table className="min-w-full divide-y divide-hormigon-200 text-sm">
             <thead className="bg-hormigon-50 text-left text-xs font-semibold text-gray-500">
@@ -53,7 +85,7 @@ Nuevo usuario</Button>
               </tr>
             </thead>
             <tbody className="divide-y divide-hormigon-100">
-              {data.map((usuario) => (
+              {visibles.map((usuario) => (
                 <tr key={usuario.id} className="transition-colors hover:bg-movii-50/40">
                   <td className="px-4 py-3 font-medium text-gray-900">
                     <span className="flex items-center gap-3">

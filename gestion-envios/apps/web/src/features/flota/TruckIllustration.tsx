@@ -1,4 +1,5 @@
 import { useId } from "react";
+import { aclarar, esColorHex } from "./colores";
 
 type TruckIllustrationProps = {
   /** Texto pintado en la caja (la patente). */
@@ -6,6 +7,8 @@ type TruckIllustrationProps = {
   className?: string;
   /** Color de la caja de carga. */
   color?: "amarillo" | "naranja" | "blanco";
+  /** #RRGGBB propio del vehículo: pisa a `color`. */
+  colorHex?: string;
 };
 
 const CAJAS = {
@@ -45,9 +48,11 @@ function Rueda({ x, y, r, id }: { x: number; y: number; r: number; id: string })
  * Camión de reparto en vista lateral, con volumen y luces (SVG, sin imágenes
  * externas). La caja lleva la patente pintada.
  */
-export function TruckIllustration({ containerCode = "MOVII", className = "", color = "amarillo" }: TruckIllustrationProps) {
+export function TruckIllustration({ containerCode = "MOVII", className = "", color = "amarillo", colorHex }: TruckIllustrationProps) {
   const id = useId().replace(/:/g, "");
-  const c = CAJAS[color];
+  const c = esColorHex(colorHex)
+    ? { base: colorHex, claro: aclarar(colorHex, 0.35), oscuro: aclarar(colorHex, -0.3), nervio: aclarar(colorHex, -0.15) }
+    : CAJAS[color];
   const nervios = Array.from({ length: 22 }, (_, i) => 62 + i * 20.5);
 
   return (

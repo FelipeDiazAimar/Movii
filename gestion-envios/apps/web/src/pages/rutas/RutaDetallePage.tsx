@@ -8,7 +8,7 @@ import { AsignarEnviosPanel } from "@/features/rutas/AsignarEnviosPanel";
 import type { RutaInput } from "@/features/rutas/types";
 import { EstadoRutaBadge, EstadoEnvioBadge } from "@/components/ui/Badge";
 import { Card, EmptyState } from "@/components/ui/Card";
-import { Spinner } from "@/components/ui/Spinner";
+import { SkeletonPagina } from "@/components/ui/Skeleton";
 import { BotonEliminar } from "@/components/ui/BotonEliminar";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
@@ -59,7 +59,7 @@ export function RutaDetallePage() {
     },
   });
 
-  if (isLoading) return <Spinner label="Cargando ruta…" />;
+  if (isLoading) return <SkeletonPagina label="Cargando ruta…" />;
   if (isError) return <Alert variant="error">{getApiErrorMessage(error, "No se pudo cargar la ruta")}</Alert>;
   if (!ruta) return null;
 

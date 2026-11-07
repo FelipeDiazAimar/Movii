@@ -14,6 +14,7 @@ import (
 )
 
 var (
+	colorValido = regexp.MustCompile(`^#[0-9A-Fa-f]{6}$`)
 	// ErrVehiculoInvalido: faltan datos, la patente no tiene formato válido o tipo/estado/capacidad no son válidos.
 	ErrVehiculoInvalido = errors.New("vehiculo invalido")
 	// ErrVehiculoNoDisponible: el vehículo está en mantenimiento y no puede salir a ruta.
@@ -118,6 +119,7 @@ func normalizarVehiculo(v domain.Vehiculo) (domain.Vehiculo, error) {
 	}
 	if !patenteValida.MatchString(v.Patente) || v.Modelo == "" || len(v.Modelo) > 60 ||
 		!slices.Contains(domain.TiposVehiculo, v.Tipo) || !slices.Contains(domain.EstadosVehiculo, v.Estado) ||
+		(v.Color != "" && !colorValido.MatchString(v.Color)) ||
 		v.CapacidadPeso <= 0 || v.CapacidadVolumen <= 0 {
 		return domain.Vehiculo{}, ErrVehiculoInvalido
 	}

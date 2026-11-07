@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { listarRepartidores } from "@/features/usuarios/api";
@@ -6,13 +7,18 @@ import { getApiErrorMessage } from "@/services/api-client";
 import { Alert } from "@/components/ui/Alert";
 import { Card, EmptyState } from "@/components/ui/Card";
 import { PageHeader, PAGE_WIDE } from "@/components/ui/PageHeader";
-import { Spinner } from "@/components/ui/Spinner";
+import { SkeletonTabla } from "@/components/ui/Skeleton";
+import { BarraFiltros, FiltroSelect } from "@/components/ui/BarraFiltros";
+import { filtrarRepartidores } from "@/utils/filtros";
 
 import { ChevronRight, Package, Route, Truck, UserRound } from "lucide-react";
 export function RepartidoresListPage() {
   const repartidores = useQuery({ queryKey: ["repartidores"], queryFn: listarRepartidores });
   const rutas = useQuery({ queryKey: ["rutas", { fecha: undefined }], queryFn: () => listarRutas({}) });
 
+  const [busqueda, setBusqueda] = useState("");
+  const [conRuta, setConRuta] = useState("");
+  const visibles = repartidores.data ? filtrarRepartidores(repartidores.data, rutas.data ?? [], { busqueda, conRuta }) : [];
   const cargando = repartidores.isLoading || rutas.isLoading;
   const error = repartidores.error ?? rutas.error;
 
@@ -20,14 +26,33 @@ export function RepartidoresListPage() {
     <div className={PAGE_WIDE}>
       <PageHeader title="Repartidores" icon={UserRound} description="Quién reparte, con qué rutas y cuántos envíos tiene a cargo." />
 
-      {cargando && <Spinner label="Cargando repartidores…" />}
+      {repartidores.data && repartidores.data.length > 0 && (
+        <BarraFiltros
+          busqueda={busqueda}
+          onBusqueda={setBusqueda}
+          placeholder="Buscar por nombre o ruta"
+          hayFiltros={Boolean(busqueda || conRuta)}
+          onLimpiar={() => { setBusqueda(""); setConRuta(""); }}
+          resumen={`${visibles.length} de ${repartidores.data.length}`}
+        >
+          <FiltroSelect label="Rutas" value={conRuta} onChange={setConRuta}>
+            <option value="">Todos</option>
+            <option value="con">Con rutas</option>
+            <option value="sin">Sin rutas</option>
+          </FiltroSelect>
+        </BarraFiltros>
+      )}
+
+      {cargando && <SkeletonTabla label="Cargando repartidores…" />}
       {error && <Alert variant="error">{getApiErrorMessage(error, "No se pudieron cargar los repartidores")}</Alert>}
 
       {repartidores.data && repartidores.data.length === 0 && (
         <EmptyState title="No hay repartidores" description="Un admin puede crear usuarios con rol repartidor." />
       )}
 
-      {repartidores.data && repartidores.data.length > 0 && (
+      {repartidores.data && repartidores.data.length > 0 && visibles.length === 0 && <EmptyState title="Ningún repartidor coincide con los filtros" />}
+
+      {visibles.length > 0 && (
         <Card className="overflow-x-auto p-0">
           <table className="min-w-full divide-y divide-hormigon-200 text-sm">
             <thead className="bg-hormigon-50 text-left text-xs font-semibold text-gray-500">
@@ -39,7 +64,7 @@ export function RepartidoresListPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-hormigon-100">
-              {repartidores.data.map((r) => {
+              {visibles.map((r) => {
                 const suyas = (rutas.data ?? []).filter((x) => x.repartidor_id === r.id);
                 const envios = suyas.reduce((n, x) => n + x.cantidad_envios, 0);
                 return (

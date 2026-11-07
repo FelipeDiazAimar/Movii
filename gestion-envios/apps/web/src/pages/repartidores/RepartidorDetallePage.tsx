@@ -11,7 +11,7 @@ import { Card, EmptyState } from "@/components/ui/Card";
 import { Dato } from "@/components/ui/Dato";
 import { SelectField } from "@/components/ui/Field";
 import { PageHeader, PAGE_WIDE } from "@/components/ui/PageHeader";
-import { Spinner } from "@/components/ui/Spinner";
+import { SkeletonPagina } from "@/components/ui/Skeleton";
 
 import { Plus } from "lucide-react";
 export function RepartidorDetallePage() {
@@ -39,7 +39,7 @@ export function RepartidorDetallePage() {
     },
   });
 
-  if (repartidores.isLoading || rutas.isLoading) return <Spinner label="Cargando repartidor…" />;
+  if (repartidores.isLoading || rutas.isLoading) return <SkeletonPagina label="Cargando repartidor…" />;
   if (!repartidor) return <Alert variant="error">No se encontró al repartidor.</Alert>;
 
   const envios = suyas.reduce((n, r) => n + r.cantidad_envios, 0);

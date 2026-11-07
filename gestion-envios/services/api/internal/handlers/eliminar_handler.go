@@ -120,3 +120,29 @@ func (h *EliminarHandler) Usuario(w http.ResponseWriter, r *http.Request) {
 		bloqueado(w, "ultimo_admin", "no se puede eliminar al último admin")
 	}
 }
+
+// Vehiculo maneja DELETE /vehiculos/{id}: no se borra si tiene una ruta planificada o en curso.
+func (h *EliminarHandler) Vehiculo(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	tag, err := h.pool.Exec(r.Context(), `
+		DELETE FROM vehiculos v WHERE v.id = $1
+		AND NOT EXISTS (SELECT 1 FROM rutas r WHERE r.vehiculo_id = v.id AND r.estado IN ('planificada', 'en_curso'))`, id)
+	if err != nil {
+		httpx.WriteError(w, http.StatusInternalServerError, "error_interno", "no se pudo eliminar el vehículo")
+		return
+	}
+	if tag.RowsAffected() == 1 {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+	var existe bool
+	if err := h.pool.QueryRow(r.Context(), `SELECT EXISTS (SELECT 1 FROM vehiculos WHERE id = $1)`, id).Scan(&existe); err != nil {
+		httpx.WriteError(w, http.StatusInternalServerError, "error_interno", "no se pudo eliminar el vehículo")
+		return
+	}
+	if !existe {
+		httpx.WriteError(w, http.StatusNotFound, "no_encontrado", "el vehículo no existe")
+		return
+	}
+	bloqueado(w, "vehiculo_en_uso", "el vehículo tiene una ruta planificada o en curso")
+}
