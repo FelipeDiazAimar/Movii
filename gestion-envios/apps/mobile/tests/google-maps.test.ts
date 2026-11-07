@@ -27,6 +27,13 @@ describe("urlGoogleMaps", () => {
     expect(comp.searchParams.get("waypoints")).toBe("2,-2|3,-3");
   });
 
+  it("modo completo con 2 paradas de texto genera waypoint de la primera y destino en la segunda", () => {
+    const paradas = ["San Martín 100, Rafaela", "Mitre 250, Rafaela"];
+    const u = new URL(urlGoogleMaps({ paradas, modo: "completo" })!);
+    expect(u.searchParams.get("destination")).toBe("Mitre 250, Rafaela");
+    expect(u.searchParams.get("waypoints")).toBe("San Martín 100, Rafaela");
+  });
+
   it("máximo 9 waypoints", () => {
     const paradas = Array.from({ length: 15 }, (_, i) => p(i + 1));
     const u = new URL(urlGoogleMaps({ paradas, modo: "completo" })!);

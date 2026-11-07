@@ -10,6 +10,8 @@ import { EstadoEnvioBadge } from "@/components/ui/Badge";
 import { Card, EmptyState } from "@/components/ui/Card";
 import { Spinner } from "@/components/ui/Spinner";
 import { Alert } from "@/components/ui/Alert";
+import { Toggle2D3D } from "@/components/ui/Toggle2D3D";
+import { BotonAbrirMaps } from "@/features/mapas/BotonAbrirMaps";
 import { getApiErrorMessage } from "@/services/api-client";
 
 /** HU-12: la ruta en un mapa real con paradas numeradas, recorrido por calles y el camión en vivo. */
@@ -64,22 +66,28 @@ export function RutaMapaPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div>
-        <Link to={`/rutas/${rutaId}`} className="text-sm text-movii-600 hover:underline">
-          ← Volver a la ruta
-        </Link>
-        <h1 className="mt-1 text-xl font-semibold text-gray-900">
-          {data.nombre}{" "}
-          <span className="text-sm font-normal text-gray-500">
-            {data.fecha} · {data.repartidor.nombre}
-            {v && ` · ${v.patente}`}
-          </span>
-        </h1>
-        {data.recorrido && (
-          <p className="text-sm text-gray-500">
-            Recorrido por calles: {(data.recorrido.distancia_m / 1000).toFixed(1)} km · ~{Math.round(data.recorrido.duracion_s / 60)} min de manejo
-          </p>
-        )}
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <Link to={`/rutas/${rutaId}`} className="text-sm text-movii-600 hover:underline">
+            ← Volver a la ruta
+          </Link>
+          <h1 className="mt-1 text-xl font-semibold text-gray-900">
+            {data.nombre}{" "}
+            <span className="text-sm font-normal text-gray-500">
+              {data.fecha} · {data.repartidor.nombre}
+              {v && ` · ${v.patente}`}
+            </span>
+          </h1>
+          {data.recorrido && (
+            <p className="text-sm text-gray-500">
+              Recorrido por calles: {(data.recorrido.distancia_m / 1000).toFixed(1)} km · ~{Math.round(data.recorrido.duracion_s / 60)} min de manejo
+            </p>
+          )}
+        </div>
+        <div className="flex flex-wrap items-center gap-3">
+          <Toggle2D3D rutaId={rutaId} modo="2d" />
+          <BotonAbrirMaps rutaId={rutaId} />
+        </div>
       </div>
 
       {enMapa.length === 0 ? (

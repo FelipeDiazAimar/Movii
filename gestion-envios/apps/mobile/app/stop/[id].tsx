@@ -1,3 +1,4 @@
+import { useMemo, useState } from "react";
 import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 
@@ -13,15 +14,33 @@ import { haptic } from "@/lib/haptics";
 import { useMovii } from "@/lib/movii-context";
 import { TrayectoParada } from "@/components/trayecto-parada";
 import { accionesDisponibles } from "@/lib/seguimiento";
-import { urlGoogleMaps } from "@/lib/google-maps";
+import { urlGoogleMaps, type ModoMaps } from "@/lib/google-maps";
 
 export default function StopDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { findShipment, setShipmentStatus } = useMovii();
+  const { findShipment, setShipmentStatus, rutasDelDia } = useMovii();
+  const [modoMaps, setModoMaps] = useState<ModoMaps>("proximo");
   const { ejecutar, enviando, error } = useAccionEnvio();
   const shipment = findShipment(id);
+  // "Ruta completa" (idea de Jere, T5): las paradas que faltan de la ruta de este envío, en orden.
+  const paradasRuta = useMemo(() => {
+    if (!shipment) return [];
+    const ruta = rutasDelDia.find((r) => r.envios.some((e) => e.id === shipment.id));
+    return (ruta?.envios ?? [shipment])
+      .filter((e) => e.status !== "entregado" && e.status !== "no_entregado")
+      .sort((a, b) => a.stopOrder - b.stopOrder)
+      .map((e) => `${e.recipient.address}, ${e.recipient.locality}`);
+  }, [rutasDelDia, shipment]);
   if (!shipment) return null;
   const driver = getDriver(shipment.driverId);
+  const abrirMaps = () => {
+    const paradas = modoMaps === "completo" && paradasRuta.length > 0 ? paradasRuta : [`${shipment.recipient.address}, ${shipment.recipient.locality}`];
+    const url = urlGoogleMaps({ paradas, modo: modoMaps });
+    if (url) {
+      haptic.medium();
+      void Linking.openURL(url);
+    }
+  };
   // Envío real (viene de la API): las acciones salen de su estado en el servidor (CA-06 de HU-06).
   // Los envíos mock del modo sin backend conservan el comportamiento local del prototipo.
   const real = Boolean(shipment.estadoApi);
@@ -41,7 +60,16 @@ export default function StopDetailScreen() {
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <GlassCard oscura style={styles.hero}><View style={styles.heroTop}><View><Text style={styles.code}>{shipment.code}</Text><Text style={styles.recipient}>{shipment.recipient.name}</Text></View><StatusBadge status={shipment.status} /></View><View style={styles.addressRow}><Text style={styles.addressIcon}>⌖</Text><View style={styles.addressCopy}><Text style={styles.address}>{shipment.recipient.address}</Text><Text style={styles.locality}>{shipment.recipient.locality} · CP {shipment.recipient.postalCode}</Text></View></View><View style={styles.window}><Text style={styles.windowIcon}>◷</Text><Text style={styles.windowText}>Ventana de entrega: <Text style={styles.windowStrong}>{shipment.timeWindow}</Text></Text></View></GlassCard>
         {real ? <TrayectoParada envioId={shipment.id} /> : <View style={styles.mapPlaceholder}><View style={styles.mapRoadA} /><View style={styles.mapRoadB} /><View style={styles.mapRoute} /><View style={styles.mapPin}><Text style={styles.mapPinText}>⌖</Text></View><View style={styles.mapCaption}><Text style={styles.mapCaptionText}>Mapa disponible con la ruta real</Text></View></View>}
-        <PrimaryButton label="Abrir en Maps" tone="secondary" icon="⌖" onPress={() => { const url = urlGoogleMaps({ paradas: [`${shipment.recipient.address}, ${shipment.recipient.locality}`], modo: "proximo" }); if (url) Linking.openURL(url); }} />
+        <GlassCard oscura style={styles.mapsCard}>
+          <View style={styles.segmento}>
+            {(["proximo", "completo"] as const).map((m) => (
+              <Pressable key={m} onPress={() => { haptic.selection(); setModoMaps(m); }} accessibilityRole="radio" accessibilityState={{ selected: modoMaps === m }} style={[styles.segmentoItem, modoMaps === m && styles.segmentoActivo]}>
+                <Text style={[styles.segmentoTexto, modoMaps === m && styles.segmentoTextoActivo]}>{m === "proximo" ? "Esta parada" : `Ruta completa (${paradasRuta.length || 1})`}</Text>
+              </Pressable>
+            ))}
+          </View>
+          <PrimaryButton label="Abrir en Maps" icon="⌖" onPress={abrirMaps} />
+        </GlassCard>
         <Text style={styles.section}>Acciones rápidas</Text>
         {resolved ? <View style={styles.actions}><GlassCard style={styles.resolved}><Text style={styles.resolvedTitle}>{shipment.status === "entregado" ? "Entrega confirmada" : "Entrega no realizada"}</Text><Text style={styles.resolvedCopy}>{shipment.status === "entregado" ? `Recibió: ${shipment.recipientName ?? shipment.recipient.name}. Evidencia registrada.` : shipment.failureReason ?? "Incidencia registrada."}</Text></GlassCard>{real && acciones.reprogramar ? reprogramarLink : null}</View> : <View style={styles.actions}>{canMarkEnRoute ? <PrimaryButton label={enviando ? "Actualizando…" : "Marcar en camino"} tone="secondary" onPress={() => cambiarEstado("en_camino")} disabled={enviando} icon="→" /> : <View style={styles.inRouteCard}><View style={styles.inRouteAccent} /><View style={styles.inRouteIcon}><Text style={styles.inRouteArrow}>→</Text></View><View style={styles.inRouteCopy}><Text style={styles.inRouteEyebrow}>RUTA ACTIVA</Text><Text style={styles.inRouteTitle}>Ya estás en camino</Text><Text style={styles.inRouteDescription}>Actualizá la entrega cuando llegues al destino.</Text></View><View style={styles.liveDot} /></View>}{real && acciones.volverAsignado ? <Pressable onPress={() => cambiarEstado("asignado")} disabled={enviando} style={({ pressed }) => [styles.reschedule, pressed && styles.pressed]} accessibilityRole="button"><Text style={styles.rescheduleText}>{enviando ? "Actualizando…" : "Volver a asignado"}</Text><Text style={styles.chevron}>‹</Text></Pressable> : null}<View style={styles.actionPair}><View style={styles.actionHalf}><PrimaryButton label="Entregado" onPress={() => router.push({ pathname: "/delivery/[id]", params: { id: shipment.id } })} icon="✓" /></View><View style={styles.actionHalf}><PrimaryButton label="No entregado" tone="danger" onPress={() => router.push({ pathname: "/failure/[id]", params: { id: shipment.id } })} icon="!" /></View></View>{!real ? reprogramarLink : null}</View>}
         {error ? <Text style={styles.error} accessibilityRole="alert">{error}</Text> : null}
@@ -56,4 +84,10 @@ export default function StopDetailScreen() {
 
 const styles = StyleSheet.create({
   page: { flex: 1, backgroundColor: "#EEF0F2" }, content: { padding: 16, paddingTop: 16, paddingBottom: 40, gap: 15, maxWidth: 760, width: "100%", alignSelf: "center" }, hero: { gap: 16 }, heroTop: { flexDirection: "row", justifyContent: "space-between", gap: 10 }, code: { color: "#F4B400", fontSize: 11, fontWeight: "900", letterSpacing: 1 }, recipient: { color: "#FFFFFF", fontSize: 23, lineHeight: 27, fontWeight: "900", letterSpacing: -0.7, marginTop: 3 }, addressRow: { flexDirection: "row", gap: 9, alignItems: "flex-start" }, addressIcon: { color: "#F4B400", fontSize: 18, lineHeight: 20 }, addressCopy: { flex: 1 }, address: { color: "#FFFFFF", fontSize: 14.5, fontWeight: "700" }, locality: { color: "#9A9AA0", fontSize: 12, marginTop: 3 }, window: { minHeight: 37, paddingHorizontal: 10, borderRadius: 10, flexDirection: "row", alignItems: "center", gap: 7, backgroundColor: "#FFF4CC" }, windowIcon: { color: "#806700", fontSize: 17 }, windowText: { color: "#6B5A00", fontSize: 12 }, windowStrong: { fontWeight: "800" }, mapPlaceholder: { height: 137, borderRadius: 20, overflow: "hidden", backgroundColor: "#E9EDEF", position: "relative" }, mapRoadA: { position: "absolute", width: 490, height: 30, backgroundColor: "#FFFFFF", left: -50, top: 55, transform: [{ rotate: "-8deg" }] }, mapRoadB: { position: "absolute", width: 40, height: 210, backgroundColor: "#FFFFFF", right: 80, top: -38, transform: [{ rotate: "17deg" }] }, mapRoute: { position: "absolute", width: 170, height: 90, left: 72, top: 28, borderTopWidth: 4, borderRightWidth: 4, borderColor: "#F4B400", borderTopRightRadius: 50 }, mapPin: { position: "absolute", width: 31, height: 31, borderRadius: 16, backgroundColor: "#1C1C1E", top: 47, right: 72, alignItems: "center", justifyContent: "center", borderWidth: 3, borderColor: "#FFFFFF" }, mapPinText: { color: "#F4B400", fontSize: 16 }, mapCaption: { position: "absolute", bottom: 10, left: 10, backgroundColor: "rgba(255,255,255,0.9)", paddingHorizontal: 9, paddingVertical: 6, borderRadius: 9 }, mapCaptionText: { color: "#1C1C1E", fontSize: 11, fontWeight: "700" }, section: { color: "#6E6E73", fontSize: 11, fontWeight: "900", letterSpacing: 1.1, textTransform: "uppercase", marginTop: 6, paddingHorizontal: 4 }, actions: { gap: 10 }, inRouteCard: { minHeight: 76, overflow: "hidden", paddingVertical: 12, paddingHorizontal: 14, borderRadius: 16, flexDirection: "row", alignItems: "center", gap: 11, backgroundColor: "#FFF4CC", borderWidth: 1, borderColor: "#F4B400" }, inRouteAccent: { position: "absolute", top: 0, bottom: 0, left: 0, width: 5, backgroundColor: "#F4B400" }, inRouteIcon: { width: 38, height: 38, borderRadius: 19, backgroundColor: "#F4B400", alignItems: "center", justifyContent: "center" }, inRouteArrow: { color: "#1C1C1E", fontSize: 21, fontWeight: "800" }, inRouteCopy: { flex: 1, gap: 2 }, inRouteEyebrow: { color: "#806700", fontSize: 10, fontWeight: "800", letterSpacing: 0.8 }, inRouteTitle: { color: "#1C1C1E", fontSize: 15, fontWeight: "800" }, inRouteDescription: { color: "#6B5A00", fontSize: 11, lineHeight: 15 }, liveDot: { width: 9, height: 9, borderRadius: 5, backgroundColor: "#FF9F0A", borderWidth: 2, borderColor: "#FFFFFF" }, actionPair: { flexDirection: "row", gap: 10 }, actionHalf: { flex: 1 }, reschedule: { minHeight: 45, paddingHorizontal: 13, flexDirection: "row", justifyContent: "space-between", alignItems: "center", borderRadius: 13, backgroundColor: "rgba(255,255,255,0.68)", borderWidth: 1, borderColor: "#E5E5EA" }, rescheduleText: { color: "#1C1C1E", fontSize: 14, fontWeight: "700" }, chevron: { color: "#6E6E73", fontSize: 24, fontWeight: "300" }, resolved: { gap: 6 }, resolvedTitle: { color: "#1C1C1E", fontSize: 15, fontWeight: "800" }, resolvedCopy: { color: "#6E6E73", fontSize: 13, lineHeight: 18 }, infoCard: { paddingVertical: 4 }, infoRow: { minHeight: 47, justifyContent: "center", paddingHorizontal: 2 }, infoLabel: { color: "#6E6E73", fontSize: 11, fontWeight: "700" }, infoValue: { color: "#1C1C1E", fontSize: 13, fontWeight: "700", marginTop: 3 }, divider: { height: 1, backgroundColor: "#EFEFF2" }, note: { paddingVertical: 12, gap: 4 }, noteTitle: { color: "#6E6E73", fontSize: 11, fontWeight: "700" }, noteText: { color: "#1C1C1E", fontSize: 13, lineHeight: 18 }, driverCard: { flexDirection: "row", alignItems: "center", gap: 11 }, driverAvatar: { width: 38, height: 38, borderRadius: 19, backgroundColor: "#1C1C1E", alignItems: "center", justifyContent: "center" }, driverInitials: { color: "#F4B400", fontSize: 11, fontWeight: "800" }, driverName: { color: "#1C1C1E", fontSize: 14, fontWeight: "800" }, driverDetail: { color: "#6E6E73", fontSize: 12, marginTop: 3 }, pressed: { opacity: 0.72 }, error: { color: "#B42318", fontSize: 13, fontWeight: "700", textAlign: "center" },
+  mapsCard: { gap: 12, padding: 14 },
+  segmento: { flexDirection: "row", padding: 4, borderRadius: 14, backgroundColor: "rgba(255,255,255,0.08)" },
+  segmentoItem: { flex: 1, minHeight: 40, borderRadius: 11, alignItems: "center", justifyContent: "center" },
+  segmentoActivo: { backgroundColor: "#FFFFFF" },
+  segmentoTexto: { color: "#C7C7CC", fontSize: 13, fontWeight: "800" },
+  segmentoTextoActivo: { color: "#1A1A1A" },
 });

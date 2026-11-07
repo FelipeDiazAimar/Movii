@@ -11,20 +11,36 @@ import { Escena3D, type Parada3D } from "./Escena3D";
 import { Hud, Latido } from "./Hud3D";
 import { COLOR_PARADA, type LngLat } from "./geo3d";
 
+const ESTADO_TEXTO: Record<string, string> = { asignado: "Pendiente", en_camino: "En camino", entregado: "Entregado", no_entregado: "No entregado", pendiente: "Sin ruta" };
+
 /** Vista 3D de una ruta en el panel: datos de la ruta, GPS por SSE o simulación. */
-export function Mapa3D({ rutaId }: { rutaId: string }) {
+export function Mapa3D({ rutaId, paradaDestacadaId }: { rutaId: string; paradaDestacadaId?: string | null }) {
   const { data, isLoading, isError } = useQuery({ queryKey: ["rutas", rutaId, "mapa"], queryFn: () => obtenerMapaRuta(rutaId), refetchInterval: 30_000 });
   const flota = useQuery({ queryKey: ["operaciones", "flota"], queryFn: () => listarFlota() });
   const { posiciones } = useFlotaEnVivo(Boolean(data?.vehiculo));
 
   const linea = useMemo<LngLat[]>(() => (data?.recorrido?.geometria ?? []).map(([lat, lng]) => [lng, lat]), [data?.recorrido?.geometria]);
   const paradas = useMemo<Parada3D[]>(
-    () => (data?.paradas ?? []).flatMap((p) => (p.coordenadas ? [{ pos: [p.coordenadas.lng, p.coordenadas.lat] as LngLat, estado: p.estado, etiqueta: String(p.orden) }] : [])),
+    () =>
+      (data?.paradas ?? []).flatMap((p) =>
+        p.coordenadas
+          ? [
+              {
+                pos: [p.coordenadas.lng, p.coordenadas.lat] as LngLat,
+                estado: p.estado,
+                etiqueta: String(p.orden),
+                info: { titulo: `#${p.orden} · ${p.codigo_guia}`, detalle: `${p.destinatario_nombre} — ${p.direccion}, ${p.localidad}`, estado: ESTADO_TEXTO[p.estado] ?? p.estado },
+              },
+            ]
+          : [],
+      ),
     [data?.paradas],
   );
   const vehiculoId = data?.vehiculo?.vehiculo_id;
   const color = (vehiculoId && flota.data ? colorDeFlota(flota.data)[vehiculoId] : undefined) ?? "#f4b400";
   const gps = vehiculoId ? posiciones[vehiculoId] : undefined;
+  const destacada = data?.paradas.find((p) => p.envio_id === paradaDestacadaId)?.coordenadas;
+  const enfoque = useMemo<LngLat | null>(() => (destacada ? [destacada.lng, destacada.lat] : null), [destacada?.lng, destacada?.lat]); // eslint-disable-line react-hooks/exhaustive-deps
   const vivo = useMemo(() => (gps ? { lng: gps.lng, lat: gps.lat, rumbo: gps.rumbo, velocidad: gps.velocidad } : null), [gps]);
 
   // Spinner centrado en el lugar del mapa.
@@ -51,6 +67,7 @@ export function Mapa3D({ rutaId }: { rutaId: string }) {
         paradas={paradas}
         color={color}
         vivo={vivo}
+        enfoque={enfoque}
         simular
         hud={(velocidad) => (
           <div className="rounded-2xl border border-white/10 bg-asfalto-900/85 p-4 text-white shadow-lift backdrop-blur-md">

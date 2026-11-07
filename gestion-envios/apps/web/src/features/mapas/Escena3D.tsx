@@ -34,6 +34,8 @@ export interface Parada3D {
   estado: string;
   /** Texto encima de la columna (número de parada, "Tu zona"…). */
   etiqueta: string;
+  /** Tarjeta que se abre al tocar la columna. */
+  info?: { titulo: string; detalle?: string; estado?: string };
 }
 
 export interface Vivo3D {
@@ -58,6 +60,8 @@ interface Props {
   className?: string;
   /** Cámara al abrir. */
   camaraInicial?: Camara;
+  /** Punto al que la cámara vuela (p. ej. la parada elegida en una lista). */
+  enfoque?: LngLat | null;
 }
 
 function BotonCamara({ activo, onClick, icono: Icono, children }: { activo: boolean; onClick: () => void; icono: LucideIcon; children: ReactNode }) {
@@ -93,7 +97,14 @@ function paradasGeoJSON(paradas: Parada3D[]): GeoJSON.FeatureCollection {
     type: "FeatureCollection",
     features: paradas.map((p) => ({
       type: "Feature",
-      properties: { color: COLOR_PARADA[p.estado] ?? COLOR_PARADA.pendiente, alto: p.estado === "entregado" ? 18 : 42, etiqueta: p.etiqueta },
+      properties: {
+        color: COLOR_PARADA[p.estado] ?? COLOR_PARADA.pendiente,
+        alto: p.estado === "entregado" ? 18 : 42,
+        etiqueta: p.etiqueta,
+        titulo: p.info?.titulo ?? "",
+        detalle: p.info?.detalle ?? "",
+        estado: p.info?.estado ?? "",
+      },
       geometry: { type: "Polygon", coordinates: [caja(p.pos, 45, 7, 7)] },
     })),
   };
@@ -124,7 +135,33 @@ function encuadre(puntos: LngLat[]) {
  * 3D que sigue la posición en vivo (o simula el recorrido). Cámaras seguir,
  * órbita y general, y modo día/noche. La usan el panel y el seguimiento público.
  */
-export function Escena3D({ linea, paradas, color, vivo, simular = false, zona, hud, className = "h-[calc(100vh-180px)] min-h-[560px]", camaraInicial = "general" }: Props) {
+/** Contenido de la tarjeta de una parada, armado con nodos (sin HTML: los textos vienen de datos). */
+function tarjetaParada(props: Record<string, unknown>, color: string): HTMLElement {
+  const el = document.createElement("div");
+  el.style.cssText = "font-family:system-ui;padding:4px 2px;min-width:190px;max-width:240px";
+  const cabeza = document.createElement("div");
+  cabeza.style.cssText = "display:flex;align-items:center;justify-content:space-between;gap:8px";
+  const t = document.createElement("strong");
+  t.style.cssText = "font-size:13px;color:#111";
+  t.textContent = String(props.titulo || props.etiqueta || "");
+  cabeza.appendChild(t);
+  if (props.estado) {
+    const b = document.createElement("span");
+    b.style.cssText = `padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700;color:#fff;background:${color}`;
+    b.textContent = String(props.estado);
+    cabeza.appendChild(b);
+  }
+  el.appendChild(cabeza);
+  if (props.detalle) {
+    const d = document.createElement("p");
+    d.style.cssText = "margin:4px 0 0;font-size:12px;color:#4b5563";
+    d.textContent = String(props.detalle);
+    el.appendChild(d);
+  }
+  return el;
+}
+
+export function Escena3D({ linea, paradas, color, vivo, simular = false, zona, hud, className = "h-[calc(100vh-180px)] min-h-[560px]", camaraInicial = "general", enfoque }: Props) {
   const contenedor = useRef<HTMLDivElement>(null);
   const mapa = useRef<maplibregl.Map | null>(null);
   const halo = useRef<maplibregl.Marker | null>(null);
@@ -241,6 +278,18 @@ export function Escena3D({ linea, paradas, color, vivo, simular = false, zona, h
       // Entrada de cine: de la vista cenital a la escena inclinada.
       m.fitBounds(encuadre(puntos), { padding: 90, maxZoom: 16.5, pitch: 62, bearing: -25, duration: 3200, essential: true });
     });
+    // Tocar una parada abre su tarjeta.
+    const abrirParada = (e: maplibregl.MapLayerMouseEvent) => {
+      const f = e.features?.[0];
+      if (!f || !(f.properties?.titulo || f.properties?.detalle)) return;
+      new maplibregl.Popup({ offset: 12, closeButton: false })
+        .setLngLat(e.lngLat)
+        .setDOMContent(tarjetaParada(f.properties ?? {}, String(f.properties?.color ?? "#1a1a1a")))
+        .addTo(m);
+    };
+    m.on("click", "paradas-luz", abrirParada);
+    m.on("mouseenter", "paradas-luz", () => (m.getCanvas().style.cursor = "pointer"));
+    m.on("mouseleave", "paradas-luz", () => (m.getCanvas().style.cursor = ""));
     // Si la persona mueve el mapa, la cámara queda libre.
     const soltar = () => setCamara((c) => (c === "general" ? c : "libre"));
     m.on("dragstart", soltar);
@@ -280,6 +329,14 @@ export function Escena3D({ linea, paradas, color, vivo, simular = false, zona, h
     (m.getSource("paradas") as maplibregl.GeoJSONSource | undefined)?.setData(paradasGeoJSON(paradas));
     (m.getSource("zona") as maplibregl.GeoJSONSource | undefined)?.setData(circuloGeoJSON(zona));
   }, [linea, paradas, zona]);
+
+  // Parada elegida afuera (lista): la cámara vuela hasta ella.
+  useEffect(() => {
+    const m = mapa.current;
+    if (!m || !listo || !enfoque) return;
+    setCamara("libre");
+    m.flyTo({ center: enfoque, zoom: 17.5, pitch: 65, bearing: m.getBearing(), duration: 1800, essential: true });
+  }, [enfoque, listo]);
 
   // Vista general: encuadra todo.
   useEffect(() => {
