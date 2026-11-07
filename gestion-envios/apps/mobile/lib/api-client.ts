@@ -405,3 +405,8 @@ export async function obtenerPerfil(): Promise<PerfilRepartidorAPI> {
   const { data } = await api.get<PerfilRepartidorAPI>("/repartidor/perfil");
   return { ...data, ultimos_dias: data.ultimos_dias ?? [], motivos_fallo: data.motivos_fallo ?? [] };
 }
+
+/** POST /auth/cambiar-password: cambia la propia contraseña (pide la actual). */
+export async function cambiarPassword(actual: string, nueva: string): Promise<void> {
+  await api.post("/auth/cambiar-password", { actual, nueva });
+}

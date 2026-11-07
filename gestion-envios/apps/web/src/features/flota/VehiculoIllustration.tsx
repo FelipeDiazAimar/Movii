@@ -20,7 +20,7 @@ export const REGION_CARGA: Record<TipoVehiculo, { left: string; top: string; wid
   camion: { left: "4.9%", top: "10.9%", width: "59.8%", height: "62.4%" },
   furgon: { left: "8.5%", top: "23%", width: "60%", height: "46%" },
   utilitario: { left: "19.5%", top: "33%", width: "41%", height: "36%" },
-  moto: { left: "19.5%", top: "20%", width: "22.2%", height: "26%" },
+  moto: { left: "9.5%", top: "18%", width: "26%", height: "28%" },
 };
 
 const FUENTE = { fontFamily: "Archivo, system-ui, sans-serif", fontVariationSettings: '"wdth" 125' } as const;
@@ -226,86 +226,60 @@ function Utilitario({ codigo, color }: { codigo: string; color: string }) {
   );
 }
 
-/** Rueda de moto: cubierta finita, llanta de rayos y disco de freno. */
-function RuedaMoto({ x, y, r, id }: { x: number; y: number; r: number; id: string }) {
-  const rayos = Array.from({ length: 6 }, (_, i) => (i / 6) * 360);
-  return (
-    <g>
-      <circle cx={x} cy={y} r={r} fill={`url(#${id}-cubierta)`} />
-      <circle cx={x} cy={y} r={r - 9} fill="none" stroke="#9aa3ab" strokeWidth="4" />
-      <circle cx={x} cy={y} r={r * 0.42} fill="none" stroke="#b6bdc4" strokeWidth="3" strokeDasharray="4 3" />
-      {rayos.map((g) => (
-        <rect key={g} x={x - 2} y={y - r + 10} width="4" height={r - 14} fill="#7b848c" transform={`rotate(${g} ${x} ${y})`} />
-      ))}
-      <circle cx={x} cy={y} r={7} fill={`url(#${id}-cubo)`} stroke="#4b5157" strokeWidth="1" />
-    </g>
-  );
-}
-
-/** Moto de calle (tipo 150 cc de reparto) con baúl trasero. */
+/** Moto de reparto con baúl trasero del color elegido. */
 function Moto({ codigo, color }: { codigo: string; color: string }) {
   const id = useId().replace(/:/g, "");
   const c = paletaCarroceria(color);
   return (
     <svg viewBox="0 0 820 330" className="h-auto w-full" role="img" aria-label={`Moto ${codigo}`}>
       <DefsBase id={id} c={c} />
-      <Piso id={id} cx={410} rx={290} />
-      {/* Basculante y amortiguador */}
-      <path d="M232 252 L368 226" stroke="#1d2125" strokeWidth="12" strokeLinecap="round" />
-      <path d="M318 168 L292 238" stroke={`url(#${id}-cromo)`} strokeWidth="8" strokeLinecap="round" />
-      <path d="M316 174 L296 230" stroke="#c81e1e" strokeWidth="5" strokeDasharray="4 3" />
-      <RuedaMoto x={232} y={252} r={46} id={id} />
-      {/* Guardabarros trasero */}
-      <path d="M182 230 L196 206 L268 196 L280 204" fill="none" stroke="#1d2125" strokeWidth="6" strokeLinejoin="round" />
-      {/* Parrilla y baúl */}
-      <path d="M176 152 L332 152 L332 160 L176 160 Z" fill="#2a2f34" />
-      <path d="M200 160 L214 196" stroke="#2a2f34" strokeWidth="6" />
-      <path d="M168 66 L334 66 Q342 66 342 74 L342 144 Q342 152 334 152 L168 152 Q160 152 160 144 L160 74 Q160 66 168 66 Z" fill={`url(#${id}-caja)`} />
-      <path d="M168 66 L334 66 Q342 66 342 74 L342 144 Q342 152 334 152 L168 152 Q160 152 160 144 L160 74 Q160 66 168 66 Z" fill={`url(#${id}-brillo-caja)`} />
-      <rect x="160" y="102" width="182" height="4" fill="#000" opacity="0.25" />
-      <rect x="244" y="98" width="16" height="10" rx="1" fill={`url(#${id}-cromo)`} />
-      <Marca x={180} y={74} ancho={140} codigo={codigo} />
-      <rect x="160" y="118" width="7" height="22" rx="1" fill="#c81e1e" />
-      {/* Colín y asiento */}
-      <path d="M236 168 L300 160 L396 176 L388 196 L300 194 Z" fill={`url(#${id}-caja)`} />
-      <path d="M256 154 Q262 146 280 146 L400 140 L410 164 L268 172 Q256 170 256 154 Z" fill="#23272b" />
-      <rect x="230" y="166" width="12" height="7" rx="1" fill="#c81e1e" />
-      {/* Chasis */}
-      <path d="M530 140 L372 212" stroke="#1d2125" strokeWidth="11" strokeLinecap="round" />
-      <path d="M528 146 L486 238" stroke="#1d2125" strokeWidth="9" strokeLinecap="round" />
-      {/* Motor */}
-      <path d="M398 206 L484 198 L496 248 L410 256 Z" fill="#3a3f44" />
-      <path d="M412 214 L478 208 M414 224 L482 218 M416 234 L486 228" stroke="#6c757d" strokeWidth="3" />
-      <path d="M436 248 L466 246 L470 262 L438 264 Z" fill="#23272b" />
-      {/* Escape */}
-      <path d="M470 252 L360 262" stroke={`url(#${id}-cromo)`} strokeWidth="9" strokeLinecap="round" />
-      <path d="M266 252 L352 248 L358 268 L268 274 Z" fill={`url(#${id}-cromo)`} />
-      <rect x="258" y="254" width="12" height="16" rx="2" fill="#4a5158" />
-      {/* Tanque */}
-      <path d="M402 148 L470 132 L520 142 L510 182 L412 188 Z" fill={`url(#${id}-caja)`} />
-      <path d="M418 150 L468 140 L504 148 L500 158 L420 164 Z" fill="#fff" opacity="0.25" />
-      <path d="M402 148 L470 132 L520 142 L510 182 L412 188 Z" fill="none" stroke="#000" strokeOpacity="0.2" strokeWidth="2" />
-      {/* Estribo */}
-      <rect x="400" y="246" width="34" height="6" rx="1" fill="#2a2f34" />
-      <RuedaMoto x={612} y={252} r={46} id={id} />
-      {/* Horquilla, manubrio, espejo y faro */}
-      <path d="M534 128 L612 252" stroke={`url(#${id}-cromo)`} strokeWidth="10" strokeLinecap="round" />
-      <path d="M534 128 L560 170" stroke="#1d2125" strokeWidth="12" strokeLinecap="round" />
-      <path d="M512 120 L568 112" stroke="#2a2f34" strokeWidth="7" strokeLinecap="round" />
-      <rect x="500" y="114" width="20" height="10" rx="2" fill="#1a1a1a" />
-      <path d="M522 118 L512 86" stroke="#2a2f34" strokeWidth="4" strokeLinecap="round" />
-      <path d="M498 74 L524 72 L526 88 L500 90 Z" fill="#2a2f34" />
-      <circle cx="582" cy="150" r="38" fill={`url(#${id}-faro)`} opacity="0.6" />
-      <path d="M556 150 L572 134 L578 166 Z" fill="#23272b" />
-      <circle cx="578" cy="150" r="17" fill="#23272b" />
-      <circle cx="580" cy="150" r="12" fill="#fffbe6" stroke="#c9ced5" strokeWidth="1.5" />
-      <circle cx="577" cy="146" r="4" fill="#fff" opacity="0.8" />
+      <Piso id={id} cx={410} rx={330} />
+
+      {/* Baúl */}
+      <rect x="96" y="160" width="190" height="10" rx="3" fill="#2a2f34" />
+      <rect x="150" y="168" width="14" height="42" fill="#2a2f34" />
+      <rect x="78" y="62" width="226" height="102" rx="18" fill={`url(#${id}-caja)`} />
+      <rect x="78" y="62" width="226" height="102" rx="18" fill={`url(#${id}-brillo-caja)`} />
+      <rect x="78" y="62" width="226" height="16" rx="8" fill="#fff" opacity="0.22" />
+      <rect x="78" y="136" width="226" height="28" rx="12" fill="#000" opacity="0.1" />
+      <Marca x={104} y={86} ancho={174} codigo={codigo} />
+      <rect x="82" y="122" width="10" height="14" rx="3" fill="#dc2626" />
+
+      {/* Rueda trasera, guardabarros y amortiguador */}
+      <path d="M140 236 a70 70 0 0 1 140 0" fill="none" stroke="#2a2f34" strokeWidth="10" strokeLinecap="round" />
+      <path d="M214 236 L368 224" stroke={`url(#${id}-chasis)`} strokeWidth="16" strokeLinecap="round" />
+      <path d="M322 168 L296 220" stroke={`url(#${id}-cromo)`} strokeWidth="9" strokeLinecap="round" />
+      <path d="M322 168 L296 220" stroke="#dc2626" strokeWidth="4" strokeDasharray="5 4" />
+
+      {/* Motor y escape */}
+      <rect x="340" y="196" width="130" height="62" rx="18" fill={`url(#${id}-chasis)`} />
+      <rect x="352" y="206" width="52" height="38" rx="10" fill={`url(#${id}-cromo)`} opacity="0.85" />
+      <path d="M470 248 L260 252 Q236 252 228 240" fill="none" stroke={`url(#${id}-cromo)`} strokeWidth="14" strokeLinecap="round" />
+
+      {/* Asiento y carenado */}
+      <path d="M296 164 Q300 144 330 144 L424 144 Q440 144 442 160 L442 172 L296 172 Z" fill="#23272b" />
+      <path d="M424 152 L478 150 Q512 150 528 176 L548 232 L458 232 Q440 208 424 182 Z" fill={`url(#${id}-cabina)`} stroke="#9aa3ab" strokeWidth="1.2" />
+      <path d="M486 166 L512 168 L526 200" fill="none" stroke={c.base} strokeWidth="8" strokeLinecap="round" />
+      <rect x="440" y="226" width="86" height="8" rx="4" fill="#2a2f34" />
+
+      {/* Horquilla delantera, manubrio y faro */}
+      <path d="M610 236 L548 118" stroke={`url(#${id}-cromo)`} strokeWidth="14" strokeLinecap="round" />
+      <path d="M600 218 L560 142" stroke="#59616a" strokeWidth="4" strokeLinecap="round" opacity="0.6" />
+      <path d="M548 112 L492 100" stroke="#2a2f34" strokeWidth="9" strokeLinecap="round" />
+      <rect x="474" y="92" width="26" height="14" rx="5" fill="#1a1a1a" />
+      <path d="M546 108 L534 78" stroke="#2a2f34" strokeWidth="5" strokeLinecap="round" />
+      <ellipse cx="528" cy="72" rx="16" ry="9" fill="#2a2f34" />
+      <circle cx="590" cy="142" r="44" fill={`url(#${id}-faro)`} opacity="0.85" />
+      <path d="M552 124 Q582 112 600 132 Q604 154 580 160 Q552 154 552 124 Z" fill="#23272b" stroke="#59616a" strokeWidth="1.5" />
+      <ellipse cx="584" cy="138" rx="11" ry="13" fill="#fffbe6" stroke="#c9ced5" strokeWidth="1" />
       {/* Guardabarros delantero */}
-      <path d="M574 222 L600 204 L636 206 L652 220" fill="none" stroke={c.base} strokeWidth="8" strokeLinejoin="round" strokeLinecap="round" />
+      <path d="M568 212 Q612 178 660 214" fill="none" stroke={c.base} strokeWidth="10" strokeLinecap="round" />
+
+      <Rueda x={210} y={236} r={62} id={id} />
+      <Rueda x={610} y={236} r={62} id={id} />
     </svg>
   );
 }
-
 
 /**
  * Ilustración del vehículo según su tipo (camión, furgón, utilitario o moto),

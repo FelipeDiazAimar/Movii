@@ -4,13 +4,54 @@ import "maplibre-gl/dist/maplibre-gl.css";
 // El worker de MapLibre 6 se busca al lado del módulo; con Vite (dev y build) el
 // módulo queda en otra carpeta, así que se sirve como asset y se indica la URL.
 import urlWorker from "maplibre-gl/dist/maplibre-gl-worker.mjs?url";
-import { Camera, Clapperboard, Map as MapaIcono, Moon, Orbit, Pause, Play, Sun, Truck, type LucideIcon } from "lucide-react";
+import { Camera, ChevronDown, Clapperboard, Map as MapaIcono, Maximize2, Minimize2, Moon, Orbit, Pause, Play, Sun, Truck, type LucideIcon } from "lucide-react";
 import { COLOR_PARADA, acumulados, caja, distanciaM, mezclarAngulo, puntoEnDistancia, rumbo as rumboEntre, type LngLat } from "./geo3d";
 
 maplibregl.setWorkerUrl(urlWorker);
 
-// OpenFreeMap: estilos vectoriales gratis y sin key; DEM de AWS Open Data. Todo sin costo.
-const ESTILOS = { dia: "https://tiles.openfreemap.org/styles/liberty", noche: "https://tiles.openfreemap.org/styles/dark" } as const;
+// OpenFreeMap (gratis, sin key): el estilo "liberty" de día y, de noche, el mismo
+// estilo recoloreado (el "dark" de OpenFreeMap casi no muestra calles ni plazas).
+const ESTILO = "https://tiles.openfreemap.org/styles/liberty";
+
+type Pintura = [capa: string, propiedad: string, valor: unknown];
+
+/** Colores de noche para cada capa del estilo; devuelve los valores originales para volver al día. */
+function nocturnizar(m: maplibregl.Map): Pintura[] {
+  const originales: Pintura[] = [];
+  const poner = (id: string, prop: string, valor: unknown) => {
+    try {
+      originales.push([id, prop, m.getPaintProperty(id, prop as never)]);
+      m.setPaintProperty(id, prop as never, valor as never);
+    } catch {
+      /* la capa no tiene esa propiedad */
+    }
+  };
+  for (const l of m.getStyle().layers) {
+    if (/^(ruta-|flujo-|paradas-|zona-|camion-)/.test(l.id)) continue;
+    const capa = ("source-layer" in l ? String(l["source-layer"] ?? "") : "") + " " + l.id;
+    if (l.type === "background") poner(l.id, "background-color", "#0d1322");
+    else if (l.type === "fill") {
+      if (/water/.test(capa)) poner(l.id, "fill-color", "#0c2a4a");
+      else if (/park|grass|wood|forest|scrub|garden|cemetery|pitch|golf|meadow|farmland/.test(capa)) poner(l.id, "fill-color", "#123d30");
+      else if (/building/.test(capa)) poner(l.id, "fill-color", "#1d2740");
+      else poner(l.id, "fill-color", "#151d31");
+      poner(l.id, "fill-outline-color", "#0d1322");
+    } else if (l.type === "fill-extrusion") poner(l.id, "fill-extrusion-color", "#28344f");
+    else if (l.type === "line") {
+      if (/casing/.test(capa)) poner(l.id, "line-color", "#0a0f1c");
+      else if (/motorway|trunk/.test(capa)) poner(l.id, "line-color", "#c9a23a");
+      else if (/primary|secondary|major/.test(capa)) poner(l.id, "line-color", "#7b93c6");
+      else if (/rail/.test(capa)) poner(l.id, "line-color", "#566078");
+      else if (/water/.test(capa)) poner(l.id, "line-color", "#1d4a75");
+      else if (/boundary/.test(capa)) poner(l.id, "line-color", "#4a5470");
+      else poner(l.id, "line-color", "#46577e");
+    } else if (l.type === "symbol") {
+      poner(l.id, "text-color", "#dbe3f3");
+      poner(l.id, "text-halo-color", "#0b1020");
+    }
+  }
+  return originales;
+}
 const DEM = "https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png";
 
 const CIELO = {
@@ -189,10 +230,9 @@ export function Escena3D({ linea, paradas, color, vivo, simular = false, zona, h
 
   // Capas propias: se montan con cada estilo (al cambiar día/noche se borran).
   function montarCapas(m: maplibregl.Map) {
-    const { modo: md, color: col, linea: ln, paradas: pr, zona: zn } = estado.current;
-    const noche = md === "noche";
+    const { color: col, linea: ln, paradas: pr, zona: zn } = estado.current;
     try {
-      m.setSky(CIELO[md] as maplibregl.SkySpecification);
+      m.setSky(CIELO.dia as maplibregl.SkySpecification);
     } catch {
       /* versiones sin cielo */
     }
@@ -212,7 +252,7 @@ export function Escena3D({ linea, paradas, color, vivo, simular = false, zona, h
           "source-layer": "building",
           minzoom: 13,
           paint: {
-            "fill-extrusion-color": noche ? "#1f2a44" : "#d9dde3",
+            "fill-extrusion-color": "#d9dde3",
             "fill-extrusion-height": ["coalesce", ["get", "render_height"], 8],
             "fill-extrusion-base": ["coalesce", ["get", "render_min_height"], 0],
             "fill-extrusion-opacity": 0.85,
@@ -228,7 +268,7 @@ export function Escena3D({ linea, paradas, color, vivo, simular = false, zona, h
     m.addLayer({ id: "zona-borde", type: "line", source: "zona", paint: { "line-color": "#f4b400", "line-width": 2, "line-opacity": 0.8 } });
 
     m.addSource("ruta", { type: "geojson", lineMetrics: true, data: lineaGeoJSON(ln) });
-    m.addLayer({ id: "ruta-brillo", type: "line", source: "ruta", layout: { "line-cap": "round", "line-join": "round" }, paint: { "line-color": col, "line-width": 22, "line-blur": 14, "line-opacity": noche ? 0.75 : 0.45 } });
+    m.addLayer({ id: "ruta-brillo", type: "line", source: "ruta", layout: { "line-cap": "round", "line-join": "round" }, paint: { "line-color": col, "line-width": 22, "line-blur": 14, "line-opacity": 0.45 } });
     m.addLayer({
       id: "ruta-base",
       type: "line",
@@ -261,7 +301,7 @@ export function Escena3D({ linea, paradas, color, vivo, simular = false, zona, h
     if (!contenedor.current || mapa.current || puntos.length === 0) return;
     const m = new maplibregl.Map({
       container: contenedor.current,
-      style: ESTILOS.dia,
+      style: ESTILO,
       center: puntos[0],
       zoom: 11,
       pitch: 0,
@@ -271,7 +311,6 @@ export function Escena3D({ linea, paradas, color, vivo, simular = false, zona, h
     });
     mapa.current = m;
     m.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), "top-right");
-    m.addControl(new maplibregl.FullscreenControl(), "top-right");
     m.on("style.load", () => montarCapas(m));
     m.once("load", () => {
       setListo(true);
@@ -311,15 +350,48 @@ export function Escena3D({ linea, paradas, color, vivo, simular = false, zona, h
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [puntos.length > 0]);
 
-  // Día / noche: cambia el estilo base y se vuelven a montar las capas propias.
-  const primerModo = useRef(true);
+  // Día / noche: se recolorea el mismo estilo (y se guardan los colores para volver).
+  const originales = useRef<Pintura[] | null>(null);
   useEffect(() => {
-    if (primerModo.current) {
-      primerModo.current = false;
-      return;
+    const m = mapa.current;
+    if (!m || !listo) return;
+    try {
+      m.setSky(CIELO[modo] as maplibregl.SkySpecification);
+    } catch {
+      /* sin cielo */
     }
-    mapa.current?.setStyle(ESTILOS[modo]);
-  }, [modo]);
+    if (modo === "noche" && !originales.current) originales.current = nocturnizar(m);
+    if (modo === "dia" && originales.current) {
+      for (const [id, prop, valor] of originales.current) {
+        try {
+          m.setPaintProperty(id, prop as never, valor as never);
+        } catch {
+          /* capa que ya no está */
+        }
+      }
+      originales.current = null;
+    }
+    if (m.getLayer("ruta-brillo")) m.setPaintProperty("ruta-brillo", "line-opacity", modo === "noche" ? 0.75 : 0.45);
+  }, [modo, listo]);
+
+  // Pantalla completa del contenedor entero: el panel de datos y los botones siguen visibles.
+  const marco = useRef<HTMLDivElement>(null);
+  const [completa, setCompleta] = useState(false);
+  useEffect(() => {
+    const cambio = () => {
+      setCompleta(document.fullscreenElement === marco.current);
+      setTimeout(() => mapa.current?.resize(), 60);
+    };
+    document.addEventListener("fullscreenchange", cambio);
+    return () => document.removeEventListener("fullscreenchange", cambio);
+  }, []);
+  const alternarCompleta = () => {
+    if (document.fullscreenElement) void document.exitFullscreen();
+    else void marco.current?.requestFullscreen?.();
+  };
+
+  // Panel de datos: abierto en pantallas anchas, plegado en el celular.
+  const [hudAbierto, setHudAbierto] = useState(() => typeof window === "undefined" || window.innerWidth >= 640);
 
   // Datos nuevos (refresco o GPS): se actualizan las fuentes sin recrear el mapa.
   useEffect(() => {
@@ -420,11 +492,24 @@ export function Escena3D({ linea, paradas, color, vivo, simular = false, zona, h
   }, [listo]);
 
   return (
-    <div className={`relative overflow-hidden rounded-[28px] border border-asfalto-700 bg-asfalto-900 shadow-lift ${className}`}>
+    <div ref={marco} className={`relative overflow-hidden bg-asfalto-900 ${completa ? "h-screen w-screen" : `rounded-[28px] border border-asfalto-700 shadow-lift ${className}`}`}>
       <div ref={contenedor} className="h-full w-full" />
-      {hud && <div className="pointer-events-none absolute left-3 top-3 w-[min(300px,calc(100%-80px))]">{hud(velocidad)}</div>}
+      {hud && (
+        <div className="absolute left-2 top-2 z-10 flex w-[min(300px,calc(100%-64px))] flex-col items-start gap-1.5 sm:left-3 sm:top-3">
+          <button
+            type="button"
+            onClick={() => setHudAbierto((a) => !a)}
+            aria-expanded={hudAbierto}
+            className="inline-flex items-center gap-1.5 rounded-full bg-asfalto-900/90 px-3 py-1.5 text-[11px] font-bold text-white shadow-lift backdrop-blur sm:hidden"
+          >
+            Datos del viaje
+            <ChevronDown className={`h-3.5 w-3.5 transition-transform ${hudAbierto ? "rotate-180" : ""}`} aria-hidden />
+          </button>
+          {hudAbierto && <div className="pointer-events-none w-full">{hud(velocidad)}</div>}
+        </div>
+      )}
 
-      <div className="absolute bottom-9 left-1/2 flex -translate-x-1/2 items-center gap-1 rounded-2xl border border-white/10 bg-asfalto-900/90 p-1.5 shadow-lift backdrop-blur-md">
+      <div className="absolute bottom-9 left-1/2 z-10 flex max-w-[calc(100%-16px)] -translate-x-1/2 items-center gap-0.5 rounded-2xl border border-white/10 bg-asfalto-900/90 p-1 shadow-lift backdrop-blur-md sm:gap-1 sm:p-1.5">
         <BotonCamara activo={camara === "seguir"} onClick={() => setCamara("seguir")} icono={Truck}>
           Seguir
         </BotonCamara>
@@ -442,6 +527,9 @@ export function Escena3D({ linea, paradas, color, vivo, simular = false, zona, h
         )}
         <BotonCamara activo={false} onClick={() => setModo((m) => (m === "dia" ? "noche" : "dia"))} icono={modo === "dia" ? Moon : Sun}>
           {modo === "dia" ? "Noche" : "Día"}
+        </BotonCamara>
+        <BotonCamara activo={completa} onClick={alternarCompleta} icono={completa ? Minimize2 : Maximize2}>
+          {completa ? "Salir" : "Completa"}
         </BotonCamara>
         {camara === "libre" && (
           <span className="hidden items-center gap-1 px-2 text-[11px] text-gray-400 sm:inline-flex">

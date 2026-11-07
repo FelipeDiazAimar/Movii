@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { AuroraBackground } from "@/components/aurora-background";
 import { MiniCamion } from "@/components/mini-camion";
+import { CambiarPassword } from "@/components/cambiar-password";
 import { Aparecer, Carril, NumeroAnimado, PuntoVivo } from "@/components/ui/efectos";
 import { PrimaryButton } from "@/components/ui/movii-ui";
 import { M, SOMBRA } from "@/constants/movii-design";
@@ -247,7 +248,11 @@ export default function ProfileScreen() {
             </View>
           </Seccion>
 
-          <Aparecer indice={5}>
+          <Seccion titulo="Seguridad" indice={5}>
+            <CambiarPassword />
+          </Seccion>
+
+          <Aparecer indice={6}>
             <PrimaryButton label="Cerrar sesión" tone="secondary" onPress={() => { logout(); router.replace("/login"); }} />
           </Aparecer>
         </View>

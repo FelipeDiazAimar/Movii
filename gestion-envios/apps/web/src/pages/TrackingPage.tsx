@@ -424,9 +424,9 @@ export function TrackingPage() {
   const conResultado = buscado !== null && !isLoading && !isError && data;
 
   return (
-    <div className="pt-safe pb-safe min-h-screen bg-asfalto-900 bg-[radial-gradient(90%_50%_at_50%_0%,rgba(244,180,0,0.16),transparent_70%)] px-4 py-8">
+    <div className="min-h-screen bg-asfalto-900 bg-[radial-gradient(90%_50%_at_50%_0%,rgba(244,180,0,0.16),transparent_70%)] px-4 pb-[calc(env(safe-area-inset-bottom)+2.5rem)] pt-[calc(env(safe-area-inset-top)+2.5rem)] sm:pt-[calc(env(safe-area-inset-top)+3.5rem)]">
       <div className="mx-auto w-full max-w-3xl">
-        <header className="mb-6 flex items-center justify-between gap-3">
+        <header className="mb-8 flex items-center justify-between gap-3">
           <Link to="/tracking" onClick={rastrearOtro} className="flex items-center gap-2.5">
             <span className="flex h-10 w-10 items-center justify-center rounded-full bg-movii-500 text-2xl font-light leading-none text-asfalto-900">›</span>
             <span className="font-expandida text-2xl font-black text-white">movii</span>

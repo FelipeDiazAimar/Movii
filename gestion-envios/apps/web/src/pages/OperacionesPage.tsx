@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useQueries, useQuery } from "@tanstack/react-query";
 import { obtenerDashboard } from "@/features/analitica/api";
@@ -18,6 +18,10 @@ import { Spinner } from "@/components/ui/Spinner";
 import { SkeletonPagina } from "@/components/ui/Skeleton";
 import { Alert } from "@/components/ui/Alert";
 import { getApiErrorMessage } from "@/services/api-client";
+import { hayWebGL } from "@/features/mapas/webgl";
+
+// La vista 3D (MapLibre) se baja solo si la eligen.
+const Operaciones3D = lazy(() => import("@/features/mapas/Operaciones3D").then((m) => ({ default: m.Operaciones3D })));
 import { formatearFecha, formatearHora } from "@/utils/fechas";
 import { CountUp, PuntoVivo, SpotlightCard } from "@/components/ui/Efectos";
 import {
@@ -80,6 +84,7 @@ function duracion(seg: number) {
 export function OperacionesPage() {
   const [seleccionadoId, setSeleccionadoId] = useState<string | null>(null);
   const [envioElegido, setEnvioElegido] = useState<string | null>(null);
+  const [vistaMapa, setVistaMapa] = useState<"2d" | "3d">("2d");
   const { posiciones, estado: conexion } = useFlotaEnVivo();
 
   const dashboard = useQuery({ queryKey: ["operaciones", "dashboard"], queryFn: () => obtenerDashboard(), refetchInterval: 30_000 });
@@ -136,6 +141,9 @@ export function OperacionesPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [conRuta, colorDe, seleccionado?.id, ...detalles.map((d) => d.dataUpdatedAt)],
   );
+
+  // Un solo recorrido a la vez: el del camión elegido (los demás no se dibujan).
+  const rutasVisibles = useMemo(() => rutasEnMapa.filter((r) => r.id === seleccionado?.id), [rutasEnMapa, seleccionado?.id]);
 
   const enMapa = useMemo<VehiculoEnMapa[]>(
     () =>
@@ -296,32 +304,69 @@ export function OperacionesPage() {
                       Tocá un camión para inspeccionarlo o un paquete de la lista para ver el camino por las calles hasta su destino.
                     </p>
                   </div>
-                  {detalle.data?.recorrido && (
-                    <span className="rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-700">
-                      Resta {(detalle.data.recorrido.distancia_m / 1000).toFixed(1)} km · ~{duracion(detalle.data.recorrido.duracion_s)}
-                    </span>
-                  )}
+                  <div className="flex flex-wrap items-center gap-2">
+                    {detalle.data?.recorrido && (
+                      <span className="rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-700">
+                        Resta {(detalle.data.recorrido.distancia_m / 1000).toFixed(1)} km · ~{duracion(detalle.data.recorrido.duracion_s)}
+                      </span>
+                    )}
+                    {hayWebGL() && (
+                      <div className="flex rounded-xl bg-hormigon-100 p-1 text-xs font-bold" role="radiogroup" aria-label="Tipo de mapa">
+                        {(["2d", "3d"] as const).map((v) => (
+                          <button
+                            key={v}
+                            type="button"
+                            role="radio"
+                            aria-checked={vistaMapa === v}
+                            onClick={() => setVistaMapa(v)}
+                            className={`rounded-lg px-3 py-1 transition ${vistaMapa === v ? "bg-asfalto-900 text-movii-500 shadow-panel" : "text-gray-500 hover:text-gray-900"}`}
+                          >
+                            {v.toUpperCase()}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
+                {vistaMapa === "3d" ? (
+                  <Suspense fallback={<div className="flex h-[460px] items-center justify-center"><Spinner label="Cargando vista 3D…" /></div>}>
+                    <Operaciones3D
+                      key={seleccionado.id}
+                      vehiculo={seleccionado}
+                      color={colorDe[seleccionado.id] ?? "#f4b400"}
+                      recorrido={detalle.data?.recorrido}
+                      paquetes={paquetes}
+                      vivo={vivoSel}
+                      envioElegido={envioElegido}
+                    />
+                  </Suspense>
+                ) : (
                 <MapaMovii
                   className="h-[420px]"
                   vehiculos={enMapa}
                   paradas={paradas}
-                  rutas={trayecto.data?.recorrido ? rutasEnMapa.map((r) => ({ ...r, destacada: false })) : rutasEnMapa}
+                  rutas={rutasVisibles.map((r) => ({ ...r, destacada: !trayecto.data?.recorrido }))}
                   deposito={[-31.4279718, -62.0826608]}
                   trayecto={trayecto.data?.recorrido?.geometria ?? null}
                   onVehiculoClick={(id) => setSeleccionadoId(id)}
                   onParadaClick={(id) => setEnvioElegido(id)}
                   encuadre={`${seleccionado.id}-${envioElegido ?? ""}-${detalle.data ? "ok" : ""}`}
                 />
+                )}
                 {rutasEnMapa.length > 0 && (
-                  <ul className="mt-3 flex flex-wrap gap-2" aria-label="Rutas en el mapa">
+                  <ul className="mt-3 flex flex-wrap gap-2" role="radiogroup" aria-label="Recorrido que se ve en el mapa">
                     {rutasEnMapa.map((r) => (
                       <li key={r.id}>
                         <button
                           type="button"
-                          onClick={() => setSeleccionadoId(r.id)}
+                          role="radio"
+                          aria-checked={r.id === seleccionado.id}
+                          onClick={() => {
+                            setSeleccionadoId(r.id);
+                            setEnvioElegido(null);
+                          }}
                           className={`flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold transition-colors ${
-                            r.destacada ? "border-asfalto-900 bg-asfalto-900 text-white" : "border-hormigon-200 bg-white text-gray-700 hover:border-hormigon-300"
+                            r.id === seleccionado.id ? "border-asfalto-900 bg-asfalto-900 text-white" : "border-hormigon-200 bg-white text-gray-500 hover:border-hormigon-300 hover:text-gray-800"
                           }`}
                         >
                           <span className="h-2.5 w-5 rounded-full" style={{ background: `repeating-linear-gradient(90deg, ${r.color} 0 4px, transparent 4px 7px)` }} />

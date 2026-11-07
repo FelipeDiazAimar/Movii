@@ -86,6 +86,9 @@ func New(deps Deps) http.Handler {
 		protected.Use(middleware.RequireAuth(deps.JWTSecret))
 		protected.Use(middleware.ValidarUUIDs)
 
+		// Cualquier rol: cambiar la propia contraseña desde el perfil.
+		protected.Post("/auth/cambiar-password", deps.AuthHandler.CambiarPassword)
+
 		protected.Group(func(adminOnly chi.Router) {
 			adminOnly.Use(middleware.RequireRole(domain.RolAdmin))
 			adminOnly.Get("/users", deps.UsuariosHandler.List)

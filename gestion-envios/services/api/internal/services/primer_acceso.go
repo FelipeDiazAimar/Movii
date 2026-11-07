@@ -25,6 +25,10 @@ var (
 	ErrPrimerAccesoInvalido = errors.New("primer acceso invalido")
 	// ErrCuentaInactiva: el usuario está dado de baja.
 	ErrCuentaInactiva = errors.New("cuenta inactiva")
+	// ErrPasswordActualIncorrecta: al cambiar la contraseña, la actual no coincide.
+	ErrPasswordActualIncorrecta = errors.New("password actual incorrecta")
+	// ErrPasswordRepetida: la contraseña nueva es igual a la actual.
+	ErrPasswordRepetida = errors.New("password repetida")
 	// ErrGoogleOtraCuenta: el email ya está vinculado a otra cuenta de Google.
 	ErrGoogleOtraCuenta = errors.New("email vinculado a otra cuenta de google")
 )
@@ -106,6 +110,39 @@ func (s *AuthService) CambiarPasswordPrimerAcceso(ctx context.Context, token, us
 	}
 	u.PasswordHash = string(hash)
 	return u, nil
+}
+
+// CambiarPassword cambia la contraseña de un usuario con sesión: pide la
+// actual (así un celular olvidado desbloqueado no alcanza para cambiarla) y
+// aplica las mismas reglas que el primer acceso.
+func (s *AuthService) CambiarPassword(ctx context.Context, userID, actual, nueva string) error {
+	if s.cuentas == nil {
+		return errSinCuentas
+	}
+	u, err := s.cuentas.GetByID(ctx, userID)
+	if errors.Is(err, repository.ErrNoEncontrado) {
+		return ErrPasswordActualIncorrecta
+	}
+	if err != nil {
+		return err
+	}
+	if !u.Activo {
+		return ErrCuentaInactiva
+	}
+	if bcrypt.CompareHashAndPassword([]byte(u.PasswordHash), []byte(actual)) != nil {
+		return ErrPasswordActualIncorrecta
+	}
+	if actual == nueva {
+		return ErrPasswordRepetida
+	}
+	if err := ValidarPassword(nueva); err != nil {
+		return err
+	}
+	hash, err := bcrypt.GenerateFromPassword([]byte(nueva), 10)
+	if err != nil {
+		return err
+	}
+	return s.cuentas.ActualizarPassword(ctx, u.ID, string(hash))
 }
 
 // PerfilGoogle es lo que se usa del id_token de Google (ya validado).

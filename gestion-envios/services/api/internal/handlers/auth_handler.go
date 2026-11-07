@@ -7,6 +7,7 @@ import (
 	"net/http"
 
 	httpx "movii/api/internal/platform/http"
+	"movii/api/internal/middleware"
 	"movii/api/internal/services"
 )
 
@@ -211,6 +212,41 @@ type cambiarPasswordRequest struct {
 // CambiarPasswordPrimerAcceso maneja POST /auth/primer-acceso/cambiar-password
 // {user_id, nueva_password, token}: guarda la contraseña nueva y manda el
 // código por WhatsApp o mail. El token de sesión sale de /auth/primer-acceso/verificar.
+type cambiarMiPasswordRequest struct {
+	Actual string `json:"actual"`
+	Nueva  string `json:"nueva"`
+}
+
+// CambiarPassword maneja POST /auth/cambiar-password (con sesión): la persona
+// cambia su propia contraseña desde su perfil, con la actual.
+func (h *AuthHandler) CambiarPassword(w http.ResponseWriter, r *http.Request) {
+	claims, ok := middleware.ClaimsFromContext(r.Context())
+	if !ok {
+		httpx.WriteError(w, http.StatusUnauthorized, "sin_token", "falta autenticación")
+		return
+	}
+	var req cambiarMiPasswordRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		httpx.WriteError(w, http.StatusBadRequest, "body_invalido", "el cuerpo de la petición no es JSON válido")
+		return
+	}
+	err := h.svc.CambiarPassword(r.Context(), claims.UsuarioID, req.Actual, req.Nueva)
+	switch {
+	case err == nil:
+		w.WriteHeader(http.StatusNoContent)
+	case errors.Is(err, services.ErrPasswordActualIncorrecta):
+		httpx.WriteError(w, http.StatusBadRequest, "password_actual_incorrecta", "la contraseña actual no es correcta")
+	case errors.Is(err, services.ErrPasswordRepetida):
+		httpx.WriteError(w, http.StatusBadRequest, "password_repetida", "la contraseña nueva tiene que ser distinta de la actual")
+	case errors.Is(err, services.ErrPasswordDebil):
+		httpx.WriteError(w, http.StatusBadRequest, "password_debil", "la contraseña debe tener al menos 8 caracteres, una mayúscula y un número")
+	case errors.Is(err, services.ErrCuentaInactiva):
+		httpx.WriteError(w, http.StatusForbidden, "cuenta_inactiva", "la cuenta está dada de baja")
+	default:
+		httpx.WriteError(w, http.StatusInternalServerError, "error_interno", "no se pudo cambiar la contraseña")
+	}
+}
+
 func (h *AuthHandler) CambiarPasswordPrimerAcceso(w http.ResponseWriter, r *http.Request) {
 	var req cambiarPasswordRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || h.otp == nil {
