@@ -1,10 +1,11 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { listarRutas } from "@/features/rutas/api";
+import { listarRutas, eliminarRuta } from "@/features/rutas/api";
 import { EstadoRutaBadge } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/Card";
 import { Spinner } from "@/components/ui/Spinner";
+import { BotonEliminar } from "@/components/ui/BotonEliminar";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { getApiErrorMessage } from "@/services/api-client";
@@ -99,6 +100,9 @@ export function RutasListPage() {
                 <MapPinned className="h-3.5 w-3.5" aria-hidden />
                 Ver en el mapa
               </Link>
+              <div className="flex justify-end border-t border-hormigon-100 px-2 py-1">
+                <BotonEliminar nombre={ruta.nombre || "(sin nombre)"} eliminar={() => eliminarRuta(ruta.id)} invalidar={[["rutas"]]} />
+              </div>
             </SpotlightCard>
           ))}
         </div>

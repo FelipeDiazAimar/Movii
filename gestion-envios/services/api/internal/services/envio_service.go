@@ -9,6 +9,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"movii/api/internal/domain"
+	"movii/api/internal/platform/fecha"
 	"movii/api/internal/repository"
 )
 
@@ -32,6 +33,8 @@ type CrearEnvioInput struct {
 	TipoContenido        string
 	Fragil               bool
 	Urgente              bool
+	// FechaEntrega "YYYY-MM-DD"; vacía = hoy.
+	FechaEntrega string
 }
 
 // validarCrearEnvioInput chequea los campos obligatorios del CA-04 de HU-02:
@@ -39,6 +42,12 @@ type CrearEnvioInput struct {
 func validarCrearEnvioInput(in CrearEnvioInput) error {
 	if in.DestinatarioNombre == "" || in.Calle == "" || in.Localidad == "" || in.Peso <= 0 {
 		return ErrCamposObligatorios
+	}
+	if in.FechaEntrega != "" {
+		f, err := time.Parse("2006-01-02", in.FechaEntrega)
+		if err != nil || f.Before(fecha.InicioDeHoy()) {
+			return ErrFechaInvalida
+		}
 	}
 	return nil
 }
@@ -125,8 +134,7 @@ func (s *EnvioService) crearConCodigoUnico(ctx context.Context, q repository.Que
 	// de fecha vencida de las rutas). Con la hora local de la máquina, cerca de
 	// medianoche el código de guía quedaba fechado un día distinto al que el
 	// resto de la API considera "hoy".
-	fecha := time.Now().UTC().Format("20060102")
-	prefijo := "MOV-" + fecha + "-"
+	prefijo := "MOV-" + fecha.Ahora().Format("20060102") + "-"
 
 	var ultimoErr error
 	for intento := 0; intento < 5; intento++ {
@@ -138,7 +146,7 @@ func (s *EnvioService) crearConCodigoUnico(ctx context.Context, q repository.Que
 
 		envio, err := s.envioRepo.Create(ctx, q, domain.Envio{
 			CodigoGuia: codigo, Peso: in.Peso, Tamano: in.Tamano, TipoContenido: in.TipoContenido,
-			Fragil: in.Fragil, Urgente: in.Urgente, RemitenteID: remitenteID, DestinatarioID: destinatarioID,
+			Fragil: in.Fragil, Urgente: in.Urgente, RemitenteID: remitenteID, DestinatarioID: destinatarioID, FechaEntrega: in.FechaEntrega,
 		})
 		if errors.Is(err, repository.ErrDuplicado) {
 			ultimoErr = err

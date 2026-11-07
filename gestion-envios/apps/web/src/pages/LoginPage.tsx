@@ -5,18 +5,30 @@ import { getApiErrorMessage } from "@/services/api-client";
 import { Button } from "@/components/ui/Button";
 import { InputField } from "@/components/ui/Field";
 import { Alert } from "@/components/ui/Alert";
-import { reenviarCodigo } from "@/features/auth/api";
+import { obtenerConfigAuth, reenviarCodigo, urlLoginGoogle } from "@/features/auth/api";
 import type { DesafioLogin, Sesion } from "@/features/auth/types";
 import { useBordesNavegador } from "@/hooks/useBordesNavegador";
 import { ShieldCheck } from "lucide-react";
+import { CodigoInput } from "@/components/ui/CodigoInput";
+
+/** Mensajes para el ?error= con que vuelve el login con Google (T2). */
+const ERRORES_GOOGLE: Record<string, string> = {
+  cancelado: "Cancelaste el inicio de sesión con Google.",
+  google_denied: "Google no autorizó el inicio de sesión.",
+  email_no_verificado: "Tu cuenta de Google no tiene el email verificado.",
+  cuenta_inactiva: "Tu usuario está dado de baja.",
+  google_otra_cuenta: "Ese email ya está vinculado a otra cuenta de Google.",
+  google_no_configurado: "El ingreso con Google no está habilitado.",
+  codigo_no_enviado: "No pudimos enviarte el código de verificación. Probá de nuevo en un minuto.",
+};
 
 export function LoginPage() {
-  const { sesion, login, verificarCodigo } = useAuth();
+  const { sesion, login, verificarCodigo, abrirSesion } = useAuth();
   const navigate = useNavigate();
   useBordesNavegador("#1a1a1a");
   const location = useLocation();
 
-  // Credenciales del supervisor de la demo (migrations/0002_seed.up.sql)
+  // Credenciales del admin de la demo (migrations/0002_seed.up.sql)
   // precargadas, igual que en la app móvil. autoComplete="off" evita que el
   // navegador pise la contraseña con una vieja guardada.
   const [email, setEmail] = useState("supervisor@movii.demo");
@@ -25,11 +37,37 @@ export function LoginPage() {
   // Segundo paso (HU-16): código de 6 dígitos que llega por WhatsApp.
   const [desafio, setDesafio] = useState<DesafioLogin | null>(null);
   const [codigo, setCodigo] = useState("");
+  const [verificado, setVerificado] = useState(false);
   const [aviso, setAviso] = useState<string | null>(null);
   const [segundos, setSegundos] = useState(0);
 
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(() => {
+    const e = new URLSearchParams(location.search).get("error");
+    return e ? (ERRORES_GOOGLE[e] ?? "No se pudo iniciar sesión con Google.") : null;
+  });
   const [enviando, setEnviando] = useState(false);
+  // Feature flag del botón de Google: GET /auth/config.
+  const [conGoogle, setConGoogle] = useState(false);
+
+  useEffect(() => {
+    obtenerConfigAuth()
+      .then((c) => setConGoogle(c.google))
+      .catch(() => setConGoogle(false));
+  }, []);
+
+  // Vuelta de Google: el token llega en el fragmento (#token=...&email=...).
+  useEffect(() => {
+    const datos = new URLSearchParams(location.hash.slice(1));
+    const token = datos.get("token");
+    if (!token) return;
+    try {
+      entrar(abrirSesion(token, datos.get("email") ?? ""));
+    } catch {
+      setError("No se pudo iniciar sesión con Google.");
+    }
+    // Solo al volver de Google (una vez).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     if (segundos <= 0) return;
@@ -49,7 +87,7 @@ export function LoginPage() {
   function empezarDesafio(d: DesafioLogin) {
     setDesafio(d);
     setCodigo("");
-    setSegundos(30); // espera antes de poder pedir otro código
+    setSegundos(60); // la API acepta un código por minuto
   }
 
   async function handlePassword(e: FormEvent) {
@@ -61,7 +99,10 @@ export function LoginPage() {
     try {
       const r = await login({ email, password });
       const ms = Math.round(performance.now() - t0);
-      if ("desafio_id" in r) {
+      if ("user_id" in r) {
+        console.info(`[login] contraseña OK en ${ms} ms: primer acceso, hay que elegir contraseña nueva`);
+        navigate("/primer-acceso", { state: r });
+      } else if ("desafio_id" in r) {
         console.info(`[login] contraseña OK en ${ms} ms: se pidió el código por WhatsApp`, { telefono: r.telefono, desafio: r.desafio_id });
         empezarDesafio(r);
       } else {
@@ -85,6 +126,8 @@ export function LoginPage() {
     try {
       const nueva = await verificarCodigo(desafio.desafio_id, codigo.trim(), email);
       console.info("[login] código correcto: sesión iniciada", { rol: nueva.rol });
+      setVerificado(true);
+      await new Promise((r) => setTimeout(r, 650)); // deja ver la ola verde de aceptación
       entrar(nueva);
     } catch (err) {
       console.error("[login] paso 2 falló", err);
@@ -123,7 +166,7 @@ export function LoginPage() {
           </span>
           <h1 className="font-expandida text-xl font-black text-gray-900">movii</h1>
           <p className="text-center text-sm text-gray-500">
-            {desafio ? "Verificá que sos vos" : "Ingresá con tu cuenta de operador o supervisor"}
+            {desafio ? "Verificá que sos vos" : "Ingresá con tu cuenta de operador o admin"}
           </p>
         </div>
 
@@ -143,6 +186,20 @@ export function LoginPage() {
             <Button type="submit" loading={enviando} className="mt-2 w-full">
               Ingresar
             </Button>
+            {conGoogle && (
+              <a
+                href={urlLoginGoogle()}
+                className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-hormigon-300 bg-white px-4 py-2.5 text-sm font-semibold text-gray-800 transition-colors hover:border-gray-400 hover:bg-hormigon-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-400"
+              >
+                <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden>
+                  <path fill="#FFC107" d="M43.6 20.1H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.6-.4-3.9z" />
+                  <path fill="#FF3D00" d="m6.3 14.7 6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z" />
+                  <path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-8l-6.5 5C9.5 39.6 16.2 44 24 44z" />
+                  <path fill="#1976D2" d="M43.6 20.1H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.6-.4-3.9z" />
+                </svg>
+                Continuar con Google
+              </a>
+            )}
           </form>
         ) : (
           <form onSubmit={handleCodigo} className="flex flex-col gap-4" noValidate>
@@ -153,22 +210,12 @@ export function LoginPage() {
                 </svg>
               </span>
               <p>
-                Te mandamos un código de 6 dígitos por WhatsApp al <strong>{desafio.telefono}</strong>. Vence en 5 minutos.
+                Te mandamos un código de 6 dígitos por WhatsApp al <strong>{desafio.telefono}</strong>. Vence en{" "}
+                {Math.round(desafio.vence_en_segundos / 60)} minutos.
               </p>
             </div>
             {aviso && <Alert variant="success">{aviso}</Alert>}
-            <InputField
-              label="Código de verificación"
-              name="codigo"
-              inputMode="numeric"
-              autoComplete="one-time-code"
-              autoFocus
-              maxLength={6}
-              required
-              value={codigo}
-              onChange={(e) => setCodigo(e.target.value.replace(/\D/g, "").slice(0, 6))}
-              className="text-center text-xl tracking-[0.6em]"
-            />
+            <CodigoInput value={codigo} onChange={setCodigo} error={error} ok={verificado} disabled={enviando || verificado} />
             {error && <Alert variant="error">{error}</Alert>}
             <Button type="submit" loading={enviando} className="w-full" disabled={codigo.length !== 6}>
               Verificar e ingresar

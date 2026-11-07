@@ -32,16 +32,27 @@ func NewUsuarioRepo(pool *pgxpool.Pool) *UsuarioRepo {
 	return &UsuarioRepo{pool: pool}
 }
 
+// columnasUsuario y escanearUsuario mantienen el mismo SELECT en todo el repo.
+const columnasUsuario = `id, nombre, email, password_hash, rol, activo, COALESCE(telefono, ''),
+	must_change_password, COALESCE(google_id, ''), auth_provider`
+
+func escanearUsuario(row pgx.Row) (domain.Usuario, error) {
+	var u domain.Usuario
+	err := row.Scan(&u.ID, &u.Nombre, &u.Email, &u.PasswordHash, &u.Rol, &u.Activo, &u.Telefono,
+		&u.MustChangePassword, &u.GoogleID, &u.AuthProvider)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return domain.Usuario{}, ErrNoEncontrado
+	}
+	return u, err
+}
+
 // Create inserta un usuario nuevo. Devuelve ErrDuplicado si el email ya existe.
 func (r *UsuarioRepo) Create(ctx context.Context, u domain.Usuario) (domain.Usuario, error) {
-	row := r.pool.QueryRow(ctx, `
-		INSERT INTO usuarios (nombre, email, password_hash, rol, telefono)
-		VALUES ($1, $2, $3, $4::rol_usuario, NULLIF($5, ''))
-		RETURNING id, nombre, email, password_hash, rol, activo, COALESCE(telefono, '')
-	`, u.Nombre, u.Email, u.PasswordHash, u.Rol, u.Telefono)
-
-	var creado domain.Usuario
-	err := row.Scan(&creado.ID, &creado.Nombre, &creado.Email, &creado.PasswordHash, &creado.Rol, &creado.Activo, &creado.Telefono)
+	creado, err := escanearUsuario(r.pool.QueryRow(ctx, `
+		INSERT INTO usuarios (nombre, email, password_hash, rol, telefono, must_change_password, google_id, auth_provider)
+		VALUES ($1, $2, $3, $4::rol_usuario, NULLIF($5, ''), $6, NULLIF($7, ''), COALESCE(NULLIF($8, ''), 'password'))
+		RETURNING `+columnasUsuario,
+		u.Nombre, u.Email, u.PasswordHash, u.Rol, u.Telefono, u.MustChangePassword, u.GoogleID, u.AuthProvider))
 	if err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == pgUniqueViolation {
@@ -57,28 +68,12 @@ func (r *UsuarioRepo) Create(ctx context.Context, u domain.Usuario) (domain.Usua
 
 // GetByEmail busca un usuario por email. Devuelve ErrNoEncontrado si no existe.
 func (r *UsuarioRepo) GetByEmail(ctx context.Context, email string) (domain.Usuario, error) {
-	row := r.pool.QueryRow(ctx, `
-		SELECT id, nombre, email, password_hash, rol, activo, COALESCE(telefono, '')
-		FROM usuarios WHERE email = $1
-	`, email)
-
-	var u domain.Usuario
-	err := row.Scan(&u.ID, &u.Nombre, &u.Email, &u.PasswordHash, &u.Rol, &u.Activo, &u.Telefono)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return domain.Usuario{}, ErrNoEncontrado
-	}
-	if err != nil {
-		return domain.Usuario{}, err
-	}
-	return u, nil
+	return r.unoPor(ctx, "email", email)
 }
 
 // List devuelve todos los usuarios ordenados por nombre.
 func (r *UsuarioRepo) List(ctx context.Context) ([]domain.Usuario, error) {
-	rows, err := r.pool.Query(ctx, `
-		SELECT id, nombre, email, password_hash, rol, activo, COALESCE(telefono, '')
-		FROM usuarios ORDER BY nombre
-	`)
+	rows, err := r.pool.Query(ctx, `SELECT `+columnasUsuario+` FROM usuarios ORDER BY nombre`)
 	if err != nil {
 		return nil, err
 	}
@@ -86,8 +81,8 @@ func (r *UsuarioRepo) List(ctx context.Context) ([]domain.Usuario, error) {
 
 	var usuarios []domain.Usuario
 	for rows.Next() {
-		var u domain.Usuario
-		if err := rows.Scan(&u.ID, &u.Nombre, &u.Email, &u.PasswordHash, &u.Rol, &u.Activo, &u.Telefono); err != nil {
+		u, err := escanearUsuario(rows)
+		if err != nil {
 			return nil, err
 		}
 		usuarios = append(usuarios, u)
@@ -106,15 +101,35 @@ func (r *UsuarioRepo) GetByTelefono(ctx context.Context, telefono string) (domai
 }
 
 func (r *UsuarioRepo) unoPor(ctx context.Context, columna, valor string) (domain.Usuario, error) {
-	var u domain.Usuario
-	err := r.pool.QueryRow(ctx, `
-		SELECT id, nombre, email, password_hash, rol, activo, COALESCE(telefono, '')
-		FROM usuarios WHERE `+columna+` = $1
-	`, valor).Scan(&u.ID, &u.Nombre, &u.Email, &u.PasswordHash, &u.Rol, &u.Activo, &u.Telefono)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return domain.Usuario{}, ErrNoEncontrado
-	}
-	return u, err
+	return escanearUsuario(r.pool.QueryRow(ctx, `SELECT `+columnasUsuario+` FROM usuarios WHERE `+columna+` = $1`, valor))
+}
+
+// BuscarParaGoogle busca la cuenta vinculada a ese Google "sub" o, si no hay,
+// la que tenga ese email (sin distinguir mayúsculas). ErrNoEncontrado si ninguna.
+func (r *UsuarioRepo) BuscarParaGoogle(ctx context.Context, googleID, email string) (domain.Usuario, error) {
+	return escanearUsuario(r.pool.QueryRow(ctx, `
+		SELECT `+columnasUsuario+` FROM usuarios
+		WHERE google_id = $1 OR lower(email) = lower($2)
+		ORDER BY (google_id IS NOT DISTINCT FROM $1) DESC LIMIT 1
+	`, googleID, email))
+}
+
+// VincularGoogle guarda el Google "sub" del usuario si todavía no tenía uno.
+func (r *UsuarioRepo) VincularGoogle(ctx context.Context, id, googleID string) error {
+	_, err := r.pool.Exec(ctx, `UPDATE usuarios SET google_id = $2 WHERE id::text = $1 AND google_id IS NULL`, id, googleID)
+	return err
+}
+
+// ActualizarPassword cambia el hash de la contraseña (primer acceso, T1).
+func (r *UsuarioRepo) ActualizarPassword(ctx context.Context, id, hash string) error {
+	_, err := r.pool.Exec(ctx, `UPDATE usuarios SET password_hash = $2 WHERE id::text = $1`, id, hash)
+	return err
+}
+
+// CompletarPrimerAcceso baja el flag must_change_password (después del código).
+func (r *UsuarioRepo) CompletarPrimerAcceso(ctx context.Context, id string) error {
+	_, err := r.pool.Exec(ctx, `UPDATE usuarios SET must_change_password = false WHERE id::text = $1`, id)
+	return err
 }
 
 // ActualizarTelefono fija (o borra, con "") el teléfono del usuario.

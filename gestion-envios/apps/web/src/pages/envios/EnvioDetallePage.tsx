@@ -1,15 +1,16 @@
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { obtenerEnvio } from "@/features/envios/api";
+import { obtenerEnvio, eliminarEnvio } from "@/features/envios/api";
 import { AccionesEnvio, accionesDisponibles } from "@/features/envios/AccionesEnvio";
 import { HistorialTimeline } from "@/features/envios/HistorialTimeline";
-import { formatearFecha } from "@/utils/fechas";
+import { formatearDia, formatearFecha } from "@/utils/fechas";
 import { Dato } from "@/components/ui/Dato";
 import { AsignacionCard } from "@/features/envios/AsignacionCard";
 import { EstadoEnvioBadge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
 import { Spinner } from "@/components/ui/Spinner";
+import { BotonEliminar } from "@/components/ui/BotonEliminar";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { apiClient, getApiErrorMessage } from "@/services/api-client";
@@ -98,6 +99,7 @@ function EvidenciaEntrega({ firmaUrl, fotoUrl }: { firmaUrl: string; fotoUrl: st
 
 export function EnvioDetallePage() {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
 
   const { data: envio, isLoading, isError, error } = useQuery({
     queryKey: ["envios", id],
@@ -111,7 +113,7 @@ export function EnvioDetallePage() {
 
   return (
     <div className={PAGE_WIDE}>
-      <PageHeader back={{ to: "/envios", label: "Volver a envíos" }} title={envio.codigo_guia} icon={Package} badge={<EstadoEnvioBadge estado={envio.estado} />} />
+      <PageHeader back={{ to: "/envios", label: "Volver a envíos" }} title={envio.codigo_guia} icon={Package} badge={<EstadoEnvioBadge estado={envio.estado} />} action={<BotonEliminar nombre={envio.codigo_guia} eliminar={() => eliminarEnvio(envio.id)} invalidar={[["envios"], ["rutas"]]} onEliminado={() => navigate("/envios")} />} />
 
       <div className="grid gap-4 lg:grid-cols-3">
       <Card>
@@ -136,6 +138,7 @@ export function EnvioDetallePage() {
           <Dato label="Tamaño" value={envio.tamano} />
           <Dato label="Contenido" value={envio.tipo_contenido || "—"} />
           <Dato label="Frágil / Urgente" value={`${envio.fragil ? "Sí" : "No"} / ${envio.urgente ? "Sí" : "No"}`} />
+          <Dato label="Fecha de entrega" value={formatearDia(envio.fecha_entrega)} />
           <Dato label="Fecha de alta" value={formatearFecha(envio.fecha_creacion)} />
         </dl>
       </Card>

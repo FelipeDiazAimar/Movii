@@ -7,7 +7,6 @@ import { Dato } from "@/components/ui/Dato";
 import { Button } from "@/components/ui/Button";
 import { Alert } from "@/components/ui/Alert";
 import { SelectField } from "@/components/ui/Field";
-import { formatearDia } from "@/utils/fechas";
 import { getApiErrorMessage } from "@/services/api-client";
 import type { EnvioDetalle } from "@/features/envios/types";
 
@@ -70,7 +69,7 @@ export function AsignacionCard({ envio }: { envio: EnvioDetalle }) {
                   <option value="">Seleccionar…</option>
                   {planificadas.map((r) => (
                     <option key={r.id} value={r.id}>
-                      {r.nombre} · {formatearDia(r.fecha)} · {r.repartidor_nombre ?? "sin repartidor"}
+                      {r.nombre} · {r.repartidor_nombre ?? "sin repartidor"}
                     </option>
                   ))}
                 </SelectField>

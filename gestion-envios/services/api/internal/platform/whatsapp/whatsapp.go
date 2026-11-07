@@ -1,7 +1,7 @@
 // Package whatsapp envía mensajes de texto por WhatsApp (HU-16, HU-17).
 //
 // La implementación real usa whatsmeow: una cuenta de WhatsApp común vinculada
-// como "dispositivo" escaneando un QR desde el panel del supervisor (igual que
+// como "dispositivo" escaneando un QR desde el panel del admin (igual que
 // WhatsApp Web). No es la API oficial de Meta: no requiere cuenta Business ni
 // plantillas aprobadas, pero WhatsApp puede limitar números que envían mucho;
 // para un uso real conviene migrar a la Cloud API detrás de la misma interfaz.
@@ -20,7 +20,7 @@ var ErrNoVinculado = errors.New("whatsapp: la cuenta no está vinculada")
 // ErrSinWhatsApp indica que el número no tiene cuenta de WhatsApp.
 var ErrSinWhatsApp = errors.New("whatsapp: el número no tiene WhatsApp")
 
-// Estado es el estado de la conexión que ve el supervisor.
+// Estado es el estado de la conexión que ve el admin.
 type Estado struct {
 	Habilitado bool      `json:"habilitado"`
 	Conectado  bool      `json:"conectado"`

@@ -20,7 +20,7 @@ import {
 import { useAuth } from "@/hooks/useAuth";
 import { useBordesNavegador } from "@/hooks/useBordesNavegador";
 
-type Rol = "operador" | "supervisor";
+type Rol = "operador" | "admin";
 
 interface NavItem {
   to: string;
@@ -49,8 +49,8 @@ const GRUPOS: Grupo[] = [
   {
     titulo: "Administración",
     items: [
-      { to: "/usuarios", label: "Usuarios", icon: Users, roles: ["supervisor"] },
-      { to: "/configuracion/whatsapp", label: "WhatsApp", icon: MessageCircle, roles: ["supervisor"] },
+      { to: "/usuarios", label: "Usuarios", icon: Users, roles: ["admin"] },
+      { to: "/configuracion/whatsapp", label: "WhatsApp", icon: MessageCircle, roles: ["admin"] },
     ],
   },
 ];
@@ -125,7 +125,7 @@ function Navegacion({ compacta, rol, alNavegar }: { compacta: boolean; rol: Rol;
 
 function PieUsuario({ compacta, email, rol, onLogout }: { compacta: boolean; email: string; rol: string; onLogout: () => void }) {
   // La sesión restaurada puede no traer el email: se muestra el rol.
-  const nombre = email || (rol === "supervisor" ? "Supervisor" : "Operador");
+  const nombre = email || (rol === "admin" ? "Admin" : "Operador");
   const inicial = nombre.slice(0, 1).toUpperCase();
   return (
     <div className="border-t border-white/10 p-3">

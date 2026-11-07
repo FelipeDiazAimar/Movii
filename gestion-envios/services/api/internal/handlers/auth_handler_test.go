@@ -92,10 +92,9 @@ func TestLoginHandler_CredencialesCorrectasDevuelveToken(t *testing.T) {
 	svc := services.NewAuthService(repo, "secreto-de-test")
 	h := NewAuthHandler(svc)
 
-	regBody, _ := json.Marshal(map[string]string{
-		"nombre": "Ana", "email": "ana@movii.demo", "password": "clave-segura-123", "rol": domain.RolOperador,
-	})
-	h.Register(httptest.NewRecorder(), httptest.NewRequest(http.MethodPost, "/auth/register", bytes.NewReader(regBody)))
+	// Alta sin primer acceso pendiente (el alta por /auth/register responde 428 al loguearse; ver login_primer_acceso_test.go).
+	_, err := svc.Register(context.Background(), "Ana", "ana@movii.demo", "clave-segura-123", domain.RolOperador)
+	require.NoError(t, err)
 
 	loginBody, _ := json.Marshal(map[string]string{"email": "ana@movii.demo", "password": "clave-segura-123"})
 	req := httptest.NewRequest(http.MethodPost, "/auth/login", bytes.NewReader(loginBody))

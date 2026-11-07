@@ -79,3 +79,40 @@ body {
     stroke-dashoffset: -24;
   }
 }
+
+/* Entrada de código OTP (CodigoInput): celdas que aparecen en cascada, dígito con
+   resorte, cursor parpadeante, sacudida en error y ola de aceptación. */
+@keyframes otp-entrada {
+  from { opacity: 0; transform: translateY(10px) scale(0.92); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes otp-resorte {
+  0% { opacity: 0; transform: translateY(-40%) scale(0.4); }
+  55% { opacity: 1; transform: translateY(4%) scale(1.25); }
+  80% { transform: translateY(0) scale(0.95); }
+  100% { transform: none; }
+}
+@keyframes otp-parpadeo {
+  0%, 45% { opacity: 1; }
+  50%, 95% { opacity: 0; }
+  100% { opacity: 1; }
+}
+@keyframes otp-sacudida {
+  0%, 100% { transform: translateX(0); }
+  15% { transform: translateX(-9px); }
+  30% { transform: translateX(8px); }
+  45% { transform: translateX(-6px); }
+  60% { transform: translateX(5px); }
+  75% { transform: translateX(-2px); }
+}
+@keyframes otp-salto {
+  0% { transform: translateY(0) scale(1); }
+  40% { transform: translateY(-10px) scale(1.08); }
+  100% { transform: translateY(0) scale(1); }
+}
+.otp-celda { animation: otp-entrada 0.45s cubic-bezier(0.22, 1.2, 0.36, 1) both; }
+.otp-digito { display: inline-block; animation: otp-resorte 0.38s cubic-bezier(0.22, 1.2, 0.36, 1) both; }
+.otp-cursor { animation: otp-parpadeo 1.05s steps(1) infinite; }
+.otp-sacudir { animation: otp-sacudida 0.5s cubic-bezier(0.36, 0.07, 0.19, 0.97) both; }
+.otp-ola { animation: otp-salto 0.55s cubic-bezier(0.22, 1.2, 0.36, 1) both; }
+.otp-check { animation: otp-resorte 0.4s 0.25s cubic-bezier(0.22, 1.2, 0.36, 1) both; }

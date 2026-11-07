@@ -23,19 +23,19 @@ const axiosError = (response?: { status: number; data?: unknown }) =>
   new AxiosError("fallo", "ERR", undefined, undefined, response as never);
 
 describe("hoyUTC", () => {
-  it("devuelve la fecha UTC", () => {
-    expect(hoyUTC(new Date("2026-10-22T02:30:00Z"))).toBe("2026-10-22");
+  it("devuelve la fecha de Argentina (UTC-3)", () => {
+    expect(hoyUTC(new Date("2026-10-22T02:30:00Z"))).toBe("2026-10-21");
   });
 
-  it("usa UTC y no la hora local", () => {
-    expect(hoyUTC(new Date("2026-10-21T23:30:00-03:00"))).toBe("2026-10-22");
+  it("usa la hora de Argentina y no la local", () => {
+    expect(hoyUTC(new Date("2026-10-21T23:30:00-03:00"))).toBe("2026-10-21");
   });
 });
 
 describe("proximasFechas", () => {
-  it("devuelve fechas consecutivas desde hoy UTC con etiquetas", () => {
+  it("devuelve fechas consecutivas desde hoy (Argentina) con etiquetas", () => {
     const r = proximasFechas(3, new Date("2026-10-22T02:30:00Z"));
-    expect(r.map((x) => x.fecha)).toEqual(["2026-10-22", "2026-10-23", "2026-10-24"]);
+    expect(r.map((x) => x.fecha)).toEqual(["2026-10-21", "2026-10-22", "2026-10-23"]);
     expect(r[0].etiqueta.startsWith("Hoy")).toBe(true);
     expect(r[1].etiqueta.startsWith("Mañana")).toBe(true);
     r.forEach((x) => expect(x.fecha).toMatch(/^\d{4}-\d{2}-\d{2}$/));

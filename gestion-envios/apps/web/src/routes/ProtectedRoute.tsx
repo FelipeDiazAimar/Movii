@@ -5,7 +5,7 @@ import type { Rol } from "@/features/auth/types";
 
 /**
  * Exige sesión activa. Además, como el panel web es solo para operador y
- * supervisor (HU-05 — la vista del repartidor vive en la app móvil), un
+ * admin (HU-05 — la vista del repartidor vive en la app móvil), un
  * repartidor autenticado no pasa: se lo redirige a /acceso-denegado en vez de
  * mostrarle un panel vacío o roto.
  */

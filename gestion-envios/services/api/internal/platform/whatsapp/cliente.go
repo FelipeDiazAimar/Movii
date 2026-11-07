@@ -36,7 +36,7 @@ type Cliente struct {
 }
 
 // NuevoCliente abre la sesión guardada en la base (databaseURL) y conecta.
-// Si no hay sesión, queda esperando que el supervisor escanee el QR.
+// Si no hay sesión, queda esperando que el admin escanee el QR.
 func NuevoCliente(ctx context.Context, databaseURL string) (*Cliente, error) {
 	db, err := sql.Open("pgx", databaseURL)
 	if err != nil {

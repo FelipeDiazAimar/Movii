@@ -17,10 +17,14 @@ info:
     Todos los endpoints salvo `POST /auth/register`, `POST /auth/login` y
     `GET /health` requieren un JWT (HS256) en el header
     `Authorization: Bearer <token>`. El token se obtiene en `POST /auth/login`.
+    Los demás `/auth/*` (código de verificación, primer acceso, Google y
+    `GET /auth/config`) también son públicos. El token de primer acceso (T1,
+    claim `scope`) no sirve para ningún endpoint protegido: responden 403
+    `primer_acceso_pendiente`.
 
     ### Roles
     Algunos endpoints además exigen que el rol del usuario autenticado
-    (`operador`, `repartidor` o `supervisor`) esté entre los permitidos. El
+    (`operador`, `repartidor` o `admin`) esté entre los permitidos. El
     rol requerido de cada endpoint protegido está documentado en su
     `description` y en la extensión `x-required-role`.
 servers:
@@ -100,7 +104,7 @@ paths:
           description: >
             Body no es JSON válido (`body_invalido`), el email no tiene
             formato válido (`email_invalido`), o el rol no es
-            operador/repartidor/supervisor (`rol_invalido`).
+            operador/repartidor/admin (`rol_invalido`).
           content:
             application/json:
               schema:
@@ -115,7 +119,7 @@ paths:
                   value:
                     error:
                       code: rol_invalido
-                      message: el rol debe ser operador, repartidor o supervisor
+                      message: el rol debe ser operador, repartidor o admin
         "409":
           description: Ya existe un usuario con ese email (`email_en_uso`).
           content:
@@ -176,17 +180,188 @@ paths:
                 error:
                   code: credenciales_invalidas
                   message: email o contraseña incorrectos
+        "428":
+          description: >
+            Primer acceso pendiente (T1): el usuario fue dado de alta por un admin
+            y tiene que elegir una contraseña nueva y validar un código. `token`
+            vence a los 15 minutos y solo sirve para
+            `POST /auth/primer-acceso/cambiar-password`.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PrimerAccesoRequerido" }
+        "429": { description: "Ya se pidió un código hace menos de un minuto (`esperar_reenvio`) o más de 3 en 15 minutos (`demasiados_pedidos`).", content: { application/json: { schema: { $ref: "#/components/schemas/ApiError" } } } }
         "500":
           $ref: "#/components/responses/ErrorInterno"
 
+  /auth/primer-acceso/cambiar-password:
+    post:
+      tags: [auth]
+      summary: Primer acceso - elegir contraseña nueva y recibir el código (T1)
+      description: |
+        Valida el `token` del 428 de `POST /auth/login`, aplica las reglas (8+
+        caracteres, una mayúscula y un número) y guarda la contraseña. Después
+        manda un código de 6 dígitos por WhatsApp (si el usuario tiene celular y
+        WhatsApp está disponible) o por mail (Resend). `must_change_password`
+        sigue en true hasta validar el código en `/auth/primer-acceso/verificar`.
+      operationId: cambiarPasswordPrimerAcceso
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [user_id, nueva_password, token]
+              properties:
+                user_id: { type: string }
+                nueva_password: { type: string, example: "NuevaClave1" }
+                token: { type: string, description: "El `token` del 428." }
+      responses:
+        "200":
+          description: Contraseña guardada; el código ya salió.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DesafioLogin" }
+        "400": { description: "No cumple las reglas (`password_debil`) o body inválido.", content: { application/json: { schema: { $ref: "#/components/schemas/ApiError" } } } }
+        "401": { description: "Token inválido, vencido, de otro usuario o el primer acceso ya se completó (`primer_acceso_invalido`).", content: { application/json: { schema: { $ref: "#/components/schemas/ApiError" } } } }
+        "429": { description: "`esperar_reenvio` (1 código por minuto) o `demasiados_pedidos`.", content: { application/json: { schema: { $ref: "#/components/schemas/ApiError" } } } }
+        "502": { description: "No se pudo enviar el código (`envio_codigo_error`).", content: { application/json: { schema: { $ref: "#/components/schemas/ApiError" } } } }
+
+  /auth/primer-acceso/verificar:
+    post:
+      tags: [auth]
+      summary: Primer acceso - validar el código y entrar (T1)
+      description: |
+        Igual que `POST /auth/login/verificar`: si el código es correcto baja
+        `must_change_password` y devuelve el JWT de sesión. Código vencido o
+        tercer intento fallido → `codigo_vencido` (pedir otro con `/reenviar`).
+      operationId: verificarPrimerAcceso
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [desafio_id, codigo]
+              properties:
+                desafio_id: { type: string }
+                codigo: { type: string, example: "123456" }
+      responses:
+        "200":
+          description: Primer acceso completo, sesión iniciada.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LoginResponse" }
+        "401": { description: "`codigo_invalido` (incorrecto) o `codigo_vencido` (vencido, usado o sin intentos).", content: { application/json: { schema: { $ref: "#/components/schemas/ApiError" } } } }
+
+  /auth/primer-acceso/reenviar:
+    post:
+      tags: [auth]
+      summary: Primer acceso - reenviar el código (invalida el anterior)
+      operationId: reenviarPrimerAcceso
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [desafio_id]
+              properties:
+                desafio_id: { type: string }
+      responses:
+        "200":
+          description: Código nuevo enviado.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DesafioLogin" }
+        "401": { description: "El desafío no existe (`codigo_invalido`): volver a iniciar sesión.", content: { application/json: { schema: { $ref: "#/components/schemas/ApiError" } } } }
+        "429": { description: "`esperar_reenvio` (1 código por minuto) o `demasiados_pedidos` (3 cada 15 minutos).", content: { application/json: { schema: { $ref: "#/components/schemas/ApiError" } } } }
+        "502": { description: "No se pudo enviar el código (`envio_codigo_error`).", content: { application/json: { schema: { $ref: "#/components/schemas/ApiError" } } } }
+
+  /auth/config:
+    get:
+      tags: [auth]
+      summary: Métodos de login disponibles (feature flag del botón de Google, T2)
+      operationId: configAuth
+      security: []
+      responses:
+        "200":
+          description: "`google` es true solo con GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET y GOOGLE_CALLBACK_URL configuradas."
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  google: { type: boolean }
+
+  /auth/google:
+    get:
+      tags: [auth]
+      summary: Iniciar login con Google (T2)
+      description: |
+        Redirige (302) a Google con scopes `openid email profile` y un `state`
+        firmado (HMAC) cuyo nonce también va en la cookie HttpOnly
+        `movii_google_state` (anti-CSRF). La web navega directo a esta URL; la app
+        móvil la abre con `redirect_uri=movii://...` (`exp://` solo fuera de producción).
+        Sin Google configurado redirige a `/login?error=google_no_configurado`.
+      operationId: loginGoogle
+      security: []
+      parameters:
+        - { name: redirect_uri, in: query, required: false, schema: { type: string }, description: "Solo app móvil: adónde volver (movii://...)." }
+      responses:
+        "302": { description: Redirección a Google. }
+        "400": { description: "`redirect_uri` no permitido (`redirect_invalido`).", content: { application/json: { schema: { $ref: "#/components/schemas/ApiError" } } } }
+
+  /auth/google/callback:
+    get:
+      tags: [auth]
+      summary: Vuelta de Google (T2)
+      description: |
+        Valida `state` + cookie, canjea `code` por el id_token (valida `iss`, `aud`,
+        `exp` y `email_verified`), busca el usuario por `google_id` o email (lo
+        vincula y conserva el rol) o crea uno nuevo con rol `operador`
+        (`auth_provider=google`). Redirige a la web (`PUBLIC_WEB_URL`) o a la app:
+          - ok → `/login#token=<jwt>&email=...`
+          - primer acceso pendiente → `/primer-acceso#desafio_id=...&canal=...&destino=...&vence_en_segundos=...` (el código ya salió)
+          - error → `/login?error=cancelado|google_denied|google_error|email_no_verificado|cuenta_inactiva|google_otra_cuenta|codigo_no_enviado`
+        El token va en el fragmento (`#`), que el navegador no manda a ningún servidor.
+      operationId: callbackGoogle
+      security: []
+      parameters:
+        - { name: code, in: query, schema: { type: string } }
+        - { name: state, in: query, required: true, schema: { type: string } }
+        - { name: error, in: query, schema: { type: string }, description: "`access_denied` si el usuario canceló." }
+      responses:
+        "302": { description: Redirección a la web o a la app. }
+
+  /users/{id}:
+    delete:
+      tags: [usuarios]
+      summary: Eliminar un usuario
+      description: Bloqueado (423) para uno mismo y para el último admin. Solo admin (otro rol recibe 403). Borrado físico.
+      operationId: deleteUsuario
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '204': { description: Eliminado }
+        '403': { description: Rol sin permiso }
+        '404': { description: No existe }
+        '423': { description: Bloqueado por regla de negocio }
   /users:
     get:
       tags: [usuarios]
       summary: Listar usuarios
       description: |
-        Requiere autenticación. **Rol requerido: supervisor.**
+        Requiere autenticación. **Rol requerido: admin.**
       operationId: listUsuarios
-      x-required-role: [supervisor]
+      x-required-role: [admin]
       security:
         - bearerAuth: []
       responses:
@@ -215,7 +390,6 @@ paths:
           $ref: "#/components/responses/RolNoAutorizado"
         "500":
           $ref: "#/components/responses/ErrorInterno"
-
   /repartidores:
     get:
       tags: [usuarios]
@@ -225,9 +399,9 @@ paths:
         repartidor al crear o editar una ruta. A diferencia de `GET /users`
         no expone email, rol ni estado.
 
-        Requiere autenticación. **Rol requerido: operador, supervisor.**
+        Requiere autenticación. **Rol requerido: operador, admin.**
       operationId: listRepartidores
-      x-required-role: [operador, supervisor]
+      x-required-role: [operador, admin]
       security:
         - bearerAuth: []
       responses:
@@ -305,9 +479,9 @@ paths:
       summary: Registrar un envío nuevo
       description: |
         Crea remitente, destinatario y envío. Requiere autenticación.
-        **Rol requerido: operador, supervisor.**
+        **Rol requerido: operador, admin.**
       operationId: createEnvio
-      x-required-role: [operador, supervisor]
+      x-required-role: [operador, admin]
       security:
         - bearerAuth: []
       requestBody:
@@ -407,7 +581,23 @@ paths:
                   message: el envío no existe
         "500":
           $ref: "#/components/responses/ErrorInterno"
-
+    delete:
+      tags: [envios]
+      summary: Eliminar un envío
+      description: Solo envíos sin ruta que no estén en camino ni entregados. Solo admin (otro rol recibe 403). Borrado físico.
+      operationId: deleteEnvio
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '204': { description: Eliminado }
+        '403': { description: Rol sin permiso }
+        '404': { description: No existe }
+        '423': { description: Bloqueado por regla de negocio }
   /rutas:
     get:
       tags: [rutas]
@@ -450,9 +640,9 @@ paths:
       tags: [rutas]
       summary: Crear una ruta
       description: |
-        Requiere autenticación. **Rol requerido: operador, supervisor.**
+        Requiere autenticación. **Rol requerido: operador, admin.**
       operationId: createRuta
-      x-required-role: [operador, supervisor]
+      x-required-role: [operador, admin]
       security:
         - bearerAuth: []
       requestBody:
@@ -540,9 +730,9 @@ paths:
       summary: Editar una ruta
       description: |
         Solo se puede editar una ruta en estado `planificada`. Requiere
-        autenticación. **Rol requerido: operador, supervisor.**
+        autenticación. **Rol requerido: operador, admin.**
       operationId: updateRuta
-      x-required-role: [operador, supervisor]
+      x-required-role: [operador, admin]
       security:
         - bearerAuth: []
       parameters:
@@ -601,7 +791,23 @@ paths:
                   message: la ruta no se puede editar en su estado actual
         "500":
           $ref: "#/components/responses/ErrorInterno"
-
+    delete:
+      tags: [rutas]
+      summary: Eliminar una ruta
+      description: Bloqueada (423) si está en curso; los envíos asignados vuelven a pendiente. Solo admin (otro rol recibe 403). Borrado físico.
+      operationId: deleteRuta
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '204': { description: Eliminado }
+        '403': { description: Rol sin permiso }
+        '404': { description: No existe }
+        '423': { description: Bloqueado por regla de negocio }
   /rutas/{id}/envios:
     post:
       tags: [rutas]
@@ -610,9 +816,9 @@ paths:
         Asigna los envíos dados a la ruta (deben estar en estado
         `pendiente`, y la fecha de la ruta no debe haber vencido). Si algún
         envío no está disponible no se asigna ninguno. Requiere
-        autenticación. **Rol requerido: operador, supervisor.**
+        autenticación. **Rol requerido: operador, admin.**
       operationId: asignarEnviosARuta
-      x-required-role: [operador, supervisor]
+      x-required-role: [operador, admin]
       security:
         - bearerAuth: []
       parameters:
@@ -668,7 +874,8 @@ paths:
         "409":
           description: >
             Uno o más envíos no están pendientes
-            (`envio_no_disponible`).
+            (`envio_no_disponible`), o la recomendación es `no_conviene` y
+            falta `forzar: true` (`no_conviene`).
           content:
             application/json:
               schema:
@@ -677,6 +884,82 @@ paths:
                 error:
                   code: envio_no_disponible
                   message: uno o más envíos no están pendientes
+        "422":
+          description: >
+            La dirección de un envío no se pudo ubicar (`direccion_invalida`);
+            no se asigna ninguno.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "500":
+          $ref: "#/components/responses/ErrorInterno"
+
+  /rutas/{id}/recomendar:
+    post:
+      tags: [rutas]
+      summary: Validar la dirección de un envío y recomendar si conviene a la ruta
+      description: |
+        Geocodifica la dirección del envío y las paradas de la ruta y calcula
+        el desvío (`extra_km`, `desvio_pct`). Reglas (umbrales configurables
+        con `RECOMIENDA_UMBRAL_OK_KM` / `RECOMIENDA_UMBRAL_NO_KM`):
+        `no_conviene` si extra > umbral NO (5 km), o desvío > 40 %;
+        `conviene` si extra < umbral OK (2 km) o desvío < 15 %; si no,
+        `dudoso`. Si el servicio de mapas no responde devuelve
+        `sin_recomendacion` (se puede asignar igual). Dirección con confianza
+        menor a 0.6 o inexistente: `422 direccion_invalida`.
+        **Rol requerido: operador, admin.**
+      operationId: recomendarEnvioEnRuta
+      x-required-role: [operador, admin]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID de la ruta.
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RecomendarRequest"
+      responses:
+        "200":
+          description: Recomendación.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Recomendacion"
+              example:
+                extra_km: 1.2
+                desvio_pct: 8
+                recomendacion: conviene
+                motivo: queda cerca de la ruta (+1.2 km, +8%)
+        "400":
+          description: Body inválido o sin `envio_id` (`body_invalido`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "401":
+          $ref: "#/components/responses/NoAutenticado"
+        "403":
+          $ref: "#/components/responses/RolNoAutorizado"
+        "404":
+          description: La ruta o el envío no existen (`no_encontrado`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "422":
+          description: La dirección del envío no se pudo ubicar (`direccion_invalida`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
         "500":
           $ref: "#/components/responses/ErrorInterno"
 
@@ -687,9 +970,9 @@ paths:
       description: |
         Solo se puede desasignar un envío de una ruta en estado
         `planificada`. El envío vuelve al estado `pendiente`. Requiere
-        autenticación. **Rol requerido: operador, supervisor.**
+        autenticación. **Rol requerido: operador, admin.**
       operationId: desasignarEnvioDeRuta
-      x-required-role: [operador, supervisor]
+      x-required-role: [operador, admin]
       security:
         - bearerAuth: []
       parameters:
@@ -787,9 +1070,9 @@ paths:
         HU-07): pedirlos acá responde 409 e indica el endpoint correcto.
         Cada cambio válido registra un evento en el historial.
         Requiere autenticación. **Roles: repartidor (solo envíos de sus
-        rutas), operador, supervisor.**
+        rutas), operador, admin.**
       operationId: cambiarEstadoEnvio
-      x-required-role: [repartidor, operador, supervisor]
+      x-required-role: [repartidor, operador, admin]
       security:
         - bearerAuth: []
       parameters:
@@ -867,9 +1150,9 @@ paths:
         adjunta, reutilizando el mecanismo de HU-08). Todo en una
         transacción: si algo falla, no cambia nada.
         Requiere autenticación. **Roles: repartidor (solo envíos de sus
-        rutas), operador, supervisor.**
+        rutas), operador, admin.**
       operationId: registrarIncidencia
-      x-required-role: [repartidor, operador, supervisor]
+      x-required-role: [repartidor, operador, admin]
       security:
         - bearerAuth: []
       parameters:
@@ -955,9 +1238,9 @@ paths:
         `entregado` (terminal) y se guarda la evidencia. Firma (PNG) y foto
         (JPEG) viajan en base64 dentro del JSON, máximo 5 MB cada una.
         Requiere autenticación. **Roles: repartidor (solo envíos de sus
-        rutas), operador, supervisor.**
+        rutas), operador, admin.**
       operationId: confirmarEntrega
-      x-required-role: [repartidor, operador, supervisor]
+      x-required-role: [repartidor, operador, admin]
       security:
         - bearerAuth: []
       parameters:
@@ -1157,9 +1440,9 @@ paths:
         manda y se limpian los datos de reprogramación. Notificación al
         cliente: fuera de alcance (decisión Sprint 2).
         Requiere autenticación. **Roles: repartidor (solo envíos de sus
-        rutas), operador, supervisor.**
+        rutas), operador, admin.**
       operationId: reprogramarEnvio
-      x-required-role: [repartidor, operador, supervisor]
+      x-required-role: [repartidor, operador, admin]
       security:
         - bearerAuth: []
       parameters:
@@ -1289,9 +1572,9 @@ paths:
         - `ultimas_alertas`: hasta 10 incidencias del día, las más nuevas primero.
         - Los arrays nunca son null (vacíos si no hay datos).
 
-        Requiere autenticación. **Rol requerido: operador, supervisor.**
+        Requiere autenticación. **Rol requerido: operador, admin.**
       operationId: dashboardOperaciones
-      x-required-role: [operador, supervisor]
+      x-required-role: [operador, admin]
       security:
         - bearerAuth: []
       parameters:
@@ -1335,9 +1618,9 @@ paths:
         si el destino todavía no está geolocalizado.
 
         Requiere autenticación. **Roles: repartidor (solo sus rutas; una
-        ruta ajena responde 404), operador, supervisor.**
+        ruta ajena responde 404), operador, admin.**
       operationId: getRutaMapa
-      x-required-role: [repartidor, operador, supervisor]
+      x-required-role: [repartidor, operador, admin]
       security:
         - bearerAuth: []
       parameters:
@@ -1384,9 +1667,9 @@ paths:
         Fallo. Las celdas que empiezan con `=`, `+`, `-` o `@` se prefijan
         con `'` para evitar inyección de fórmulas.
 
-        Requiere autenticación. **Rol requerido: operador, supervisor.**
+        Requiere autenticación. **Rol requerido: operador, admin.**
       operationId: reporteEnvios
-      x-required-role: [operador, supervisor]
+      x-required-role: [operador, admin]
       security:
         - bearerAuth: []
       parameters:
@@ -1471,9 +1754,9 @@ paths:
         repartidor en el período; `asignados` = entregados + fallidos +
         envíos aún en curso en sus rutas del período.
 
-        Requiere autenticación. **Rol requerido: operador, supervisor.**
+        Requiere autenticación. **Rol requerido: operador, admin.**
       operationId: reporteRepartidores
-      x-required-role: [operador, supervisor]
+      x-required-role: [operador, admin]
       security:
         - bearerAuth: []
       parameters:
@@ -1523,9 +1806,9 @@ paths:
         Los 5 motivos siempre están presentes (incluso con cantidad 0),
         ordenados de mayor a menor cantidad.
 
-        Requiere autenticación. **Rol requerido: operador, supervisor.**
+        Requiere autenticación. **Rol requerido: operador, admin.**
       operationId: reporteIncidencias
-      x-required-role: [operador, supervisor]
+      x-required-role: [operador, admin]
       security:
         - bearerAuth: []
       parameters:
@@ -1573,9 +1856,9 @@ paths:
       summary: Flota con la ruta y la carga de cada vehículo en la fecha (HU-18)
       description: |
         Cada vehículo con su telemetría (posición, velocidad, rumbo) y, si tiene ruta
-        en la fecha, el repartidor y la carga de esa ruta. **Roles: operador, supervisor.**
+        en la fecha, el repartidor y la carga de esa ruta. **Roles: operador, admin.**
       operationId: listarFlota
-      x-required-role: [operador, supervisor]
+      x-required-role: [operador, admin]
       security:
         - bearerAuth: []
       parameters:
@@ -1598,7 +1881,7 @@ paths:
       tags: [flota]
       summary: Detalle de un vehículo con sus paquetes y el recorrido por calles (HU-11, HU-18)
       operationId: detalleVehiculo
-      x-required-role: [operador, supervisor]
+      x-required-role: [operador, admin]
       security:
         - bearerAuth: []
       parameters:
@@ -1622,7 +1905,7 @@ paths:
         Stream `text/event-stream`. Cada evento `posicion` trae un PosicionVehiculo en
         `data` (JSON). Al conectarse llega la última posición conocida de cada vehículo.
         Latido cada 20 s. Como EventSource no manda headers, el JWT puede ir en
-        `?access_token=`. **Roles: operador, supervisor, repartidor.**
+        `?access_token=`. **Roles: operador, admin, repartidor.**
       operationId: streamFlota
       security:
         - bearerAuth: []
@@ -1641,7 +1924,7 @@ paths:
       tags: [flota]
       summary: Alta de vehículo (HU-18)
       operationId: crearVehiculo
-      x-required-role: [operador, supervisor]
+      x-required-role: [operador, admin]
       security:
         - bearerAuth: []
       requestBody:
@@ -1665,7 +1948,7 @@ paths:
       tags: [flota]
       summary: Editar modelo, tipo, capacidades y estado de un vehículo (la patente no cambia)
       operationId: actualizarVehiculo
-      x-required-role: [operador, supervisor]
+      x-required-role: [operador, admin]
       security:
         - bearerAuth: []
       parameters:
@@ -1691,7 +1974,7 @@ paths:
       tags: [flota, rutas]
       summary: Asignar (o quitar) el vehículo de una ruta (HU-18)
       operationId: asignarVehiculoRuta
-      x-required-role: [operador, supervisor]
+      x-required-role: [operador, admin]
       security:
         - bearerAuth: []
       parameters:
@@ -1738,7 +2021,7 @@ paths:
       tags: [whatsapp, envios]
       summary: Avisos de WhatsApp enviados al destinatario del envío (HU-17)
       operationId: avisosEnvio
-      x-required-role: [operador, supervisor]
+      x-required-role: [operador, admin]
       security:
         - bearerAuth: []
       parameters:
@@ -1761,7 +2044,8 @@ paths:
       description: |
         Cuando `POST /auth/login` responde `requiere_codigo: true`, la app pide el
         código que llegó por WhatsApp y lo canjea acá por el JWT. El código vence a
-        los 5 minutos, admite 5 intentos y es de un solo uso.
+        los `OTP_TTL_MIN` minutos (10), admite `OTP_MAX_INTENTOS` intentos (3) y es
+        de un solo uso.
       operationId: verificarCodigoLogin
       requestBody:
         required: true
@@ -1779,7 +2063,7 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/LoginResponse" }
-        "401": { description: "Código incorrecto, vencido o usado (`codigo_invalido`).", content: { application/json: { schema: { $ref: "#/components/schemas/ApiError" } } } }
+        "401": { description: "Código incorrecto (`codigo_invalido`) o vencido, usado o sin intentos (`codigo_vencido`).", content: { application/json: { schema: { $ref: "#/components/schemas/ApiError" } } } }
 
   /auth/login/reenviar:
     post:
@@ -1802,15 +2086,15 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/DesafioLogin" }
         "401": { description: "El desafío no existe o venció (`codigo_invalido`): volver a ingresar la contraseña.", content: { application/json: { schema: { $ref: "#/components/schemas/ApiError" } } } }
-        "429": { description: "Más de 3 códigos en 15 minutos (`demasiados_pedidos`).", content: { application/json: { schema: { $ref: "#/components/schemas/ApiError" } } } }
+        "429": { description: "Menos de un minuto desde el último código (`esperar_reenvio`) o más de 3 en 15 minutos (`demasiados_pedidos`).", content: { application/json: { schema: { $ref: "#/components/schemas/ApiError" } } } }
 
   /users/{id}/telefono:
     put:
       tags: [auth, whatsapp]
       summary: Cargar o quitar el celular de un usuario (HU-16)
-      description: Se normaliza a formato internacional (549 + área + número). Vacío = quitar. **Rol supervisor.**
+      description: Se normaliza a formato internacional (549 + área + número). Vacío = quitar. **Rol admin.**
       operationId: actualizarTelefono
-      x-required-role: [supervisor]
+      x-required-role: [admin]
       security:
         - bearerAuth: []
       parameters:
@@ -1836,9 +2120,9 @@ paths:
     get:
       tags: [whatsapp]
       summary: Estado de la cuenta de WhatsApp vinculada y QR para vincular (HU-16/17)
-      description: Si no está vinculada, inicia la vinculación y devuelve el QR (se renueva cada ~20 s). **Rol supervisor.**
+      description: Si no está vinculada, inicia la vinculación y devuelve el QR (se renueva cada ~20 s). **Rol admin.**
       operationId: estadoWhatsapp
-      x-required-role: [supervisor]
+      x-required-role: [admin]
       security:
         - bearerAuth: []
       responses:
@@ -1855,7 +2139,7 @@ paths:
       tags: [whatsapp]
       summary: Cerrar la sesión de WhatsApp en el servidor
       operationId: desvincularWhatsapp
-      x-required-role: [supervisor]
+      x-required-role: [admin]
       security:
         - bearerAuth: []
       responses:
@@ -1937,7 +2221,7 @@ components:
     Rol:
       type: string
       description: Rol del usuario.
-      enum: [operador, repartidor, supervisor]
+      enum: [operador, repartidor, admin]
 
     EstadoEnvio:
       type: string
@@ -2953,9 +3237,24 @@ components:
 
     DesafioLogin:
       type: object
-      description: Segundo paso pendiente del login (HU-16).
+      description: Segundo paso pendiente del login (HU-16) o del primer acceso (T1).
       properties:
         requiere_codigo: { type: boolean, example: true }
         desafio_id: { type: string }
-        telefono: { type: string, description: "Celular enmascarado (+54 9 3564 ••••45)." }
-        vence_en_segundos: { type: integer, example: 300 }
+        telefono: { type: string, description: "Celular enmascarado (+54 9 3564 ••••45); vacío si el código fue por mail." }
+        canal: { type: string, enum: [whatsapp, mail] }
+        destino: { type: string, description: "Celular o mail enmascarado (a•••@movii.demo)." }
+        vence_en_segundos: { type: integer, example: 600 }
+
+    PrimerAccesoRequerido:
+      type: object
+      description: Respuesta 428 de POST /auth/login (T1).
+      properties:
+        code: { type: string, example: must_change_password }
+        user_id: { type: string }
+        token: { type: string, description: "Solo para /auth/primer-acceso/cambiar-password; vence a los 15 minutos." }
+        error:
+          type: object
+          properties:
+            code: { type: string, example: must_change_password }
+            message: { type: string }

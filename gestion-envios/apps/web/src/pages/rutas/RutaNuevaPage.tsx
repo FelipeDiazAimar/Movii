@@ -36,7 +36,7 @@ export function RutaNuevaPage() {
       <PageHeader title="Nueva ruta" icon={Route} description="La ruta se crea en estado planificada." />
       <Card>
         <RutaForm
-          valoresIniciales={{ nombre: "", zona: "", fecha: "", repartidor_id: repartidorInicial }}
+          valoresIniciales={{ nombre: "", zona: "", repartidor_id: repartidorInicial }}
           onSubmit={handleSubmit} enviando={enviando} errorServidor={errorServidor} textoBoton="Crear ruta" />
       </Card>
     </div>

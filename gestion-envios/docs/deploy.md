@@ -28,6 +28,26 @@
    WHATSAPP_HABILITADO=true
    ```
    (`PORT`, `MIGRATE_ON_START` y los directorios ya vienen en la imagen.)
+
+   Opcionales, para la validación de dirección y la recomendación por distancia al asignar envíos a una ruta:
+   ```
+   GEO_PROVIDER=osrm              # osrm (Nominatim + OSRM, gratis) | google
+   GOOGLE_MAPS_KEY=               # solo con GEO_PROVIDER=google (Geocoding + Distance Matrix)
+   RECOMIENDA_UMBRAL_OK_KM=2      # desvío menor a esto: "conviene"
+   RECOMIENDA_UMBRAL_NO_KM=5      # desvío mayor a esto: "no conviene" (exige confirmar)
+   ```
+   Si el proveedor de mapas no responde, la recomendación pasa a `sin_recomendacion` y la asignación sigue permitida. Con `GEOCODIFICAR=false` no se valida ni recomienda.
+
+   Opcionales, primer acceso (T1) y login con Google (T2) — ver sección 7:
+   ```
+   OTP_TTL_MIN=10                 # vigencia del código de verificación (minutos)
+   OTP_MAX_INTENTOS=3             # intentos por código
+   RESEND_API_KEY=re_...          # mail del código a quien no tiene celular; vacío = va al log
+   MAIL_FROM=Movii <no-reply@tu-dominio.com>
+   GOOGLE_CLIENT_ID=...apps.googleusercontent.com
+   GOOGLE_CLIENT_SECRET=...
+   GOOGLE_CALLBACK_URL=https://<dominio-railway>/api/auth/google/callback
+   ```
 3. Settings → Networking → **Generate Domain**. La API queda en `https://<dominio>/api` (eso es `MOVII_API_URL`); en `https://<dominio>/` ya funciona también la web y en `/app/` la app del repartidor.
 4. Datos de demo para la presentación (rutas de hoy con camiones moviéndose): desde la PC, con el `DATABASE_URL` de producción, `go run ./cmd/demo` en `services/api`.
 
@@ -39,7 +59,7 @@
 La web y la PWA llaman directo a la API de Railway (CORS habilitado para el dominio de Vercel), así el stream SSE del mapa no pasa por un proxy.
 
 ## 4. WhatsApp (vincular el número)
-1. Entrar a la web como **supervisor** → menú **WhatsApp**.
+1. Entrar a la web como **admin** → menú **WhatsApp**.
 2. En el celular de la empresa: WhatsApp → Configuración → Dispositivos vinculados → Vincular un dispositivo → escanear el QR.
 3. Cargar el celular de cada usuario en **Usuarios** (columna Celular). Con eso:
    - al iniciar sesión, después de la contraseña se les pide el **código de 6 dígitos que les llega por WhatsApp** (web y app);
@@ -62,6 +82,23 @@ Al terminar, EAS da un link/QR para descargar el `.apk`. En el teléfono: permit
 1. Abrir `https://<proyecto>.vercel.app/app/` en **Safari**.
 2. Compartir → **Agregar a inicio**.
 3. Se abre a pantalla completa: sin barras del navegador, la barra de estado transparente sobre el fondo de la app y los márgenes del notch y la barra de inicio respetados (`viewport-fit=cover` + safe areas).
+
+## 7. Primer acceso y login con Google
+**Primer acceso (T1).** Los usuarios que crea el admin (o `POST /auth/register`) quedan con `must_change_password`: en su primer login la web los lleva a `/primer-acceso`, eligen contraseña nueva (8+ caracteres, una mayúscula y un número) y validan un código de 6 dígitos que llega por **WhatsApp** si tienen celular (y WhatsApp está vinculado) o por **mail** si no. Los usuarios que ya existían no se ven afectados. La app móvil muestra el aviso de hacerlo desde la web.
+
+Mail con [Resend](https://resend.com) (gratis hasta 3.000 mails/mes):
+1. Crear cuenta → **API Keys** → crear una → `RESEND_API_KEY`.
+2. **Domains** → agregar el dominio de la empresa y cargar los registros DNS que indica. `MAIL_FROM` tiene que usar ese dominio (ej. `Movii <no-reply@empresa.com>`). Para probar sin dominio: `MAIL_FROM=onboarding@resend.dev` (solo envía al mail de la cuenta de Resend).
+3. Sin `RESEND_API_KEY`/`MAIL_FROM` el código se escribe en el log de Railway (igual que WhatsApp deshabilitado).
+
+**Login con Google (T2).**
+1. [Google Cloud Console](https://console.cloud.google.com) → crear proyecto → **APIs y servicios → Pantalla de consentimiento OAuth** (tipo Externo, scopes `openid`, `email`, `profile`; mientras esté "en prueba" solo entran los usuarios de prueba cargados).
+2. **Credenciales → Crear credenciales → ID de cliente de OAuth → Aplicación web**.
+3. En **URI de redireccionamiento autorizados** cargar exactamente `GOOGLE_CALLBACK_URL`: `https://<dominio-railway>/api/auth/google/callback` (con la imagen Docker la API va bajo `/api`; en local, `http://localhost:8080/auth/google/callback`).
+4. Copiar ID y secreto a `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` en Railway. `PUBLIC_WEB_URL` tiene que ser la URL de la web: ahí vuelve el usuario después de Google.
+5. La app Android vuelve con el esquema `movii://` (no hay que cargar nada más en Google). En Expo Go (`exp://`) solo funciona con `ENV` distinto de `production`.
+
+Sin las tres `GOOGLE_*`, `GET /auth/config` responde `{"google": false}` y el botón no aparece. Quien entra por primera vez con Google queda como **operador** (cualquier cuenta de Google puede crearse un usuario: si hace falta limitarlo, ver `ALLOWED_DOMAINS` en el backlog). Un email que ya existe se vincula y conserva su rol; si tenía el primer acceso pendiente, igual se le pide el código.
 
 ## Verificación rápida
 - `GET https://<api>/health` → `{"status":"ok"}`

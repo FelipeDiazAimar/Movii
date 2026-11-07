@@ -1,8 +1,10 @@
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { listarUsuarios } from "@/features/usuarios/api";
+import { listarUsuarios, eliminarUsuario } from "@/features/usuarios/api";
 import { Card, EmptyState } from "@/components/ui/Card";
 import { Spinner } from "@/components/ui/Spinner";
+import { BotonEliminar } from "@/components/ui/BotonEliminar";
+import { useAuth } from "@/hooks/useAuth";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { RolBadge } from "@/components/ui/Badge";
@@ -11,9 +13,10 @@ import { PageHeader, PAGE_WIDE } from "@/components/ui/PageHeader";
 import { TelefonoEditable } from "@/features/whatsapp/TelefonoEditable";
 
 import { CircleCheck, CircleOff, Headset, Mail, Plus, ShieldCheck, Smartphone, Truck, UserRound, Users, type LucideIcon } from "lucide-react";
-const ICONO_ROL: Record<string, LucideIcon> = { supervisor: ShieldCheck, operador: Headset, repartidor: Truck };
+const ICONO_ROL: Record<string, LucideIcon> = { admin: ShieldCheck, operador: Headset, repartidor: Truck };
 
 export function UsuariosListPage() {
+  const { sesion } = useAuth();
   const { data, isLoading, isError, error } = useQuery({
     queryKey: ["usuarios"],
     queryFn: listarUsuarios,
@@ -23,7 +26,7 @@ export function UsuariosListPage() {
     <div className={PAGE_WIDE}>
       <PageHeader
         title="Usuarios" icon={Users}
-        description="Operadores, supervisores y repartidores del sistema."
+        description="Operadores, admins y repartidores del sistema."
         action={
           <Link to="/usuarios/nuevo">
             <Button type="button"><Plus className="h-4 w-4" strokeWidth={2.5} aria-hidden />
@@ -46,6 +49,7 @@ Nuevo usuario</Button>
                 <th className="px-4 py-3">Celular</th>
                 <th className="px-4 py-3">Rol</th>
                 <th className="px-4 py-3">Estado</th>
+                <th className="px-4 py-3"><span className="sr-only">Acciones</span></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-hormigon-100">
@@ -89,6 +93,11 @@ Nuevo usuario</Button>
                         <CircleOff className="h-4 w-4" aria-hidden />
                         Inactivo
                       </span>
+                    )}
+                  </td>
+                  <td className="px-4 py-3">
+                    {usuario.id !== sesion?.usuarioId && (
+                      <BotonEliminar nombre={usuario.nombre} eliminar={() => eliminarUsuario(usuario.id)} invalidar={[["usuarios"]]} />
                     )}
                   </td>
                 </tr>

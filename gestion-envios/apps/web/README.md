@@ -1,6 +1,6 @@
-# Movii — Panel web (operador / supervisor)
+# Movii — Panel web (operador / admin)
 
-Panel web para el operador logístico y el supervisor: registrar envíos, gestionar rutas diarias y asignarles envíos y repartidor (HU-01 a HU-04 del Sprint 1). Es la única interfaz para esos roles — el repartidor usa exclusivamente la app móvil (`apps/mobile`), y el tracking público del cliente por código de guía es HU-10 (Sprint 2, todavía no implementado acá).
+Panel web para el operador logístico y el admin: registrar envíos, gestionar rutas diarias y asignarles envíos y repartidor (HU-01 a HU-04 del Sprint 1). Es la única interfaz para esos roles — el repartidor usa exclusivamente la app móvil (`apps/mobile`), y el tracking público del cliente por código de guía es HU-10 (Sprint 2, todavía no implementado acá).
 
 Stack: Vite + React 18 + TypeScript + Tailwind CSS + React Router + TanStack Query + axios + Zod, consumiendo la API en Go de `services/api`.
 
@@ -25,10 +25,10 @@ npm run lint
 | Ruta | HU | Rol | Qué hace |
 |---|---|---|---|
 | `/login` | HU-01 | — | Login contra `POST /auth/login`. Un login con rol `repartidor` redirige a un aviso: ese rol usa la app móvil. |
-| `/usuarios`, `/usuarios/nuevo` | HU-01 (CA-06) | supervisor | Listado y alta de usuarios (`GET /users`, `POST /auth/register`). |
-| `/envios`, `/envios/nuevo`, `/envios/:id` | HU-02 | operador, supervisor | Alta de envío (remitente + destinatario + paquete) y listado con filtro por estado/fecha. |
-| `/rutas`, `/rutas/nueva`, `/rutas/:id` | HU-03 | operador, supervisor | Alta, listado del día y detalle de ruta; edición solo mientras está `planificada`. |
-| `/rutas/:id` (panel de asignación) | HU-04 | operador, supervisor | Desde el detalle de ruta: asignar envíos pendientes y desasignar, con peso y cantidad totales. |
+| `/usuarios`, `/usuarios/nuevo` | HU-01 (CA-06) | admin | Listado y alta de usuarios (`GET /users`, `POST /auth/register`). |
+| `/envios`, `/envios/nuevo`, `/envios/:id` | HU-02 | operador, admin | Alta de envío (remitente + destinatario + paquete) y listado con filtro por estado/fecha. |
+| `/rutas`, `/rutas/nueva`, `/rutas/:id` | HU-03 | operador, admin | Alta, listado del día y detalle de ruta; edición solo mientras está `planificada`. |
+| `/rutas/:id` (panel de asignación) | HU-04 | operador, admin | Desde el detalle de ruta: asignar envíos pendientes y desasignar, con peso y cantidad totales. |
 
 ## Estructura
 
@@ -46,4 +46,4 @@ No depende de `packages/shared`: los tipos y esquemas Zod están definidos local
 
 ## Limitación conocida: selector de repartidor
 
-`GET /users` es solo para `supervisor` (`services/api/internal/httprouter/router.go`). Un operador logueado no puede listar repartidores para elegirlos en el alta de una ruta, así que el formulario de ruta (`RepartidorSelect`) degrada a un campo de texto para pegar el UUID a mano cuando quien está logueado no es supervisor. No es ideal — la solución de fondo es un endpoint que liste repartidores para cualquier rol operativo — pero no se tocó el backend para esto.
+`GET /users` es solo para `admin` (`services/api/internal/httprouter/router.go`). Un operador logueado no puede listar repartidores para elegirlos en el alta de una ruta, así que el formulario de ruta (`RepartidorSelect`) degrada a un campo de texto para pegar el UUID a mano cuando quien está logueado no es admin. No es ideal — la solución de fondo es un endpoint que liste repartidores para cualquier rol operativo — pero no se tocó el backend para esto.

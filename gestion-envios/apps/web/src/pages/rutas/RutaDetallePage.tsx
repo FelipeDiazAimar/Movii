@@ -1,26 +1,28 @@
 import { useState } from "react";
 import { VehiculoRutaCard } from "@/features/flota/VehiculoRutaCard";
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { obtenerRuta, editarRuta, desasignarEnvio } from "@/features/rutas/api";
+import { obtenerRuta, editarRuta, desasignarEnvio, eliminarRuta } from "@/features/rutas/api";
 import { RutaForm } from "@/features/rutas/RutaForm";
 import { AsignarEnviosPanel } from "@/features/rutas/AsignarEnviosPanel";
 import type { RutaInput } from "@/features/rutas/types";
 import { EstadoRutaBadge, EstadoEnvioBadge } from "@/components/ui/Badge";
 import { Card, EmptyState } from "@/components/ui/Card";
 import { Spinner } from "@/components/ui/Spinner";
+import { BotonEliminar } from "@/components/ui/BotonEliminar";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { getApiErrorMessage } from "@/services/api-client";
 import { PageHeader, PAGE_WIDE } from "@/components/ui/PageHeader";
 import { Dato } from "@/components/ui/Dato";
-import { formatearDia } from "@/utils/fechas";
 
 import { Route } from "lucide-react";
+import { BotonAbrirMaps } from "@/features/mapas/BotonAbrirMaps";
 export function RutaDetallePage() {
   const { id } = useParams<{ id: string }>();
   const rutaId = id as string;
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
 
   const [editando, setEditando] = useState(false);
   const [asignando, setAsignando] = useState(false);
@@ -67,7 +69,15 @@ export function RutaDetallePage() {
 
   return (
     <div className={PAGE_WIDE}>
-      <PageHeader back={{ to: "/rutas", label: "Volver a rutas" }} title={ruta.nombre || "(sin nombre)"} icon={Route} badge={<EstadoRutaBadge estado={ruta.estado} />} />
+      <PageHeader back={{ to: "/rutas", label: "Volver a rutas" }} title={ruta.nombre || "(sin nombre)"} icon={Route} badge={<EstadoRutaBadge estado={ruta.estado} />} action={<BotonEliminar nombre={ruta.nombre || "(sin nombre)"} eliminar={() => eliminarRuta(rutaId)} invalidar={[["rutas"], ["envios"]]} onEliminado={() => navigate("/rutas")} />} />
+
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex gap-2 text-sm font-semibold">
+          <Link to={`/rutas/${rutaId}/mapa`} className="rounded-xl border border-hormigon-300 bg-white px-3 py-2 hover:bg-hormigon-50">Mapa 2D</Link>
+          <Link to={`/rutas/${rutaId}/3d`} className="rounded-xl border border-hormigon-300 bg-white px-3 py-2 hover:bg-hormigon-50">Vista 3D</Link>
+        </div>
+        <BotonAbrirMaps rutaId={rutaId} />
+      </div>
 
       <div className="grid gap-4 lg:grid-cols-4">
       <Card className="lg:col-span-2">
@@ -76,7 +86,6 @@ export function RutaDetallePage() {
             valoresIniciales={{
               nombre: ruta.nombre,
               zona: ruta.zona,
-              fecha: ruta.fecha,
               repartidor_id: ruta.repartidor_id,
             }}
             onSubmit={async (input) => {
@@ -90,7 +99,6 @@ export function RutaDetallePage() {
           <div className="flex items-center justify-between">
             <dl className="grid grid-cols-3 gap-4">
               <Dato label="Zona" value={ruta.zona || "—"} />
-              <Dato label="Fecha" value={formatearDia(ruta.fecha)} />
               <Dato label="Repartidor" value={ruta.repartidor_nombre ?? ruta.repartidor_id} />
             </dl>
             {esPlanificada && !enReparto && (

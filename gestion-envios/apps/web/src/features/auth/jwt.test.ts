@@ -10,8 +10,8 @@ function fakeJwt(payload: Record<string, unknown>): string {
 
 describe("decodeJwt", () => {
   it("decodifica sub, rol y exp de un token válido", () => {
-    const token = fakeJwt({ sub: "user-1", rol: "supervisor", exp: 9999999999 });
-    expect(decodeJwt(token)).toEqual({ sub: "user-1", rol: "supervisor", exp: 9999999999 });
+    const token = fakeJwt({ sub: "user-1", rol: "admin", exp: 9999999999 });
+    expect(decodeJwt(token)).toEqual({ sub: "user-1", rol: "admin", exp: 9999999999 });
   });
 
   it("devuelve null si el token no tiene 3 partes", () => {
@@ -19,7 +19,7 @@ describe("decodeJwt", () => {
   });
 
   it("devuelve null si al payload le falta un claim requerido", () => {
-    const token = fakeJwt({ sub: "user-1", rol: "supervisor" }); // sin exp
+    const token = fakeJwt({ sub: "user-1", rol: "admin" }); // sin exp
     expect(decodeJwt(token)).toBeNull();
   });
 

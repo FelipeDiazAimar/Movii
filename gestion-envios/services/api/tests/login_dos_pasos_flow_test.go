@@ -131,9 +131,16 @@ func TestFlujoCompleto_LoginEnDosPasos(t *testing.T) {
 	rec = pedidoSeguimientoDeTest(t, router, http.MethodPost, "/auth/login/verificar", "", map[string]string{"desafio_id": desafio, "codigo": codigo})
 	require.Equal(t, http.StatusUnauthorized, rec.Code)
 
-	// Reenviar: un desafío nuevo con otro mensaje.
+	// Reenviar: un desafío nuevo con otro mensaje. Se puede pedir un código por
+	// minuto: se "envejecen" los anteriores para no esperar.
+	envejecer := func() {
+		_, err := pool.Exec(ctx, "UPDATE codigos_otp SET created_at = created_at - interval '2 minutes' WHERE telefono = $1", tel)
+		require.NoError(t, err)
+	}
+	envejecer()
 	rec = pedidoSeguimientoDeTest(t, router, http.MethodPost, "/auth/login", "", map[string]string{"email": email, "password": pass})
 	leer(rec)
+	envejecer()
 	rec = pedidoSeguimientoDeTest(t, router, http.MethodPost, "/auth/login/reenviar", "", map[string]string{"desafio_id": resp.DesafioID})
 	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
 	leer(rec)

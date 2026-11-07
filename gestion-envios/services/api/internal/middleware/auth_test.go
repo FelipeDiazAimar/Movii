@@ -55,18 +55,18 @@ func TestRequireAuth_TokenInvalidoDevuelve401(t *testing.T) {
 func TestRequireAuth_TokenValidoContinua(t *testing.T) {
 	mw := RequireAuth("secreto")
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
-	req.Header.Set("Authorization", "Bearer "+tokenDePrueba(t, "secreto", "supervisor"))
+	req.Header.Set("Authorization", "Bearer "+tokenDePrueba(t, "secreto", "admin"))
 	rec := httptest.NewRecorder()
 
 	mw(handlerDePrueba()).ServeHTTP(rec, req)
 
 	require.Equal(t, http.StatusOK, rec.Code)
-	require.Equal(t, "supervisor", rec.Body.String())
+	require.Equal(t, "admin", rec.Body.String())
 }
 
 func TestRequireRole_RolIncorrectoDevuelve403(t *testing.T) {
 	auth := RequireAuth("secreto")
-	role := RequireRole("supervisor")
+	role := RequireRole("admin")
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	req.Header.Set("Authorization", "Bearer "+tokenDePrueba(t, "secreto", "operador"))
 	rec := httptest.NewRecorder()
@@ -78,7 +78,7 @@ func TestRequireRole_RolIncorrectoDevuelve403(t *testing.T) {
 
 func TestRequireRole_RolCorrectoContinua(t *testing.T) {
 	auth := RequireAuth("secreto")
-	role := RequireRole("supervisor", "operador")
+	role := RequireRole("admin", "operador")
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	req.Header.Set("Authorization", "Bearer "+tokenDePrueba(t, "secreto", "operador"))
 	rec := httptest.NewRecorder()

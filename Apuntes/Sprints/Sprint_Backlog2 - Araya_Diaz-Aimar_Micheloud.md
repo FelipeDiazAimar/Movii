@@ -91,7 +91,7 @@ Reglas: a `entregado` solo se llega por HU-08 (con evidencia); a `no_entregado` 
 | CA-07            | En la web, el operador/supervisor cambia el estado desde el detalle del envío y ve su historial.                                                              |
 |                  | **Propiedades**                                                                                                                                          |
 | Prioridad        | Alta                                                                                                                                                         |
-| Estado           | En curso (API + web terminadas al 10/09; móvil pendiente)                                                                                                     |
+| Estado           | Terminada (✅)                                                                                                                                               |
 | Estimación      | 5 Story Points                                                                                                                                                |
 | Valor de negocio | 8                                                                                                                                                             |
 | Responsable      | Araya, Ulises (API + web) / Díaz Aimar, Felipe (móvil)                                                                                                       |
@@ -118,7 +118,7 @@ Reglas: a `entregado` solo se llega por HU-08 (con evidencia); a `no_entregado` 
 | CA-08            | En la web, el operador/supervisor registra la incidencia desde el detalle del envío y puede ver la foto desde el historial.                                     |
 |                  | **Propiedades**                                                                                                                                          |
 | Prioridad        | Alta                                                                                                                                                         |
-| Estado           | En curso (API + web terminadas al 10/09; móvil pendiente)                                                                                                     |
+| Estado           | Terminada (✅)                                                                                                                                               |
 | Estimación      | 5 Story Points                                                                                                                                                |
 | Valor de negocio | 5                                                                                                                                                             |
 | Responsable      | Araya, Ulises (API + web) / Díaz Aimar, Felipe (móvil)                                                                                                       |
@@ -145,7 +145,7 @@ Reglas: a `entregado` solo se llega por HU-08 (con evidencia); a `no_entregado` 
 | CA-08            | En la web no hay formulario de confirmación (es tarea del móvil): la evidencia (receptor, firma, foto) queda visible en el detalle del envío.                   |
 |                  | **Propiedades**                                                                                                                                          |
 | Prioridad        | Alta                                                                                                                                                         |
-| Estado           | En curso (API + web terminadas al 10/09; móvil pendiente)                                                                                                     |
+| Estado           | Terminada (✅)                                                                                                                                               |
 | Estimación      | 8 Story Points                                                                                                                                                |
 | Valor de negocio | 5                                                                                                                                                             |
 | Responsable      | Araya, Ulises (API + web) / Díaz Aimar, Felipe (móvil)                                                                                                       |
@@ -171,7 +171,7 @@ Reglas: a `entregado` solo se llega por HU-08 (con evidencia); a `no_entregado` 
 | CA-07            | Operador/supervisor en la web y repartidor en la app móvil, mismo endpoint.                                                                                     |
 |                  | **Propiedades**                                                                                                                                          |
 | Prioridad        | Media                                                                                                                                                        |
-| Estado           | En curso (API + web terminadas al 10/09; móvil pendiente)                                                                                                     |
+| Estado           | Terminada (✅)                                                                                                                                               |
 | Estimación      | 5 Story Points                                                                                                                                                |
 | Valor de negocio | 5                                                                                                                                                             |
 | Responsable      | Araya, Ulises (API + web) / Díaz Aimar, Felipe (móvil)                                                                                                       |
@@ -196,7 +196,7 @@ Reglas: a `entregado` solo se llega por HU-08 (con evidencia); a `no_entregado` 
 | CA-06            | Los estados se muestran con el mismo lenguaje visual de la app (verde/azul/amarillo/rojo).                                                                      |
 |                  | **Propiedades**                                                                                                                                          |
 | Prioridad        | Media                                                                                                                                                        |
-| Estado           | En curso (API + web terminadas al 10/09)                                                                                                                       |
+| Estado           | Terminada (✅)                                                                                                                                               |
 | Estimación      | 3 Story Points                                                                                                                                                |
 | Valor de negocio | 5                                                                                                                                                             |
 | Responsable      | Araya, Ulises (API + web)                                                                                                                                      |
@@ -327,13 +327,13 @@ Reglas: a `entregado` solo se llega por HU-08 (con evidencia); a `no_entregado` 
 | #       | Fase       | Tarea                                                                          | Estimado (hs) | Real (hs) | Estado |
 | ------- | ---------- | ------------------------------------------------------------------------------ | :-----------: | :-------: | :----: |
 | T-00.01 | Desarrollo | Postgres local Docker + migraciones 0003/0004/0005 (vale igual en Supabase)    |       3       |     —     |   ✅   |
-| T-00.02 | Diseño    | Documentar 7 endpoints + schemas nuevos en OpenAPI                             |       2       |     —     |   ✅   |
+| T-00.02 | Diseño    | Documentar 8 endpoints + schemas nuevos en OpenAPI                             |       2       |     —     |   ✅   |
 | T-00.03 | Desarrollo | CI verde (gofmt + go vet + lint + build)                                       |       2       |     —     |   ✅   |
-| T-00.04 | Desarrollo | Rama de integración + PRs + revisión cruzada (DoD)                           |       2       |     —     |   ⬜   |
+| T-00.04 | Desarrollo | Rama de integración + PRs + revisión cruzada (DoD)                           |       2       |     —     |   ✅   |
 | T-00.05 | Prueba     | E2E del flujo completo del sprint + casos vacíos                              |       3       |     —     |   ✅   |
 | T-00.06 | Desarrollo | Docs de cátedra (este backlog + informe del sprint)                            |       2       |     —     |   ✅   |
 | T-00.07 | Análisis  | Cierre de contrato API ↔ móvil (endpoints + DTOs en openapi.yaml)            |       2       |     —     |   ✅   |
-|         |            | **Subtotal Transversales**                                                     |    **16**     | A consolidar | ⬜ |
+|         |            | **Subtotal Transversales**                                                     |    **16**     | A consolidar | ✅ |
 
 ### Resumen de horas estimadas
 

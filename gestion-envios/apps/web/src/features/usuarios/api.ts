@@ -21,8 +21,12 @@ export interface RepartidorOpcion {
   nombre: string;
 }
 
-/** Repartidores activos para elegir en una ruta; disponible para operadores (GET /users es solo supervisor). */
+/** Repartidores activos para elegir en una ruta; disponible para operadores (GET /users es solo admin). */
 export async function listarRepartidores(): Promise<RepartidorOpcion[]> {
   const { data } = await apiClient.get<RepartidorOpcion[]>("/repartidores");
   return data;
+}
+
+export async function eliminarUsuario(id: string): Promise<void> {
+  await apiClient.delete(`/users/${id}`);
 }

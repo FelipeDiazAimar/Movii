@@ -24,7 +24,7 @@ export function RepartidoresListPage() {
       {error && <Alert variant="error">{getApiErrorMessage(error, "No se pudieron cargar los repartidores")}</Alert>}
 
       {repartidores.data && repartidores.data.length === 0 && (
-        <EmptyState title="No hay repartidores" description="Un supervisor puede crear usuarios con rol repartidor." />
+        <EmptyState title="No hay repartidores" description="Un admin puede crear usuarios con rol repartidor." />
       )}
 
       {repartidores.data && repartidores.data.length > 0 && (

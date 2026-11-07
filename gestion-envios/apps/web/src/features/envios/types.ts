@@ -13,6 +13,7 @@ export interface EnvioListItem {
   destinatario: string;
   direccion: string;
   fecha_creacion: string;
+  fecha_entrega: string;
   ruta_id: string | null;
   ruta_nombre?: string;
   repartidor_nombre?: string;
@@ -45,6 +46,7 @@ export interface EnvioDetalle {
   repartidor_nombre?: string;
   destinatario: Destinatario;
   fecha_creacion: string;
+  fecha_entrega: string;
   historial: EventoEnvio[];
   reprogramado_para: string | null;
   franja: FranjaHoraria | null;
@@ -73,6 +75,8 @@ export interface CrearEnvioInput {
     fragil: boolean;
     urgente: boolean;
   };
+  /** YYYY-MM-DD; vacío = hoy. */
+  fecha_entrega?: string;
 }
 
 export interface CrearEnvioResponse {

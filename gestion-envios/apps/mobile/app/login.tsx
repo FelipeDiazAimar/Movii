@@ -7,10 +7,12 @@ import { AuroraBackground } from "@/components/aurora-background";
 import { AppInput, AppMark, GlassCard, PrimaryButton } from "@/components/ui/movii-ui";
 import { haptic } from "@/lib/haptics";
 import { useMovii } from "@/lib/movii-context";
-import { reenviarCodigoLogin, type DesafioLogin } from "@/lib/api-client";
+import { obtenerConfigAuth, reenviarCodigoLogin, type DesafioLogin } from "@/lib/api-client";
+import { ErrorLoginGoogle } from "@/lib/login-google";
 
 /** Mensaje de error de la API ({ error: { message } }) o un texto por defecto. */
 function mensajeDeError(err: unknown, porDefecto: string): string {
+  if (err instanceof ErrorLoginGoogle) return err.message;
   if (axios.isAxiosError(err)) {
     const msg = (err.response?.data as { error?: { message?: string } } | undefined)?.error?.message;
     if (msg) return msg;
@@ -29,7 +31,16 @@ export default function LoginScreen() {
   const [aviso, setAviso] = useState<string | null>(null);
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const { login, verificarCodigo } = useMovii();
+  const { login, verificarCodigo, loginConGoogle } = useMovii();
+  // Botón de Google (T2) solo si la API lo tiene configurado; no en la PWA (web).
+  const [conGoogle, setConGoogle] = useState(false);
+
+  useEffect(() => {
+    if (Platform.OS === "web") return;
+    obtenerConfigAuth()
+      .then((c) => setConGoogle(c.google))
+      .catch(() => setConGoogle(false));
+  }, []);
 
   useEffect(() => {
     if (espera <= 0) return;
@@ -53,7 +64,7 @@ export default function LoginScreen() {
   const empezarDesafio = (d: DesafioLogin) => {
     setDesafio(d);
     setCodigo("");
-    setEspera(30);
+    setEspera(60); // la API acepta un código por minuto
   };
 
   const ingresar = () =>
@@ -66,6 +77,17 @@ export default function LoginScreen() {
       }
       router.replace("/(tabs)");
     }, "No se pudo iniciar sesión. Verificá el email y la contraseña.");
+
+  const entrarConGoogle = () =>
+    ejecutar(async () => {
+      const r = await loginConGoogle();
+      if (r === null) return; // cerró el navegador
+      if (r === true) {
+        router.replace("/(tabs)");
+        return;
+      }
+      if (r) empezarDesafio(r);
+    }, "No se pudo iniciar sesión con Google.");
 
   const confirmarCodigo = () =>
     ejecutar(async () => {
@@ -116,6 +138,7 @@ export default function LoginScreen() {
                   <Text style={styles.keepSessionText}>Mantener sesión iniciada</Text>
                 </Pressable>
                 <PrimaryButton label={cargando ? "Ingresando…" : "Ingresar"} onPress={ingresar} icon="→" disabled={cargando} />
+                {conGoogle ? <PrimaryButton label="Continuar con Google" tone="secondary" icon="G" onPress={entrarConGoogle} disabled={cargando} /> : null}
                 {error ? <Text style={styles.errorText}>{error}</Text> : null}
                 <Pressable
                   onPress={() => {
@@ -137,7 +160,8 @@ export default function LoginScreen() {
                   </View>
                   <Text style={styles.cardTitle}>Verificá que sos vos</Text>
                   <Text style={styles.cardDescription}>
-                    Te mandamos un código de 6 dígitos por WhatsApp al <Text style={styles.strong}>{desafio.telefono}</Text>. Vence en 5 minutos.
+                    Te mandamos un código de 6 dígitos {desafio.canal === "mail" ? "por mail a " : "por WhatsApp al "}
+                    <Text style={styles.strong}>{desafio.destino || desafio.telefono}</Text>. Vence en {Math.round(desafio.vence_en_segundos / 60)} minutos.
                   </Text>
                 </View>
                 {aviso ? <Text style={styles.aviso}>{aviso}</Text> : null}

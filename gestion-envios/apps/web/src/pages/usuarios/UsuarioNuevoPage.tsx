@@ -46,7 +46,7 @@ export function UsuarioNuevoPage() {
 
   return (
     <div className={PAGE_NARROW}>
-      <PageHeader title="Nuevo usuario" icon={UserPlus} description="Creá una cuenta de operador, supervisor o repartidor." />
+      <PageHeader title="Nuevo usuario" icon={UserPlus} description="Creá una cuenta de operador, admin o repartidor." />
 
       <Card>
         <form onSubmit={handleSubmit} className="flex flex-col gap-4" noValidate>

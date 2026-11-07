@@ -8,13 +8,13 @@ import (
 	"movii/api/internal/repository"
 )
 
-// ErrRutaCamposObligatorios indica que falta el repartidor o la fecha al
+// ErrRutaCamposObligatorios indica que falta el repartidor al
 // crear/editar una ruta (CA-05 de HU-03).
 var ErrRutaCamposObligatorios = errors.New("faltan campos obligatorios de la ruta")
 
 // validarRuta chequea los campos obligatorios de una ruta.
 func validarRuta(ruta domain.Ruta) error {
-	if ruta.RepartidorID == "" || ruta.Fecha == "" {
+	if ruta.RepartidorID == "" {
 		return ErrRutaCamposObligatorios
 	}
 	return nil

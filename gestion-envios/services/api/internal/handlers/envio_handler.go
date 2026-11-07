@@ -46,6 +46,7 @@ type crearEnvioRequest struct {
 		Fragil        bool    `json:"fragil"`
 		Urgente       bool    `json:"urgente"`
 	} `json:"paquete"`
+	FechaEntrega string `json:"fecha_entrega"`
 }
 
 // Create maneja POST /envios.
@@ -72,6 +73,7 @@ func (h *EnvioHandler) Create(w http.ResponseWriter, r *http.Request) {
 		TipoContenido:        req.Paquete.TipoContenido,
 		Fragil:               req.Paquete.Fragil,
 		Urgente:              req.Paquete.Urgente,
+		FechaEntrega:         req.FechaEntrega,
 	})
 	switch {
 	case err == nil:
@@ -81,6 +83,8 @@ func (h *EnvioHandler) Create(w http.ResponseWriter, r *http.Request) {
 		})
 	case errors.Is(err, services.ErrCamposObligatorios):
 		httpx.WriteError(w, http.StatusBadRequest, "campos_obligatorios", "faltan datos obligatorios del envío")
+	case errors.Is(err, services.ErrFechaInvalida):
+		httpx.WriteError(w, http.StatusBadRequest, "fecha_invalida", "la fecha de entrega debe tener formato YYYY-MM-DD y ser hoy o futura")
 	default:
 		httpx.WriteError(w, http.StatusInternalServerError, "error_interno", "no se pudo registrar el envío")
 	}
@@ -95,6 +99,7 @@ type envioListItemResponse struct {
 	Destinatario     string  `json:"destinatario"`
 	Direccion        string  `json:"direccion"`
 	FechaCreacion    string  `json:"fecha_creacion"`
+	FechaEntrega     string  `json:"fecha_entrega"`
 	RutaID           *string `json:"ruta_id"`
 	RutaNombre       string  `json:"ruta_nombre,omitempty"`
 	RepartidorNombre string  `json:"repartidor_nombre,omitempty"`
@@ -118,6 +123,7 @@ func (h *EnvioHandler) List(w http.ResponseWriter, r *http.Request) {
 			Destinatario:  e.Destinatario.Nombre,
 			Direccion:     direccionLegible(e.Destinatario),
 			FechaCreacion: e.FechaCreacion,
+			FechaEntrega:  e.FechaEntrega,
 			RutaID:        e.RutaID,
 			RutaNombre:    e.RutaNombre, RepartidorNombre: e.RepartidorNombre,
 		})

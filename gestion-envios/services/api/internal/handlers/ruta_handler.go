@@ -3,6 +3,7 @@ package handlers
 import (
 	"encoding/json"
 	"errors"
+	"log"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
@@ -17,6 +18,14 @@ import (
 type RutaHandler struct {
 	rutaSvc *services.RutaService
 	asigSvc *services.AsignacionService
+	recoSvc *services.RecomendacionService
+}
+
+// ConRecomendacion activa la validación de dirección y la recomendación por
+// distancia al asignar (T4). Sin ella, asignar no valida la dirección.
+func (h *RutaHandler) ConRecomendacion(s *services.RecomendacionService) *RutaHandler {
+	h.recoSvc = s
+	return h
 }
 
 // NewRutaHandler crea un RutaHandler.
@@ -46,7 +55,7 @@ func (h *RutaHandler) Create(w http.ResponseWriter, r *http.Request) {
 	case err == nil:
 		httpx.WriteJSON(w, http.StatusCreated, ruta)
 	case errors.Is(err, services.ErrRutaCamposObligatorios):
-		httpx.WriteError(w, http.StatusBadRequest, "campos_obligatorios", "faltan el repartidor o la fecha de la ruta")
+		httpx.WriteError(w, http.StatusBadRequest, "campos_obligatorios", "falta el repartidor de la ruta")
 	default:
 		httpx.WriteError(w, http.StatusInternalServerError, "error_interno", "no se pudo crear la ruta")
 	}
@@ -113,7 +122,7 @@ func (h *RutaHandler) Update(w http.ResponseWriter, r *http.Request) {
 	case err == nil:
 		httpx.WriteJSON(w, http.StatusOK, ruta)
 	case errors.Is(err, services.ErrRutaCamposObligatorios):
-		httpx.WriteError(w, http.StatusBadRequest, "campos_obligatorios", "faltan el repartidor o la fecha de la ruta")
+		httpx.WriteError(w, http.StatusBadRequest, "campos_obligatorios", "falta el repartidor de la ruta")
 	case errors.Is(err, repository.ErrNoEncontrado):
 		httpx.WriteError(w, http.StatusNotFound, "no_encontrado", "la ruta no existe")
 	case errors.Is(err, repository.ErrRutaNoEditable):
@@ -125,6 +134,67 @@ func (h *RutaHandler) Update(w http.ResponseWriter, r *http.Request) {
 
 type asignarEnviosRequest struct {
 	EnvioIDs []string `json:"envio_ids"`
+	Forzar   bool     `json:"forzar"`
+}
+
+type recomendarRequest struct {
+	EnvioID string `json:"envio_id"`
+}
+
+// Recomendar maneja POST /rutas/{id}/recomendar (T4).
+func (h *RutaHandler) Recomendar(w http.ResponseWriter, r *http.Request) {
+	if h.recoSvc == nil {
+		httpx.WriteError(w, http.StatusNotImplemented, "no_disponible", "la recomendación está deshabilitada")
+		return
+	}
+	var req recomendarRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.EnvioID == "" {
+		httpx.WriteError(w, http.StatusBadRequest, "body_invalido", "falta envio_id")
+		return
+	}
+	rec, err := h.recoSvc.Recomendar(r.Context(), chi.URLParam(r, "id"), req.EnvioID)
+	switch {
+	case err == nil:
+		httpx.WriteJSON(w, http.StatusOK, rec)
+	case errors.Is(err, services.ErrDireccionInvalida):
+		httpx.WriteError(w, http.StatusUnprocessableEntity, "direccion_invalida", "la dirección del envío no se pudo ubicar en el mapa")
+	case errors.Is(err, repository.ErrNoEncontrado):
+		httpx.WriteError(w, http.StatusNotFound, "no_encontrado", "la ruta o el envío no existen")
+	default:
+		httpx.WriteError(w, http.StatusInternalServerError, "error_interno", "no se pudo calcular la recomendación")
+	}
+}
+
+// validarAsignacion exige dirección válida y, si algún envío no conviene,
+// forzar=true. Devuelve false si ya respondió con el error.
+func (h *RutaHandler) validarAsignacion(w http.ResponseWriter, r *http.Request, rutaID string, req asignarEnviosRequest) bool {
+	if h.recoSvc == nil {
+		return true
+	}
+	for _, envioID := range req.EnvioIDs {
+		rec, err := h.recoSvc.Recomendar(r.Context(), rutaID, envioID)
+		switch {
+		case err == nil:
+		case errors.Is(err, services.ErrDireccionInvalida):
+			httpx.WriteError(w, http.StatusUnprocessableEntity, "direccion_invalida", "la dirección del envío "+envioID+" no se pudo ubicar en el mapa")
+			return false
+		case errors.Is(err, repository.ErrNoEncontrado):
+			// ruta inexistente o envío no encontrado: lo informa Asignar
+			continue
+		default:
+			log.Printf("recomendacion: ruta %s envío %s: %v", rutaID, envioID, err)
+			continue // degradado: no bloquea la asignación
+		}
+		if rec.Recomendacion != services.RecomNoConviene {
+			continue
+		}
+		if !req.Forzar {
+			httpx.WriteError(w, http.StatusConflict, "no_conviene", "no conviene asignar el envío "+envioID+": "+rec.Motivo+" (reenviar con forzar=true)")
+			return false
+		}
+		log.Printf("asignación forzada: ruta %s envío %s (%s)", rutaID, envioID, rec.Motivo)
+	}
+	return true
 }
 
 // AsignarEnvios maneja POST /rutas/{id}/envios.
@@ -137,14 +207,16 @@ func (h *RutaHandler) AsignarEnvios(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if !h.validarAsignacion(w, r, rutaID, req) {
+		return
+	}
+
 	asignados, err := h.asigSvc.Asignar(r.Context(), rutaID, req.EnvioIDs)
 	switch {
 	case err == nil:
 		httpx.WriteJSON(w, http.StatusOK, map[string]any{"asignados": asignados})
 	case errors.Is(err, repository.ErrNoEncontrado):
 		httpx.WriteError(w, http.StatusNotFound, "no_encontrado", "la ruta no existe")
-	case errors.Is(err, services.ErrFechaVencida):
-		httpx.WriteError(w, http.StatusBadRequest, "fecha_vencida", "la fecha de la ruta ya pasó")
 	case errors.Is(err, repository.ErrEnvioNoDisponible):
 		httpx.WriteError(w, http.StatusConflict, "envio_no_disponible", "uno o más envíos no están pendientes")
 	default:

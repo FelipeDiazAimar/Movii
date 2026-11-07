@@ -10,7 +10,7 @@ export function AccesoDenegadoPage() {
       <h1 className="text-lg font-semibold text-gray-900">Acceso no disponible</h1>
       <p className="max-w-sm text-sm text-gray-500">
         {esRepartidor
-          ? "El panel web es para operadores y supervisores. Como repartidor, usá la app móvil de Movii para ver tu ruta del día."
+          ? "El panel web es para operadores y admins. Como repartidor, usá la app móvil de Movii para ver tu ruta del día."
           : "Tu usuario no tiene permisos para ver esta sección."}
       </p>
       <Button variant="secondary" onClick={logout}>

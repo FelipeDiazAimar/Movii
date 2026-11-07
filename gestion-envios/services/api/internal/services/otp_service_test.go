@@ -70,6 +70,12 @@ func (u usuariosFalsos) GetByID(_ context.Context, id string) (domain.Usuario, e
 	}
 	return domain.Usuario{}, repository.ErrNoEncontrado
 }
+func (u usuariosFalsos) CompletarPrimerAcceso(_ context.Context, id string) error {
+	x := u[id]
+	x.MustChangePassword = false
+	u[id] = x
+	return nil
+}
 
 type tokensFalsos struct{}
 
@@ -133,7 +139,8 @@ func TestOTP_FlujoCompleto(t *testing.T) {
 	d, err := svc.Iniciar(ctx, carla)
 	require.NoError(t, err)
 	require.Equal(t, "+54 9 3564 ••••45", d.Telefono)
-	require.Equal(t, 300, d.VenceEn)
+	require.Equal(t, 600, d.VenceEn)
+	require.Equal(t, CanalWhatsapp, d.Canal)
 	require.Contains(t, sender.enviados[telCarla], "```123456```")
 	require.NotContains(t, repo.codigos[d.ID].CodigoHash, "123456", "el código nunca se guarda en claro")
 
@@ -167,7 +174,7 @@ func TestOTP_CodigoIncorrectoYLimiteDeIntentos(t *testing.T) {
 		require.ErrorIs(t, err, ErrCodigoInvalido)
 	}
 	_, err = svc.Verificar(ctx, d.ID, "123456")
-	require.ErrorIs(t, err, ErrCodigoInvalido, "después de 5 intentos fallidos el código correcto ya no sirve")
+	require.ErrorIs(t, err, ErrCodigoVencido, "después de 3 intentos fallidos el código correcto ya no sirve")
 }
 
 func TestOTP_Vencido(t *testing.T) {
@@ -187,14 +194,21 @@ func TestOTP_ReenviarInvalidaElAnteriorYRespetaElLimite(t *testing.T) {
 	d1, err := svc.Iniciar(ctx, carla)
 	require.NoError(t, err)
 
+	_, err = svc.Reenviar(ctx, d1.ID)
+	require.ErrorIs(t, err, ErrEsperarReenvio, "un código por minuto")
+	_, err = svc.Verificar(ctx, d1.ID, "000000")
+	require.ErrorIs(t, err, ErrCodigoInvalido)
+	*ahora = ahora.Add(esperaEntrePedidosOTP + time.Second)
 	d2, err := svc.Reenviar(ctx, d1.ID)
 	require.NoError(t, err)
 	require.NotEqual(t, d1.ID, d2.ID)
 	_, err = svc.Verificar(ctx, d1.ID, "123456")
 	require.ErrorIs(t, err, ErrCodigoInvalido, "el código anterior queda invalidado")
 
+	*ahora = ahora.Add(esperaEntrePedidosOTP + time.Second)
 	_, err = svc.Reenviar(ctx, d2.ID)
 	require.NoError(t, err) // 3er código en la ventana
+	*ahora = ahora.Add(esperaEntrePedidosOTP + time.Second)
 	_, err = svc.Iniciar(ctx, carla)
 	require.ErrorIs(t, err, ErrDemasiadosPedidos)
 

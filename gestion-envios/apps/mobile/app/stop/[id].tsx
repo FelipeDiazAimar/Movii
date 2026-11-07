@@ -1,4 +1,4 @@
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 
 import { AppHeader } from "@/components/app-header";
@@ -13,6 +13,7 @@ import { haptic } from "@/lib/haptics";
 import { useMovii } from "@/lib/movii-context";
 import { TrayectoParada } from "@/components/trayecto-parada";
 import { accionesDisponibles } from "@/lib/seguimiento";
+import { urlGoogleMaps } from "@/lib/google-maps";
 
 export default function StopDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -40,6 +41,7 @@ export default function StopDetailScreen() {
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <GlassCard style={styles.hero}><View style={styles.heroTop}><View><Text style={styles.code}>{shipment.code}</Text><Text style={styles.recipient}>{shipment.recipient.name}</Text></View><StatusBadge status={shipment.status} /></View><View style={styles.addressRow}><Text style={styles.addressIcon}>⌖</Text><View style={styles.addressCopy}><Text style={styles.address}>{shipment.recipient.address}</Text><Text style={styles.locality}>{shipment.recipient.locality} · CP {shipment.recipient.postalCode}</Text></View></View><View style={styles.window}><Text style={styles.windowIcon}>◷</Text><Text style={styles.windowText}>Ventana de entrega: <Text style={styles.windowStrong}>{shipment.timeWindow}</Text></Text></View></GlassCard>
         {real ? <TrayectoParada envioId={shipment.id} /> : <View style={styles.mapPlaceholder}><View style={styles.mapRoadA} /><View style={styles.mapRoadB} /><View style={styles.mapRoute} /><View style={styles.mapPin}><Text style={styles.mapPinText}>⌖</Text></View><View style={styles.mapCaption}><Text style={styles.mapCaptionText}>Mapa disponible con la ruta real</Text></View></View>}
+        <PrimaryButton label="Abrir en Maps" tone="secondary" icon="⌖" onPress={() => { const url = urlGoogleMaps({ paradas: [`${shipment.recipient.address}, ${shipment.recipient.locality}`], modo: "proximo" }); if (url) Linking.openURL(url); }} />
         <Text style={styles.section}>Acciones rápidas</Text>
         {resolved ? <View style={styles.actions}><GlassCard style={styles.resolved}><Text style={styles.resolvedTitle}>{shipment.status === "entregado" ? "Entrega confirmada" : "Entrega no realizada"}</Text><Text style={styles.resolvedCopy}>{shipment.status === "entregado" ? `Recibió: ${shipment.recipientName ?? shipment.recipient.name}. Evidencia registrada.` : shipment.failureReason ?? "Incidencia registrada."}</Text></GlassCard>{real && acciones.reprogramar ? reprogramarLink : null}</View> : <View style={styles.actions}>{canMarkEnRoute ? <PrimaryButton label={enviando ? "Actualizando…" : "Marcar en camino"} tone="secondary" onPress={() => cambiarEstado("en_camino")} disabled={enviando} icon="→" /> : <View style={styles.inRouteCard}><View style={styles.inRouteAccent} /><View style={styles.inRouteIcon}><Text style={styles.inRouteArrow}>→</Text></View><View style={styles.inRouteCopy}><Text style={styles.inRouteEyebrow}>RUTA ACTIVA</Text><Text style={styles.inRouteTitle}>Ya estás en camino</Text><Text style={styles.inRouteDescription}>Actualizá la entrega cuando llegues al destino.</Text></View><View style={styles.liveDot} /></View>}{real && acciones.volverAsignado ? <Pressable onPress={() => cambiarEstado("asignado")} disabled={enviando} style={({ pressed }) => [styles.reschedule, pressed && styles.pressed]} accessibilityRole="button"><Text style={styles.rescheduleText}>{enviando ? "Actualizando…" : "Volver a asignado"}</Text><Text style={styles.chevron}>‹</Text></Pressable> : null}<View style={styles.actionPair}><View style={styles.actionHalf}><PrimaryButton label="Entregado" onPress={() => router.push({ pathname: "/delivery/[id]", params: { id: shipment.id } })} icon="✓" /></View><View style={styles.actionHalf}><PrimaryButton label="No entregado" tone="danger" onPress={() => router.push({ pathname: "/failure/[id]", params: { id: shipment.id } })} icon="!" /></View></View>{!real ? reprogramarLink : null}</View>}
         {error ? <Text style={styles.error} accessibilityRole="alert">{error}</Text> : null}

@@ -30,6 +30,8 @@ type Deps struct {
 	ReportesHandler    *handlers.ReportesHandler
 	FlotaHandler       *handlers.FlotaHandler
 	WhatsappHandler    *handlers.WhatsappHandler
+	EliminarHandler    *handlers.EliminarHandler // T3: borrados físicos, solo admin
+	GoogleHandler      *handlers.GoogleHandler   // T2: login con Google y GET /auth/config
 }
 
 // New arma el router HTTP completo de la API.
@@ -57,13 +59,26 @@ func New(deps Deps) http.Handler {
 	r.Post("/auth/login/verificar", deps.AuthHandler.VerificarCodigo)
 	r.Post("/auth/login/reenviar", deps.AuthHandler.ReenviarCodigo)
 
+	// Primer acceso (T1): el login responde 428; se cambia la contraseña y se
+	// valida un código por WhatsApp o mail. Verificar/reenviar comparten lógica con HU-16.
+	r.Post("/auth/primer-acceso/cambiar-password", deps.AuthHandler.CambiarPasswordPrimerAcceso)
+	r.Post("/auth/primer-acceso/verificar", deps.AuthHandler.VerificarCodigo)
+	r.Post("/auth/primer-acceso/reenviar", deps.AuthHandler.ReenviarCodigo)
+
+	// Login con Google (T2). /auth/config es el feature flag público del botón.
+	r.Get("/auth/config", deps.GoogleHandler.Config) // nil-safe: sin handler responde google=false
+	if deps.GoogleHandler != nil {
+		r.Get("/auth/google", deps.GoogleHandler.Iniciar)
+		r.Get("/auth/google/callback", deps.GoogleHandler.Callback)
+	}
+
 	// SSE de posiciones en vivo: fuera del grupo protegido porque autentica
 	// también con ?access_token= (EventSource no manda headers).
 	if deps.FlotaHandler != nil {
 		r.With(
 			middleware.TokenDesdeQuery,
 			middleware.RequireAuth(deps.JWTSecret),
-			middleware.RequireRole(domain.RolOperador, domain.RolSupervisor, domain.RolRepartidor),
+			middleware.RequireRole(domain.RolOperador, domain.RolAdmin, domain.RolRepartidor),
 		).Get("/operaciones/flota/stream", deps.FlotaHandler.Stream)
 	}
 
@@ -71,13 +86,18 @@ func New(deps Deps) http.Handler {
 		protected.Use(middleware.RequireAuth(deps.JWTSecret))
 		protected.Use(middleware.ValidarUUIDs)
 
-		protected.Group(func(supervisorOnly chi.Router) {
-			supervisorOnly.Use(middleware.RequireRole(domain.RolSupervisor))
-			supervisorOnly.Get("/users", deps.UsuariosHandler.List)
+		protected.Group(func(adminOnly chi.Router) {
+			adminOnly.Use(middleware.RequireRole(domain.RolAdmin))
+			adminOnly.Get("/users", deps.UsuariosHandler.List)
+			if deps.EliminarHandler != nil {
+				adminOnly.Delete("/users/{id}", deps.EliminarHandler.Usuario)
+				adminOnly.Delete("/rutas/{id}", deps.EliminarHandler.Ruta)
+				adminOnly.Delete("/envios/{id}", deps.EliminarHandler.Envio)
+			}
 			if deps.WhatsappHandler != nil {
-				supervisorOnly.Put("/users/{id}/telefono", deps.WhatsappHandler.ActualizarTelefono)
-				supervisorOnly.Get("/admin/whatsapp/estado", deps.WhatsappHandler.Estado)
-				supervisorOnly.Post("/admin/whatsapp/desvincular", deps.WhatsappHandler.Desvincular)
+				adminOnly.Put("/users/{id}/telefono", deps.WhatsappHandler.ActualizarTelefono)
+				adminOnly.Get("/admin/whatsapp/estado", deps.WhatsappHandler.Estado)
+				adminOnly.Post("/admin/whatsapp/desvincular", deps.WhatsappHandler.Desvincular)
 			}
 		})
 
@@ -101,12 +121,13 @@ func New(deps Deps) http.Handler {
 		}
 
 		protected.Group(func(operativo chi.Router) {
-			operativo.Use(middleware.RequireRole(domain.RolOperador, domain.RolSupervisor))
+			operativo.Use(middleware.RequireRole(domain.RolOperador, domain.RolAdmin))
 			operativo.Get("/repartidores", deps.UsuariosHandler.Repartidores)
 			operativo.Post("/envios", deps.EnvioHandler.Create)
 			operativo.Post("/rutas", deps.RutaHandler.Create)
 			operativo.Put("/rutas/{id}", deps.RutaHandler.Update)
 			operativo.Post("/rutas/{id}/envios", deps.RutaHandler.AsignarEnvios)
+			operativo.Post("/rutas/{id}/recomendar", deps.RutaHandler.Recomendar)
 			operativo.Delete("/rutas/{id}/envios/{envioId}", deps.RutaHandler.DesasignarEnvio)
 
 			if deps.OperacionesHandler != nil {

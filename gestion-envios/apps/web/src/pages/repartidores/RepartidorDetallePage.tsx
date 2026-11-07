@@ -12,7 +12,6 @@ import { Dato } from "@/components/ui/Dato";
 import { SelectField } from "@/components/ui/Field";
 import { PageHeader, PAGE_WIDE } from "@/components/ui/PageHeader";
 import { Spinner } from "@/components/ui/Spinner";
-import { formatearDia } from "@/utils/fechas";
 
 import { Plus } from "lucide-react";
 export function RepartidorDetallePage() {
@@ -31,7 +30,7 @@ export function RepartidorDetallePage() {
     mutationFn: () => {
       const ruta = (rutas.data ?? []).find((r) => r.id === rutaElegida);
       if (!ruta || !id) throw new Error("Elegí una ruta");
-      return editarRuta(ruta.id, { nombre: ruta.nombre, zona: ruta.zona, fecha: ruta.fecha, repartidor_id: id });
+      return editarRuta(ruta.id, { nombre: ruta.nombre, zona: ruta.zona, repartidor_id: id });
     },
     onSuccess: async () => {
       setRutaElegida("");
@@ -71,7 +70,6 @@ Nueva ruta</Button>
             <thead className="bg-hormigon-50 text-left text-xs font-semibold text-gray-500">
               <tr>
                 <th className="px-4 py-2">Ruta</th>
-                <th className="px-4 py-2">Fecha</th>
                 <th className="px-4 py-2">Envíos</th>
                 <th className="px-4 py-2">Estado</th>
               </tr>
@@ -84,7 +82,6 @@ Nueva ruta</Button>
                       {r.nombre || "(sin nombre)"}
                     </Link>
                   </td>
-                  <td className="px-4 py-2 text-gray-500">{formatearDia(r.fecha)}</td>
                   <td className="px-4 py-2 text-gray-700">{r.cantidad_envios}</td>
                   <td className="px-4 py-2">
                     <EstadoRutaBadge estado={r.estado} />
@@ -120,7 +117,7 @@ Nueva ruta</Button>
                 <option value="">Seleccionar…</option>
                 {asignables.map((r) => (
                   <option key={r.id} value={r.id}>
-                    {r.nombre} · {formatearDia(r.fecha)} · {r.repartidor_nombre ?? "sin repartidor"}
+                    {r.nombre} · {r.repartidor_nombre ?? "sin repartidor"}
                   </option>
                 ))}
               </SelectField>

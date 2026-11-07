@@ -2,11 +2,12 @@ import { formatearFecha } from "@/utils/fechas";
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { listarEnvios } from "@/features/envios/api";
+import { listarEnvios, eliminarEnvio } from "@/features/envios/api";
 import { type EstadoEnvio } from "@/features/envios/types";
 import { EstadoEnvioBadge } from "@/components/ui/Badge";
 import { Card, EmptyState } from "@/components/ui/Card";
 import { Spinner } from "@/components/ui/Spinner";
+import { BotonEliminar } from "@/components/ui/BotonEliminar";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { getApiErrorMessage } from "@/services/api-client";
@@ -105,6 +106,7 @@ export function EnviosListPage() {
                 <th className="px-4 py-3">Repartidor</th>
                 <th className="px-4 py-3">Estado</th>
                 <th className="px-4 py-3">Alta</th>
+                <th className="px-4 py-3"><span className="sr-only">Acciones</span></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-hormigon-100">
@@ -135,6 +137,7 @@ export function EnviosListPage() {
                     <EstadoEnvioBadge estado={envio.estado} />
                   </td>
                   <td className="px-4 py-3 text-gray-500">{formatearFecha(envio.fecha_creacion)}</td>
+                  <td className="px-4 py-3"><BotonEliminar nombre={envio.codigo_guia} eliminar={() => eliminarEnvio(envio.id)} invalidar={[["envios"], ["rutas"]]} /></td>
                 </tr>
               ))}
             </tbody>

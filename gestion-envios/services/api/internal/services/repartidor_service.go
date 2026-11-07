@@ -2,9 +2,9 @@ package services
 
 import (
 	"context"
-	"time"
 
 	"movii/api/internal/domain"
+	"movii/api/internal/platform/fecha"
 	"movii/api/internal/repository"
 )
 
@@ -21,7 +21,7 @@ func NewRepartidorService(envioRepo *repository.EnvioRepo) *RepartidorService {
 // EnviosDelDia devuelve los envíos de hoy del repartidor dado, agrupados por
 // ruta, con el resumen de contadores por estado.
 func (s *RepartidorService) EnviosDelDia(ctx context.Context, repartidorID, estado string) (domain.ResumenDelDia, error) {
-	hoy := time.Now().UTC().Format("2006-01-02")
+	hoy := fecha.Hoy()
 
 	envios, err := s.envioRepo.ListDelDiaPorRepartidor(ctx, repartidorID, hoy, estado)
 	if err != nil {

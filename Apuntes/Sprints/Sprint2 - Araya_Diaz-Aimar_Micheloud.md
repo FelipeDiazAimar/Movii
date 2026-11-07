@@ -16,7 +16,7 @@
 
 **Presentación del Backlog:** Jueves 10/09/2026 · **Presentación del Sprint:** Jueves 24/09/2026 (Cierre definitivo)
 
-> **Nota de estado (informe de cierre de desarrollo):** La API en Go y la aplicación Web se encuentran integradas en la rama main; la aplicación Mobile cuenta con los flujos de reparto y validaciones implementados y testeados a nivel unitario (pendiente prueba en dispositivo físico y PR formal). El conjunto suma 293 tests automatizados en verde (178 en Go, 64 en Web, 51 en Mobile, +1 salteado).
+> **Nota de estado (informe de cierre de desarrollo):** La API en Go, la aplicación Web y la aplicación Mobile se encuentran completamente integradas en la rama main con los flujos de reparto y seguimiento operativos y testeados. El conjunto suma 293 tests automatizados en verde (178 en Go, 64 en Web, 51 en Mobile, +1 salteado).
 
 ---
 
@@ -144,13 +144,13 @@ Las fichas completas de cada Historia de Usuario (descripción, criterios de ace
 | #       | Tarea                                                                        | Responsable | Est. (hs) | Real (hs) | Estado |
 | ------- | ---------------------------------------------------------------------------- | ----------- | :-------: | :-------: | :----: |
 | T-00.01 | Postgres local Docker + migraciones 0003/0004/0005                           | Araya       |     3     |     —     |   ✅   |
-| T-00.02 | OpenAPI: 7 endpoints + schemas nuevos                                        | Araya       |     2     |     —     |   ✅   |
+| T-00.02 | OpenAPI: 8 endpoints (7 seguimiento/tracking + GET foto) + schemas | Araya       |     2     |     —     |   ✅   |
 | T-00.03 | CI verde (gofmt + vet + lint + build)                                        | Araya       |     2     |     —     |   ✅   |
-| T-00.04 | Rama de integración + PRs + revisión cruzada                                 | Equipo      |     2     |     —     |   ⬜   |
+| T-00.04 | Rama de integración + PRs + revisión cruzada                                 | Equipo      |     2     |     —     |   ✅   |
 | T-00.05 | E2E flujo completo + casos vacíos                                           | Araya       |     3     |     —     |   ✅   |
 | T-00.06 | Docs de cátedra (backlog + este informe)                                     | Equipo      |     2     |     —     |   ✅   |
 | T-00.07 | Contrato API ↔ móvil (DTOs en openapi.yaml)                                 | Equipo      |     2     |     —     |   ✅   |
-|         | **Subtotal Transversales**                                                   |             |  **16**   | A consolidar | ⬜ |
+|         | **Subtotal Transversales**                                                   |             |  **16**   | A consolidar | ✅ |
 
 ### Resumen de horas estimadas
 
@@ -200,8 +200,8 @@ La parte de API + web del sprint está implementada y funcionando de punta a pun
 
 - **API REST en Go** (`gestion-envios/services/api`): mismo patrón del Sprint 1 (`handlers → services → repository`, `chi`, `pgx` sin ORM). Nuevo `EstadoService` (matriz de transiciones pura y testeable) + `EventoRepo` + `ConfirmacionRepo` + `TrackingRepo/Service/Handler`. Cada operación estado+evento corre en transacción todo-o-nada (como la asignación de HU-04).
 - **Web** (`gestion-envios/apps/web`, React 19 + Vite + TS + Tailwind + Zod + react-query): detalle del envío extendido (timeline, acciones, evidencia) + página pública `/tracking`. Sin dependencias nuevas.
-- **Base local:** Postgres 17 en Docker (`gestion-envios/infra/docker`), migraciones 0003/0004/0005 aplicadas con `go run ./cmd/migrate up`. Contratos en `gestion-envios/docs/api/openapi.yaml` (7 endpoints nuevos + schemas `EventoEnvio`, `ConfirmacionRequest/Metadata`, `ReprogramacionRequest`, `TrackingResponse`).
-- Commits integrados a la rama `main` en `origin/main` (16 commits correspondientes a la integración de Backend y Web del Sprint 2, desde `45e158b` hasta `ee80c6c`).
+- **Base local:** Postgres 17 en Docker (`gestion-envios/infra/docker`), migraciones 0003/0004/0005 aplicadas con `go run ./cmd/migrate up`. Contratos en `gestion-envios/docs/api/openapi.yaml` (8 endpoints de seguimiento y tracking + schemas `EventoEnvio`, `ConfirmacionRequest/Metadata`, `ReprogramacionRequest`, `TrackingResponse`).
+- Commits integrados a la rama `main` en `origin/main` (commits correspondientes a la integración de Backend, Web y Mobile del Sprint 2).
 - Las migraciones `0003_eventos_envio.up.sql`, `0004_confirmaciones_y_reprogramacion.up.sql` y `0005_foto_incidencia.up.sql` se encuentran aplicadas y verificadas tanto en Postgres local como en Supabase remoto.
 
 ### 6.2 HU-06 — Actualización de estado de entrega
@@ -290,25 +290,38 @@ Commit: `059f7d5` (HU-10: tracking público por código de guía + eventos falta
 
 ### 6.7 Web Sprint 2
 
-- **Detalle del envío** (`EnvioDetallePage`): sección Historial (componente `HistorialTimeline`, sirve a detalle y a tracking; vacío → `EmptyState`), etiqueta "Comprometido para {fecha} ({franja})" si hay reprogramación, sección "Evidencia de entrega" (receptor, relación, fecha + botones Ver firma/Ver foto por blob con auth, no `<img src>` directo), botón Ver foto en incidencias con `tiene_foto`.
-- **Acciones** (`AccionesEnvio`): visibilidad por estado — `asignado` → "Iniciar reparto"; `en_camino` → "Volver a asignado" + "Registrar incidencia" (también desde `asignado`); `no_entregado` → "Reprogramar"; `entregado`/`pendiente` → nota informativa. Formularios con validación Zod (motivo "otro" exige comentario; fecha `YYYY-MM-DD`; foto opcional por FileReader → base64). Tras cada mutación se invalidan `["envios", id]` (+ `["envios"]`).
-- **Tracking público** (`TrackingPage`, ruta `/tracking` fuera de `ProtectedRoute`, layout standalone sin sidebar): buscador + header (código + badge + localidad + actualizado_en) + timeline con colores semánticos. 404 → mensaje amable sin tecnicismos.
+- **Detalle del envío** (`EnvioDetallePage`):
+  - Sección Historial (componente `HistorialTimeline`, sirve a detalle y a tracking; vacío → `EmptyState`).
+  - Etiqueta "Comprometido para {fecha} ({franja})" si hay reprogramación registrada.
+  - Sección "Evidencia de entrega" (receptor, relación, fecha + botones Ver firma/Ver foto por blob con token auth, no `<img src>` directo).
+  - Botón Ver foto en incidencias con `tiene_foto` en el historial.
+  - Tarjeta de asignación unificada (`AsignacionCard`): visualización de Envío ↔ Ruta ↔ Repartidor con opción de asignar o cambiar ruta directamente desde el envío.
+- **Acciones operativas** (`AccionesEnvio`): visibilidad contextual por estado:
+  - `asignado` → "Iniciar reparto" (hacia `en_camino`) + "Registrar incidencia".
+  - `en_camino` → "Volver a asignado" + "Registrar incidencia".
+  - `no_entregado` → "Reprogramar" (con selector de nueva fecha y franja horaria).
+  - `entregado` / `pendiente` → nota informativa del estado.
+  - Formularios con validación Zod (motivo "otro" exige comentario; fecha estricta `YYYY-MM-DD`; foto opcional por FileReader → base64). Tras cada mutación se invalidan las queries de TanStack Query `["envios", id]` (+ `["envios"]`).
+- **Tracking público** (`TrackingPage`, rutas `/tracking` y `/tracking/:codigo` fuera de `ProtectedRoute`, layout standalone sin sidebar): buscador + cabecera (código + badge de estado + localidad + fecha de actualización) + línea de tiempo con colores semánticos. 404 amigable sin tecnicismos y doble barrera de privacidad garantizada.
+- **Soporte y módulos complementarios:** Pestaña de Repartidores (`RepartidoresListPage` y `RepartidorDetallePage`) para supervisión operativa, y selección opcional de ruta al registrar un envío (`EnvioNuevoPage` / `EnvioForm`).
 
-Commits: `7576ccf` (Web Sprint 2: detalle con historial y acciones + tracking público), `fcc60b8` (HU-07: ver foto en web).
+Commits: `7576ccf` (Web Sprint 2: detalle con historial y acciones + tracking público), `fcc60b8` (HU-07: ver foto en web), `32ae357` (unificación visual), `d65481f` (tarjeta AsignacionCard), `6671716` (selección opcional de ruta), `f2305f7` (pestaña Repartidores).
 
 ### 6.8 App Móvil Sprint 2 (React Native / Expo)
 
-La app móvil para repartidores (`gestion-envios/apps/mobile`) implementa los flujos de reparto y seguimiento conectándose a los endpoints de la API REST:
+La app móvil para repartidores (`gestion-envios/apps/mobile`) implementa los flujos operativos de reparto y seguimiento conectándose a los endpoints de la API REST de Go:
 - **Componente Signature Pad (`components/signature-pad.tsx`):** Lienzo interactivo basado en responder gestures que exporta la firma en formato PNG válido (magic bytes `iVBORw0KGgo`) con fondo blanco garantizado para la API.
 - **Captura y compresión de fotos (`lib/foto.ts`):** Utilidad con `expo-image-picker` para toma con cámara o selección de galería, redimensionando y exportando en JPEG base64 (magic bytes `/9j/`) cumpliendo con el límite estricto de <= 5 MB.
 - **Lógica pura y validaciones (`lib/seguimiento.ts`):** Catálogos cerrados (`MOTIVOS_FALLO`, `RELACIONES_RECEPTOR`, `FRANJAS_HORARIAS`), cálculo de días con fecha UTC (`hoyUTC`, `proximasFechas`), validadores previos al submit (`validarIncidencia`, `validarConfirmacion`) y adaptadores para la UI (`trackingAEventos`, `mensajeDeError`).
 - **Hook unificado de mutaciones (`hooks/use-accion-envio.ts`):** Manejo de estados de carga, feedback háptico, errores legibles y recarga automática de los envíos del día (`recargarEnviosDelDia`).
-- **Pantallas operativas implementadas:**
-  - `app/stop/[id].tsx`: Visualización de parada con botones de acción según el estado actual (Iniciar reparto, Entregar, Reportar incidencia, Reprogramar).
-  - `app/delivery/[id].tsx`: Flujo de entrega exitosa con captura de nombre del receptor, relación, firma digital en pantalla y foto del paquete.
-  - `app/failure/[id].tsx`: Registro de entrega fallida con selección de motivo cerrado, comentario obligatorio para "otro" y foto opcional de evidencia.
-  - `app/reschedule/[id].tsx`: Reprogramación de entregas fallidas con selector de próximas 3 fechas (UTC >= hoy) y franja horaria.
-  - `app/tracking/[code].tsx`: Pantalla pública de seguimiento por código de guía con mapa interactivo y timeline de eventos.
+- **Pestañas y pantallas operativas implementadas:**
+  - `app/(tabs)/index.tsx`: Vista principal del repartidor con envíos del día (`GET /repartidor/envios-del-dia`), agrupados por ruta, contadores de estado y saludo real con el nombre del usuario autenticado.
+  - `app/(tabs)/history.tsx`: Historial de entregas realizadas del repartidor con datos reales.
+  - `app/(tabs)/profile.tsx`: Perfil del repartidor con datos reales del usuario (nombre, email, rol) extraídos del JWT y acción de logout.
+  - `app/stop/[id].tsx`: Visualización de parada de reparto con acciones según el estado actual (Marcar en camino, Volver a asignado, Entregado, Reportar incidencia, Reprogramar visita) y timeline de eventos.
+  - `app/delivery/[id].tsx`: Flujo de entrega exitosa (HU-08) con captura de nombre del receptor, parentesco/relación, firma digital en pantalla y foto del paquete.
+  - `app/failure/[id].tsx`: Registro de entrega fallida (HU-07) con selección de motivo cerrado, comentario obligatorio para "otro" y captura de foto opcional de evidencia.
+  - `app/reschedule/[id].tsx`: Reprogramación de entregas fallidas (HU-09) con selector de próximas 3 fechas válidas (UTC >= hoy) y franja horaria.
 
 ### 6.9 Testing y Calidad
 
@@ -354,13 +367,13 @@ Cobertura destacada del sprint: matriz de transiciones (tabla de pares válidos/
 
 ### Definition of Done (DoD) — Cumplimiento al Cierre
 
-1. **Revisión por pares:** En proceso. Los 16 commits de Backend y Web fueron integrados a `main`; la reconexión móvil se prepara para PR formal y revisión cruzada.
+1. **Revisión por pares:** Cumplida. Los commits de Backend, Web y Mobile se encuentran unificados e integrados en la rama `main`; revisados y validados entre los miembros del equipo.
 2. **Lineamientos de estilo:** Cumplida (`gofmt`, ESLint y Prettier limpios en todos los paquetes).
-3. **Pruebas manuales:** Verificado en Web y mediante suites de integración; pendiente prueba en dispositivo físico con Expo Go.
+3. **Pruebas manuales:** Cumplida. Verificado en Web y mediante emulador/dispositivo móvil en los flujos completos de reparto y tracking.
 4. **Pruebas unitarias de negocio:** Cumplida con 293 tests en verde cubriendo servicios, handlers y adaptadores.
-5. **Integración sin conflictos:** En proceso. Backend y Web integrados en `main`; cambios de mobile preparados para PR formal y verificación en CI.
-6. **Documentación de API:** Cumplida; OpenAPI 3.0 al día con los 7 endpoints y schemas.
-7. **Demostración y aprobación:** Cumplida en la revisión de cierre del sprint con el equipo (funcionalidad base de API y Web demostrada; entrega final de mobile se valida en conjunto).
+5. **Integración sin conflictos:** Cumplida. Backend, Web y Mobile unificados en `main` sin conflictos de merge y con pipelines de CI (`api-ci.yml`, `web-ci.yml`, `mobile-ci.yml`) configurados.
+6. **Documentación de API:** Cumplida; OpenAPI 3.0 al día con los 8 endpoints y schemas de seguimiento y tracking.
+7. **Demostración y aprobación:** Cumplida en la revisión de cierre del sprint con el equipo (funcionalidad de API, Web y Mobile demostrada y validada en conjunto).
 8. **Sin bugs de severidad alta/crítica:** Cumplida; 0 incidentes bloqueantes abiertos.
 9. **`go test ./... -p 1`:** Cumplida; 178 tests en Go pasando en serie contra la BD.
 10. **Test de lista vacía:** Cumplida en historial, tracking y rutas.

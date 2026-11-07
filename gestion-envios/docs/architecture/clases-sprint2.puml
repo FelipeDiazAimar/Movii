@@ -8,7 +8,7 @@ skinparam linetype ortho
 enum Rol {
   operador
   repartidor
-  supervisor
+  admin
 }
 
 enum EstadoEnvio {
