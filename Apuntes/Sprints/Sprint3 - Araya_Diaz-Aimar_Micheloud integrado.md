@@ -83,7 +83,7 @@ El documento del Sprint 0 *originalmente entregado* propuso un stack y un conjun
 | --- | --- | --- | :-: | :-: | :-: | :-: |
 | Sprint 1 | 04/08 – 02/09/2026 (presentación 09/09) | HU-01 a HU-05 | 26 | 197 | 224 | 101 |
 | Sprint 2 | 10/09 – 24/09/2026 | HU-06 a HU-10 | 26 | 118 | 130 | 293 |
-| Sprint 3 | 01/10 – 07/11/2026 | HU-11 a HU-19 | 40 | 175 | 202 | `418` |
+| Sprint 3 | 01/10 – 07/11/2026 | HU-11 a HU-19 | 40 | 175 | 202 | 436 |
 | **Total** | | **19 HU** | **92** | **490** | **556** | |
 
 La columna *Tests acumulados* muestra el total de tests automatizados (API, web y móvil) al cierre de cada sprint. El valor del Sprint 3 corresponde al commit `e9fc789` y se detalla en la sección 6.11 del Sprint 3.
@@ -1295,9 +1295,9 @@ Mejoras pedidas para la demo que no estaban en el Sprint Backlog 3. No suman SP.
 | T6 | Filtros y pulido | Buscador y filtros en usuarios, repartidores, vehículos, rutas y envíos; color propio por vehículo; esqueletos de carga y caché de 5 minutos. |
 | T7 | Mejoras de cierre (07/11, tarde) | **Tracking público en vivo (HU-10):** la respuesta de `/tracking/{codigo}` suma fecha y franja de entrega, datos del paquete y, el día de entrega, el vehículo en vivo, el recorrido recortado y la ventana estimada de llegada (destino redondeado y patente parcial por privacidad); la página pública se rediseñó con estado, pasos, mapa 2D/3D que se refresca cada 8 s, historial y botón de compartir. **Perfil del repartidor:** `GET /repartidor/perfil` con cuenta, vehículo de hoy, últimos 7 días, histórico y motivos de fallo. **3D en operaciones:** un recorrido a la vez, modo noche y pantalla completa. **Cambio de contraseña:** `POST /auth/cambiar-password` (con sesión, pide la actual) y pantalla en el perfil de la app. |
 
-### 6.10 Conjunto de pruebas de flujos de la demo
+### 6.10 Pruebas de los flujos de la demo
 
-Además de los tests automatizados, para la presentación se recorrieron los flujos operativos principales: asignar un vehículo a una ruta, asignar envíos a una ruta (con y sin repartidor), reasignar y desasignar, iniciar reparto, registrar incidencia, reprogramar, confirmar entrega con firma y foto, y verificar el tracking público y los avisos. Esos recorridos están cubiertos por los tests de flujo completo contra PostgreSQL (`tests/`: flota y trayecto, envíos y rutas, confirmación, reprogramación, seguimiento, tracking, login en dos pasos, analítica y repartidor), que pasaron en verde en la corrida del 10/11/2026. En particular, `TestFlujoCompleto_FlotaYTrayecto` da de alta un vehículo, lo asigna a una ruta de hoy, y verifica su carga en la flota y el trayecto por calles; los tests de repositorio cubren la asignación todo-o-nada de envíos, la desasignación y los lotes mixtos.
+Los flujos operativos principales de la demostración (asignar un vehículo a una ruta, asignar envíos a una ruta con y sin repartidor, reasignar y desasignar, iniciar reparto, registrar incidencia, reprogramar, confirmar entrega con firma y foto, y verificar el tracking público y los avisos) están cubiertos por los tests de flujo completo contra PostgreSQL (`tests/`: flota y trayecto, envíos y rutas, confirmación, reprogramación, seguimiento, tracking, login en dos pasos, analítica y repartidor), que pasaron en verde en la corrida del 10/11/2026. En particular, `TestFlujoCompleto_FlotaYTrayecto` da de alta un vehículo, lo asigna a una ruta de hoy, y verifica su carga en la flota y el trayecto por calles; los tests de repositorio cubren la asignación todo-o-nada de envíos, la desasignación y los lotes mixtos.
 
 ### 6.11 Testing y calidad
 
@@ -1305,12 +1305,14 @@ La estrategia siguió el Plan de Pruebas del Sprint 3 (IEEE 829 / ISTQB): prueba
 
 | Suite | Entorno y herramientas | Tests | Resultado |
 | --- | --- | :-: | --- |
-| Backend API | Go · `testing` · `httptest` · PostgreSQL (Supabase; efímero en CI) | `241` | `241 pasando (corrida completa `go test ./... -p 1` contra Supabase, 10/11/2026)` |
+| Backend API | Go · `testing` · `httptest` · PostgreSQL (Supabase; efímero en CI) | 259 | 259 pasando (corrida completa `go test ./... -p 1` contra Supabase, 10/11/2026) |
 | Frontend web | Vitest · React Testing Library · TypeScript | 115 (23 archivos) | 115 pasando |
 | App móvil | Vitest · TypeScript | 62 (+1 salteado de plantilla) | 62 pasando |
-| **Total** | GitHub Actions (`api-ci`, `web-ci`, `mobile-ci`) | `418` | `100 % verde (418 pasando, 1 salteado)` |
+| **Total** | GitHub Actions (`api-ci`, `web-ci`, `mobile-ci`) | 436 | 100 % verde (436 pasando, 1 salteado) |
 
-Cifras medidas sobre el commit `e9fc789`. **Cobertura de la API:** `medida con `go test ./... -cover` el 10/11/2026, por paquete: `httprouter` 91,1 %, `config` 77,5 %, `mail` 72,7 %, `geo` 70,1 %, `middleware` 68,6 %, `services` 64,9 %, `repository` 39,1 %, `handlers` 27,9 %, `platform/db` 10,7 %. Los paquetes `whatsapp`, `google`, `fecha` y `cmd/*` no tienen tests unitarios propios. Las pruebas de flujo completo (paquete `tests`, 10 archivos E2E) ejercitan los caminos HTTP de punta a punta pero no se contabilizan como cobertura de esos paquetes`.
+Cifras de la API medidas el 10/11/2026 sobre `main` más los tests agregados en el cierre (las de web y móvil, sobre el commit `e9fc789`).
+
+**Cobertura de la API** (`go test ./... -coverpkg=./...`, que suma la cobertura que aportan las pruebas de flujo del paquete `tests`): **71,4 % de las sentencias**, por encima del umbral del 70 % de la DoD. Por paquete: `httprouter` 97,9 %, `middleware` 88,2 %, `google` 84,2 %, `repository` 82,9 %, `services` 82,4 %, `config` 77,5 %, `mail` 72,7 %, `handlers` 72,5 %, `geo` 70,1 % y `platform/db` 17,9 %. `platform/whatsapp` (cliente real de `whatsmeow`, que requiere una cuenta vinculada) y los ejecutables `cmd/*` (arranque, migración y datos de demo) no se prueban de forma automática (0 %); sin contar `cmd/*`, la cobertura es del 76,4 %. Durante el cierre se agregaron tests para los borrados (`eliminar_handler`), los repositorios de geo, perfil y WhatsApp, el handler de rutas (listado, edición y recomendación por distancia) y los handlers de WhatsApp y del perfil del repartidor, lo que llevó la cobertura del 65,0 % al 71,4 %.
 
 **Defectos detectados y corregidos en la reintegración:**
 
@@ -1350,14 +1352,14 @@ La tabla muestra el problema principal del sprint: el trabajo quedó por encima 
 
 1. **Código en `main` con revisión cruzada:** cumplida para HU-11 a HU-19 y las mejoras T1 a T7 mediante revisión conjunta de los cambios entre integrantes (comparación de las dos implementaciones, merges entre ramas). No se usaron Pull Requests formales en todas las integraciones; es una de las acciones de mejora de la retrospectiva.
 2. **Compilación:** cumplida (`go build`, `tsc`, `vite build`, `expo export`).
-3. **Tests en verde:** cumplida. `go test ./... -p 1` (241 tests de API, todos los paquetes en verde, incluidos los 10 E2E de flujos), 115 tests web y 62 móvil (más 1 salteado de plantilla).
+3. **Tests en verde:** cumplida. `go test ./... -p 1` (259 tests de API, todos los paquetes en verde, incluidos los 10 E2E de flujos), 115 tests web y 62 móvil (más 1 salteado de plantilla).
 4. **Integración continua:** cumplida. Los workflows `api-ci`, `web-ci` y `mobile-ci` terminaron en verde sobre el último commit de `main` (`e9fc789`, 07/11/2026, 22:18 UTC), según el historial de GitHub Actions.
 5. **Documentación de API:** cumplida; endpoints y esquemas del Sprint 3 en `docs/api/openapi.yaml`.
 6. **Criterios de aceptación verificados:** cumplida en el sistema corriendo (web, PWA y API desplegadas).
 7. **Migraciones con `down`:** cumplida (0006 a 0013 del Sprint 3, más 0003, 0004, 0005 y 0009 del Sprint 2).
 8. **Sin credenciales en el repositorio:** cumplida (`.env` fuera de git; `.env.example` actualizado).
 9. **Prueba en dispositivos físicos (HU-19):** cumplida. APK probado en un Android físico y PWA instalada en un iPhone físico.
-10. **Cobertura mínima del 70 % (DoD del Sprint 0):** **no cumplida de forma global.** Se midió por primera vez en este sprint: la lógica de negocio (`services`) llega al 64,9 % y el ruteo al 91,1 %, pero `repository` (39,1 %) y `handlers` (27,9 %) quedan por debajo del 70 %, porque se verifican principalmente con pruebas de flujo contra la base real. Queda como mejora: subir la cobertura de handlers y repositorios y exigir el umbral en el CI (`api-ci` ya reporta `-cover`).
+10. **Cobertura mínima del 70 % (DoD del Sprint 0):** cumplida para la API (71,4 % medido con `-coverpkg=./...`, incluyendo las pruebas de flujo). Se midió por primera vez en este sprint: arrancó en 65,0 % y se subió agregando tests de borrados, repositorios y handlers sin cobertura. Quedan fuera de la medición el cliente real de WhatsApp y los ejecutables `cmd/*`. Mejora pendiente: exigir el umbral en el CI (`api-ci` ya reporta `-cover` por paquete).
 
 ## 9. Retrospectiva — Análisis teórico vs. real
 
