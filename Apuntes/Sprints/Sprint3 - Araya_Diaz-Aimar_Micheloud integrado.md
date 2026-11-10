@@ -83,7 +83,7 @@ El documento del Sprint 0 *originalmente entregado* propuso un stack y un conjun
 | --- | --- | --- | :-: | :-: | :-: | :-: |
 | Sprint 1 | 04/08 – 02/09/2026 (presentación 09/09) | HU-01 a HU-05 | 26 | 197 | 224 | 101 |
 | Sprint 2 | 10/09 – 24/09/2026 | HU-06 a HU-10 | 26 | 118 | 130 | 293 |
-| Sprint 3 | 01/10 – 07/11/2026 | HU-11 a HU-19 | 40 | 175 | 202 | 436 |
+| Sprint 3 | 01/10 – 07/11/2026 | HU-11 a HU-19 | 40 | 175 | 202 | 437 |
 | **Total** | | **19 HU** | **92** | **490** | **556** | |
 
 La columna *Tests acumulados* muestra el total de tests automatizados (API, web y móvil) al cierre de cada sprint. El valor del Sprint 3 corresponde al commit `e9fc789` y se detalla en la sección 6.11 del Sprint 3.
@@ -1299,16 +1299,20 @@ Mejoras pedidas para la demo que no estaban en el Sprint Backlog 3. No suman SP.
 
 Los flujos operativos principales de la demostración (asignar un vehículo a una ruta, asignar envíos a una ruta con y sin repartidor, reasignar y desasignar, iniciar reparto, registrar incidencia, reprogramar, confirmar entrega con firma y foto, y verificar el tracking público y los avisos) están cubiertos por los tests de flujo completo contra PostgreSQL (`tests/`: flota y trayecto, envíos y rutas, confirmación, reprogramación, seguimiento, tracking, login en dos pasos, analítica y repartidor), que pasaron en verde en la corrida del 10/11/2026. En particular, `TestFlujoCompleto_FlotaYTrayecto` da de alta un vehículo, lo asigna a una ruta de hoy, y verifica su carga en la flota y el trayecto por calles; los tests de repositorio cubren la asignación todo-o-nada de envíos, la desasignación y los lotes mixtos.
 
+**Recorrido contra la API real (10/11/2026).** Además de los tests automáticos, se levantó la API compilada en un puerto local (con WhatsApp, mail y simulador GPS apagados para no enviar mensajes reales) y se recorrieron por HTTP los flujos de la demostración con el script `gestion-envios/docs/pruebas/recorrido_demo.py`, usando los usuarios demo de operador, repartidor y administrador. Se verificaron **38 puntos, todos correctos**: login de los tres roles y rechazo de clave incorrecta, control de permisos (401/403), alta de dos envíos, tracking público por código, alta de vehículo, creación de ruta con repartidor, asignación del vehículo a la ruta, recomendación por distancia, asignación de envíos, detalle de la ruta (cantidad y peso total), desasignación y reasignación, flota, panel y los tres reportes, vista del repartidor (envíos del día, perfil y ruta), inicio de reparto, rechazo de una transición inválida, confirmación de entrega con firma PNG y foto JPEG (el envío queda entregado y la firma se descarga), registro de incidencia, reprogramación y las reglas de borrado (un envío entregado y un vehículo con ruta planificada responden 423). No se probaron en esta instancia la aplicación desplegada ni los celulares físicos.
+
+El recorrido detectó un defecto, ya corregido (ver el defecto 7 más abajo). Los datos de prueba se borraron de la base al terminar.
+
 ### 6.11 Testing y calidad
 
 La estrategia siguió el Plan de Pruebas del Sprint 3 (IEEE 829 / ISTQB): pruebas unitarias de reglas de negocio, integración de componentes con servidores falsos para Nominatim, OSRM y WhatsApp, flujos E2E de API contra PostgreSQL y pruebas manuales de sistema sobre la aplicación desplegada.
 
 | Suite | Entorno y herramientas | Tests | Resultado |
 | --- | --- | :-: | --- |
-| Backend API | Go · `testing` · `httptest` · PostgreSQL (Supabase; efímero en CI) | 259 | 259 pasando (corrida completa `go test ./... -p 1` contra Supabase, 10/11/2026) |
+| Backend API | Go · `testing` · `httptest` · PostgreSQL (Supabase; efímero en CI) | 260 | 260 pasando (corrida completa `go test ./... -p 1` contra Supabase, 10/11/2026) |
 | Frontend web | Vitest · React Testing Library · TypeScript | 115 (23 archivos) | 115 pasando |
 | App móvil | Vitest · TypeScript | 62 (+1 salteado de plantilla) | 62 pasando |
-| **Total** | GitHub Actions (`api-ci`, `web-ci`, `mobile-ci`) | 436 | 100 % verde (436 pasando, 1 salteado) |
+| **Total** | GitHub Actions (`api-ci`, `web-ci`, `mobile-ci`) | 437 | 100 % verde (437 pasando, 1 salteado) |
 
 Cifras de la API medidas el 10/11/2026 sobre `main` más los tests agregados en el cierre (las de web y móvil, sobre el commit `e9fc789`).
 
@@ -1324,6 +1328,7 @@ Cifras de la API medidas el 10/11/2026 sobre `main` más los tests agregados en 
 | 4 | HU-11 | Rutas del día figuraban vencidas después de las 21 h. | El "hoy" del panel se calculaba en UTC. | Se usa el día argentino de `platform/fecha` (test `TestFechaODefault`). |
 | 5 | HU-16 | El segundo paso del login quedaba colgado si WhatsApp tardaba. | El envío del código se hacía en la misma petición del login. | El envío pasa a segundo plano con tiempo límite y la pantalla permite reenviar. |
 | 6 | HU-19 | Botones y tarjetas rotos solo en el APK. | Estilos que dependían del entorno de Expo Go. | Se corrigieron los estilos y se verificó el APK en un Android físico. |
+| 7 | HU-02 | Registrar un envío con un tamaño de paquete fuera del catálogo (por ejemplo `pequeno`) respondía 500 en vez de 400. | El tamaño es un enum en la base y la validación del servicio no lo controlaba; el error de la base subía como falla interna. | `validarCrearEnvioInput` exige `chico`, `mediano` o `grande` y responde 400 `campos_obligatorios`; test `TestValidarCrearEnvioInput_RechazaTamanoFueraDeCatalogo` y verificación en el recorrido contra la API real. |
 
 ## 7. Cronograma y Burndown Chart
 
@@ -1352,7 +1357,7 @@ La tabla muestra el problema principal del sprint: el trabajo quedó por encima 
 
 1. **Código en `main` con revisión cruzada:** cumplida para HU-11 a HU-19 y las mejoras T1 a T7 mediante revisión conjunta de los cambios entre integrantes (comparación de las dos implementaciones, merges entre ramas). No se usaron Pull Requests formales en todas las integraciones; es una de las acciones de mejora de la retrospectiva.
 2. **Compilación:** cumplida (`go build`, `tsc`, `vite build`, `expo export`).
-3. **Tests en verde:** cumplida. `go test ./... -p 1` (259 tests de API, todos los paquetes en verde, incluidos los 10 E2E de flujos), 115 tests web y 62 móvil (más 1 salteado de plantilla).
+3. **Tests en verde:** cumplida. `go test ./... -p 1` (260 tests de API, todos los paquetes en verde, incluidos los 10 E2E de flujos), 115 tests web y 62 móvil (más 1 salteado de plantilla).
 4. **Integración continua:** cumplida. Los workflows `api-ci`, `web-ci` y `mobile-ci` terminaron en verde sobre el último commit de `main` (`e9fc789`, 07/11/2026, 22:18 UTC), según el historial de GitHub Actions.
 5. **Documentación de API:** cumplida; endpoints y esquemas del Sprint 3 en `docs/api/openapi.yaml`.
 6. **Criterios de aceptación verificados:** cumplida en el sistema corriendo (web, PWA y API desplegadas).

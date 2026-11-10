@@ -43,6 +43,12 @@ func validarCrearEnvioInput(in CrearEnvioInput) error {
 	if in.DestinatarioNombre == "" || in.Calle == "" || in.Localidad == "" || in.Peso <= 0 {
 		return ErrCamposObligatorios
 	}
+	// El tamaño es un enum en la base: un valor fuera de catálogo daba 500 en vez de 400.
+	switch in.Tamano {
+	case domain.TamanoChico, domain.TamanoMediano, domain.TamanoGrande:
+	default:
+		return ErrCamposObligatorios
+	}
 	if in.FechaEntrega != "" {
 		f, err := time.Parse("2006-01-02", in.FechaEntrega)
 		if err != nil || f.Before(fecha.InicioDeHoy()) {

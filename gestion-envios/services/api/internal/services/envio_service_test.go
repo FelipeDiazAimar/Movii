@@ -31,9 +31,18 @@ func TestValidarCrearEnvioInput_RechazaPesoInvalido(t *testing.T) {
 
 func TestValidarCrearEnvioInput_AceptaInputCompleto(t *testing.T) {
 	err := validarCrearEnvioInput(CrearEnvioInput{
-		DestinatarioNombre: "Juan", Calle: "Calle 1", Localidad: "San Francisco", Peso: 2.5,
+		DestinatarioNombre: "Juan", Calle: "Calle 1", Localidad: "San Francisco", Peso: 2.5, Tamano: domain.TamanoChico,
 	})
 	require.NoError(t, err)
+}
+
+func TestValidarCrearEnvioInput_RechazaTamanoFueraDeCatalogo(t *testing.T) {
+	for _, tam := range []string{"", "pequeno", "XL"} {
+		err := validarCrearEnvioInput(CrearEnvioInput{
+			DestinatarioNombre: "Juan", Calle: "Calle 1", Localidad: "San Francisco", Peso: 2.5, Tamano: tam,
+		})
+		require.ErrorIs(t, err, ErrCamposObligatorios, "tamano=%q", tam)
+	}
 }
 
 func nuevoEnvioServiceDeTest(t *testing.T) (*EnvioService, *pgxpool.Pool) {
