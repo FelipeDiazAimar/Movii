@@ -43,4 +43,4 @@ jobs:
       - name: Aplicar migraciones
         run: go run ./cmd/migrate up
       - name: Test
-        run: go test ./... -v -p 1
+        run: go test ./... -v -p 1 -cover

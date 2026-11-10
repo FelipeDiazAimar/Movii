@@ -108,6 +108,7 @@ class Envio {
   +ruta_id: UUID <<nullable>>
   +reprogramado_para: Date <<nullable>>
   +franja: FranjaHoraria <<nullable>>
+  +fecha_entrega: Date
   +created_at: Timestamp
   +updated_at: Timestamp
 }
