@@ -661,7 +661,11 @@ El desvío total fue de 12 horas (**+10,2 %**), absorbido por el equipo dentro d
 
 ## 5. Modelo de Datos
 
-El modelo del Sprint 2 amplía el esquema del Sprint 1 para dar soporte a la trazabilidad, la auditoría de eventos y la persistencia de las evidencias de entrega. La **Figura 1** muestra el diagrama de clases y entidad-relación (archivo `Apuntes/Sprints/Sprint 2/Diagrama de clases - s2.png`; fuente editable en `gestion-envios/docs/architecture/clases-sprint2.mmd`).
+El modelo del Sprint 2 amplía el esquema del Sprint 1 para dar soporte a la trazabilidad, la auditoría de eventos y la persistencia de las evidencias de entrega. La **Figura 1** muestra el diagrama de clases y entidad-relación (fuente editable en `gestion-envios/docs/architecture/clases-sprint2.mmd`).
+
+![Figura 1: Diagrama de clases y entidad-relación del Sprint 2](figuras/figura1-clases-sprint2.png)
+
+*Figura 1: Diagrama de clases y entidad-relación del Sprint 2.*
 
 ### Diccionario de datos del Sprint 2
 
@@ -699,7 +703,7 @@ El modelo del Sprint 2 amplía el esquema del Sprint 1 para dar soporte a la tra
 | franja | `franja_horaria` | NULLABLE | Franja acordada (`manana`, `tarde`, `noche`). |
 | fecha_entrega | DATE | NOT NULL, DEFAULT hoy en Argentina | Fecha de compromiso de reparto (migración 0009). |
 
-> **Nota sobre la Figura 1:** el diagrama de la figura se generó antes de la migración 0009 y no muestra `fecha_entrega` en `Envio`. El atributo está incluido en el diccionario de arriba y en la fuente `clases-sprint2.mmd`.
+> **Nota sobre la Figura 1:** el diagrama de la figura se generó antes de la migración 0009 y no muestra `fecha_entrega` en `Envio`. El atributo está incluido en el diccionario de arriba y en la fuente editable `clases-sprint2.mmd`.
 
 **Tipos enumerados**
 
@@ -717,7 +721,11 @@ Las funcionalidades del Sprint 2 están implementadas y verificadas de punta a p
 
 ### 6.1 Arquitectura entregada
 
-El sistema Movii se estructura en 3 capas desacopladas (**Figura 2**; en el repositorio, la arquitectura vigente está descripta en el `README.md`).
+El sistema Movii se estructura en 3 capas desacopladas (**Figura 2**).
+
+![Figura 2: Arquitectura del Sistema Movii — stack tecnológico y componentes (Sprint 2)](figuras/figura2-arquitectura-sprint2.png)
+
+*Figura 2: Arquitectura del Sistema Movii — stack tecnológico y componentes (Sprint 2).*
 
 - **Capa 1 — Clientes:** web SPA operativa en React 19 + TypeScript + Vite + Tailwind CSS (TanStack Query y Zod) y app móvil del repartidor en React Native 0.86 + Expo SDK 57 + TypeScript (SignaturePad y `expo-image-picker`).
 - **Capa 2 — API REST:** Go **1.27** sobre `go-chi/chi/v5`. Middlewares propios de autenticación JWT (HS256) y CORS; servicios de dominio puros (matrices de estado sin efectos colaterales) y repositorios tipados con `jackc/pgx/v5` sin ORM, con control explícito de transacciones. La **validación del tamaño de las imágenes (≤ 5 MB, `domain.MaxImagenBytes`) se hace en el servicio** y responde HTTP 413.
@@ -1162,29 +1170,9 @@ Las funcionalidades del Sprint 3 están implementadas y verificadas de punta a p
 
 ### 6.1 Arquitectura final
 
-```mermaid
-flowchart TB
-  subgraph C1["Capa 1 - Clientes"]
-    W["Panel web (React 19 + Vite) - Vercel<br/>Leaflet + OSM, vista 3D MapLibre"]
-    M["App del repartidor (Expo / React Native)<br/>APK (EAS Build) y PWA en /app"]
-  end
-  subgraph C2["Capa 2 - API REST en Go (chi) - Railway"]
-    T["Transporte y seguridad<br/>JWT HS256, OTP, Google OAuth2, SSE"]
-    S["Servicios de dominio<br/>handlers - services - repository"]
-    B["Procesos en segundo plano<br/>simulador GPS, notificador WhatsApp, backfill geo"]
-  end
-  subgraph C3["Capa 3 - Persistencia y servicios externos"]
-    D[("Supabase - PostgreSQL 17<br/>migraciones 0001 a 0013")]
-    X["Nominatim, OSRM, WhatsApp (whatsmeow),<br/>Resend (mail), Google OAuth2"]
-  end
-  W -->|HTTPS REST + SSE| T
-  M -->|HTTPS REST| T
-  T --> S --> D
-  B --> D
-  B --> X
-```
+![Figura 3: Arquitectura final del Sistema Movii — despliegue y servicios externos (Sprint 3)](figuras/figura3-arquitectura-final.png)
 
-> **Nota:** la versión gráfica de esta figura (Figuras 2 y 3 del documento anterior) tenía texto desactualizado ("Go 1.22", "OTP de 5 min y 5 intentos", "http.MaxBytesReader"). Si se conserva una imagen, debe leer **Go 1.27**, **OTP de 6 dígitos, 10 minutos y 3 intentos** y no mencionar `MaxBytesReader`.
+*Figura 3: Arquitectura final del Sistema Movii — despliegue y servicios externos (Sprint 3).*
 
 - **Capa 1 — Clientes:** panel web (React 19 + Vite) desplegado en Vercel, con mapas Leaflet + OpenStreetMap y vista 3D con MapLibre. App del repartidor en Expo / React Native, instalable como APK (EAS Build) y servida como PWA en `/app/` para iPhone.
 - **Capa 2 — API REST en Go (1.27), desplegada en Railway,** organizada en `handlers → services → repository`. Suma un stream SSE (`/operaciones/flota/stream`), el simulador GPS y el notificador de WhatsApp como procesos en segundo plano. Los servicios externos quedan detrás de interfaces (`Geocoder`, `Router`, `Sender`) para poder testear sin red y cambiar de proveedor.
@@ -1363,7 +1351,7 @@ La tabla muestra el problema principal del sprint: el trabajo quedó por encima 
 1. **Código en `main` con revisión cruzada:** cumplida para HU-11 a HU-19 y las mejoras T1 a T7 mediante revisión conjunta de los cambios entre integrantes (comparación de las dos implementaciones, merges entre ramas). No se usaron Pull Requests formales en todas las integraciones; es una de las acciones de mejora de la retrospectiva.
 2. **Compilación:** cumplida (`go build`, `tsc`, `vite build`, `expo export`).
 3. **Tests en verde:** cumplida. `go test ./... -p 1` (241 tests de API, todos los paquetes en verde, incluidos los 10 E2E de flujos), 115 tests web y 62 móvil (más 1 salteado de plantilla).
-4. **Integración continua:** workflows `api-ci`, `web-ci` y `mobile-ci` activos en GitHub Actions. *El estado del último push debe confirmarse en la pestaña Actions del repositorio.*
+4. **Integración continua:** cumplida. Los workflows `api-ci`, `web-ci` y `mobile-ci` terminaron en verde sobre el último commit de `main` (`e9fc789`, 07/11/2026, 22:18 UTC), según el historial de GitHub Actions.
 5. **Documentación de API:** cumplida; endpoints y esquemas del Sprint 3 en `docs/api/openapi.yaml`.
 6. **Criterios de aceptación verificados:** cumplida en el sistema corriendo (web, PWA y API desplegadas).
 7. **Migraciones con `down`:** cumplida (0006 a 0013 del Sprint 3, más 0003, 0004, 0005 y 0009 del Sprint 2).
