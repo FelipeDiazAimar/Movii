@@ -56,7 +56,7 @@
 | Estados en la cabeza del repartidor | Máquina de estados en la API + migraciones versionadas |
 | Cada cliente con su versión | Monorepo pnpm: un solo repo, CI por paquete |
 | "La API hace X, creo" | `openapi.yaml` generado del código real (handlers + structs) |
-| Deploys a mano | Workflows `api-ci / web-ci / mobile-ci` + Docker en `infra/` |
+| Deploys a mano | Workflows `api-ci / web-ci / mobile-ci` + `Dockerfile` de despliegue (Railway) |
 
 Proyecto de cursada con apuntes (`Apuntes/`: sprints, Scrum, ciclo de vida, SCM, calidad) y decisiones documentadas (`docs/decisions/`).
 
@@ -126,7 +126,6 @@ Movii/
 │   ├── services/api/             # Go (cmd/, internal/, pkg/, migrations/, tests/)
 │   ├── packages/                 # código compartido
 │   ├── supabase/{functions,migrations,seeds}/
-│   ├── infra/docker/             # Docker
 │   ├── docs/{api/openapi.yaml,architecture,decisions}/
 │   └── scripts/{setup.mjs,dev.mjs}
 ├── Apuntes/                      # material de cursada (sprints, Scrum, calidad…)
@@ -145,7 +144,7 @@ node scripts/setup.mjs   # o npm run setup
 node scripts/dev.mjs     # o npm run dev → API + web + mobile
 ```
 
-Requisitos: Node 20+, **pnpm**, Go 1.27+, Postgres 14+ (o Supabase), Expo Go en el celu para mobile.
+Requisitos: Node 20+, **pnpm**, Go 1.27+, una base PostgreSQL (Supabase), Expo Go en el celu para mobile.
 
 ---
 
@@ -219,7 +218,7 @@ Spec: `gestion-envios/docs/api/openapi.yaml` (OpenAPI 3.0.3, generado de handler
 
 ## ☁️ Deploy
 
-- **API:** binario Go (`go build ./cmd/api`) o Docker (`infra/docker/`).
+- **API:** binario Go (`go build ./cmd/api`) o imagen Docker (`gestion-envios/Dockerfile`, la que usa Railway; ver `docs/deploy.md`).
 - **Web:** `pnpm build` → estático (Vercel/Netlify).
 - **Mobile:** EAS Build / Expo.
 - Sin URLs fijas en el repo: configurar dominios + `CORS_ORIGINS` + `VITE_API_URL` por entorno.

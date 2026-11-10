@@ -43,7 +43,7 @@ El documento del Sprint 0 *originalmente entregado* propuso un stack y un conjun
 | --- | --- | --- | --- |
 | Backend / API | Node.js + Express | **Go + chi** (`handlers → services → repository`) | Binario único, buen rendimiento y concurrencia nativa para el simulador GPS, el stream SSE y el notificador de WhatsApp. |
 | Acceso a datos | Prisma (ORM) | **pgx sin ORM**, migraciones SQL con `golang-migrate` | Control explícito de transacciones y de las consultas de reportes y mapas. |
-| Base de datos | PostgreSQL 16 local | **PostgreSQL 17 en Supabase** (Docker local solo para desarrollo en el Sprint 2) | Base compartida por el equipo y accesible desde el despliegue. |
+| Base de datos | PostgreSQL 16 local | **PostgreSQL 17 en Supabase** (en el Sprint 2 se usó además un Postgres local en Docker, que se retiró del repositorio en el cierre del proyecto) | Base compartida por el equipo y accesible desde el despliegue. |
 | Frontend web | React + Tailwind | React 19 + Vite + TypeScript + Tailwind + TanStack Query + Zod | Se mantiene React + Tailwind; se suma tipado y caché de datos. |
 | App móvil | React Native | React Native 0.86 + Expo SDK 57; APK (EAS Build) y PWA | Se mantiene React Native; se agrega distribución instalable (HU-19). |
 | Autenticación | JWT | JWT (HS256) + segundo paso por WhatsApp (HU-16) + primer acceso por código + Google OAuth2 | Ampliaciones pedidas por el Product Owner. |
@@ -729,7 +729,7 @@ El sistema Movii se estructura en 3 capas desacopladas (**Figura 2**).
 
 - **Capa 1 — Clientes:** web SPA operativa en React 19 + TypeScript + Vite + Tailwind CSS (TanStack Query y Zod) y app móvil del repartidor en React Native 0.86 + Expo SDK 57 + TypeScript (SignaturePad y `expo-image-picker`).
 - **Capa 2 — API REST:** Go **1.27** sobre `go-chi/chi/v5`. Middlewares propios de autenticación JWT (HS256) y CORS; servicios de dominio puros (matrices de estado sin efectos colaterales) y repositorios tipados con `jackc/pgx/v5` sin ORM, con control explícito de transacciones. La **validación del tamaño de las imágenes (≤ 5 MB, `domain.MaxImagenBytes`) se hace en el servicio** y responde HTTP 413.
-- **Capa 3 — Base de datos:** PostgreSQL 17 con esquema versionado con `golang-migrate`. En el Sprint 2 las migraciones aplicadas son 0001 a 0005 y 0009; los números 0006 a 0008 quedaron reservados para el Sprint 3 (ver 6.10). Dos entornos equivalentes: Postgres en Docker (`infra/docker`) para desarrollo y pruebas sin internet, y Supabase Cloud como base remota compartida.
+- **Capa 3 — Base de datos:** PostgreSQL 17 con esquema versionado con `golang-migrate`. En el Sprint 2 las migraciones aplicadas son 0001 a 0005 y 0009; los números 0006 a 0008 quedaron reservados para el Sprint 3 (ver 6.10). En este sprint hubo dos entornos equivalentes: un Postgres local en Docker para desarrollo y pruebas sin internet (retirado del repositorio en el cierre del proyecto) y Supabase Cloud como base remota compartida, que es la que quedó en uso.
 
 ### 6.2 HU-06 — Actualización de estado de entrega
 

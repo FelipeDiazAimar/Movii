@@ -14,7 +14,7 @@
 
 ## What is it?
 
-End-to-end shipment management: customers quote/track (web + mobile), operators manage states/routes, one Go API over Postgres as source of truth. Real monorepo in `gestion-envios/`: pnpm workspace (`apps/*`), Go API (chi 5.3, pgx 5.10, JWT, golang-migrate, testify), React 19 + Vite 6 web (Query, Zod, Vitest), Expo 57 mobile (Router, tRPC 11, Drizzle, NativeWind), Supabase migrations/seeds/functions, `infra/docker`, OpenAPI 3.0.3 spec generated from real handlers, and three CI workflows (`api-ci`, `web-ci`, `mobile-ci`).
+End-to-end shipment management: customers quote/track (web + mobile), operators manage states/routes, one Go API over Postgres as source of truth. Real monorepo in `gestion-envios/`: pnpm workspace (`apps/*`), Go API (chi 5.3, pgx 5.10, JWT, golang-migrate, testify), React 19 + Vite 6 web (Query, Zod, Vitest), Expo 57 mobile (Router, tRPC 11, Drizzle, NativeWind), Supabase migrations/seeds/functions, a deployment `Dockerfile`, OpenAPI 3.0.3 spec generated from real handlers, and three CI workflows (`api-ci`, `web-ci`, `mobile-ci`).
 
 ## Run it
 
