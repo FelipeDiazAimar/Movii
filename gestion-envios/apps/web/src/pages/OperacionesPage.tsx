@@ -32,9 +32,7 @@ import {
   MapPinned,
   Package,
   PackageOpen,
-  Phone,
   Route,
-  Thermometer,
   TrendingUp,
   Truck,
   UserRound,
@@ -60,7 +58,7 @@ function Kpi({ titulo, valor, sufijo, detalle, icono: Icono, tono = "neutro" }: 
   );
 }
 
-function Tile({ titulo, valor, unidad, icono: Icono }: { titulo: string; valor: number; unidad?: string; icono: LucideIcon }) {
+function Tile({ titulo, valor, unidad, icono: Icono, decimales = 0 }: { titulo: string; valor: number; unidad?: string; icono: LucideIcon; decimales?: number }) {
   return (
     <SpotlightCard className="p-4">
       <div className="flex items-start justify-between">
@@ -68,7 +66,7 @@ function Tile({ titulo, valor, unidad, icono: Icono }: { titulo: string; valor: 
         <Icono className="h-[18px] w-[18px] text-gray-400" aria-hidden />
       </div>
       <p className="font-expandida mt-3 text-3xl font-black text-gray-900">
-        <CountUp value={valor} />
+        <CountUp value={valor} decimals={decimales} />
         {unidad && <span className="ml-1 text-sm font-semibold text-gray-400">{unidad}</span>}
       </p>
     </SpotlightCard>
@@ -292,7 +290,7 @@ export function OperacionesPage() {
               <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
                 <Tile titulo="Paquetes a bordo" valor={aBordo} unidad={`/ ${seleccionado.total_paquetes}`} icono={PackageOpen} />
                 <Tile titulo="Entregados" valor={seleccionado.paquetes_entregados} unidad={seleccionado.paquetes_fallidos ? `${seleccionado.paquetes_fallidos} fallidos` : undefined} icono={CircleCheck} />
-                <Tile titulo="Temperatura de carga" valor={seleccionado.temperatura} unidad="°C" icono={Thermometer} />
+                <Tile titulo="Distancia restante" valor={(detalle.data?.recorrido?.distancia_m ?? 0) / 1000} decimales={1} unidad="km" icono={Route} />
                 <Tile titulo="Velocidad" valor={velocidad} unidad="km/h" icono={Gauge} />
               </div>
 
@@ -409,7 +407,7 @@ export function OperacionesPage() {
                       title="Ver perfil del chofer"
                       className="flex h-9 w-9 items-center justify-center rounded-full border border-hormigon-200 text-gray-700 transition-colors hover:bg-hormigon-50"
                     >
-                      <Phone className="h-4 w-4" aria-hidden />
+                      <UserRound className="h-4 w-4" aria-hidden />
                       <span className="sr-only">Ver perfil del chofer</span>
                     </Link>
                   )}
