@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { EnvioForm } from "@/features/envios/EnvioForm";
@@ -19,6 +19,16 @@ export function EnvioNuevoPage() {
   const [creado, setCreado] = useState<CrearEnvioResponse | null>(null);
   const [rutaAsignada, setRutaAsignada] = useState<string | null>(null);
   const [copiado, setCopiado] = useState<string | null>(null);
+  const cartelExito = useRef<HTMLDivElement>(null);
+
+  // Tras registrar, el form se vacía y queda abajo: llevar la vista al cartel
+  // de éxito (scroll + foco, así también lo anuncia el lector de pantalla).
+  useEffect(() => {
+    const cartel = cartelExito.current;
+    if (!creado || !cartel) return;
+    cartel.scrollIntoView?.({ behavior: "smooth", block: "start" });
+    cartel.focus({ preventScroll: true });
+  }, [creado]);
 
   async function copiar(texto: string, clave: string) {
     try {
@@ -63,6 +73,7 @@ export function EnvioNuevoPage() {
       <PageHeader title="Nuevo envío" icon={PackagePlus} description="Se genera automáticamente un código de guía único (MOV-AAAAMMDD-NNNN) y el envío queda en estado pendiente." />
 
       {creado && (
+        <div ref={cartelExito} tabIndex={-1} className="scroll-mt-4 rounded-md outline-none focus-visible:ring-2 focus-visible:ring-green-400" data-testid="cartel-exito">
         <Alert variant="success">
           <div className="flex flex-col gap-2">
             <span>
@@ -89,6 +100,7 @@ export function EnvioNuevoPage() {
             </div>
           </div>
         </Alert>
+        </div>
       )}
 
       <Card>

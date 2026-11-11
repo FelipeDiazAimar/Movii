@@ -10,7 +10,7 @@ export function Hud({ icono: Icono, etiqueta, valor, acento }: { icono: LucideIc
       </span>
       <div className="min-w-0 leading-tight">
         <p className="truncate text-[9.5px] font-bold uppercase tracking-wider text-gray-400">{etiqueta}</p>
-        <p className="font-expandida truncate text-[13px] font-black text-white">{valor}</p>
+        <p className="font-expandida whitespace-nowrap text-[13px] font-black text-white">{valor}</p>
       </div>
     </div>
   );

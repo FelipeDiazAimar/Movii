@@ -10,13 +10,15 @@ import { Alert } from "@/components/ui/Alert";
 import { cambiarPasswordPrimerAcceso, reenviarPrimerAcceso, verificarPrimerAcceso } from "@/features/auth/api";
 import type { DesafioLogin, PrimerAccesoPendiente } from "@/features/auth/types";
 import { CodigoInput } from "@/components/ui/CodigoInput";
+import { PASSWORD_MAX, requisitosPassword } from "@/utils/mascaras";
 
-/** Mismas reglas que la API (services.ValidarPassword). */
+/** Mismas reglas que la API (services.ValidarPassword) más el tope de 72. */
 const nuevaPasswordSchema = z
   .object({
     nueva: z
       .string()
       .min(8, "Usá al menos 8 caracteres")
+      .max(PASSWORD_MAX, "La contraseña no puede superar los 72 caracteres")
       .regex(/\p{Lu}/u, "Incluí al menos una mayúscula")
       .regex(/\d/, "Incluí al menos un número"),
     repetir: z.string(),
@@ -130,6 +132,17 @@ export function PrimerAccesoPage() {
   const canalTexto =
     desafio?.canal === "mail" ? `por mail a ${desafio.destino}` : `por WhatsApp al ${desafio?.destino || desafio?.telefono}`;
 
+  // Checklist en vivo de las reglas de la contraseña (la mayúscula es lo
+  // que exige el backend: no se permite menos que ella).
+  const req = requisitosPassword(nueva);
+  const coinciden = nueva.length > 0 && nueva === repetir;
+  const checklist = [
+    { ok: req.ochoOMas, texto: "8 caracteres o más" },
+    { ok: req.mayuscula, texto: "una mayúscula" },
+    { ok: req.numero, texto: "un número" },
+    { ok: coinciden, texto: "coinciden" },
+  ];
+
   return (
     <div className="pt-safe pb-safe flex min-h-screen items-center justify-center bg-asfalto-900 bg-[radial-gradient(90%_60%_at_50%_0%,rgba(244,180,0,0.14),transparent_70%)] px-4">
       <div className="w-full max-w-sm rounded-[1.75rem] bg-white p-8 shadow-2xl">
@@ -150,6 +163,7 @@ export function PrimerAccesoPage() {
               name="nueva"
               type="password"
               autoComplete="new-password"
+              maxLength={PASSWORD_MAX}
               hint="Al menos 8 caracteres, una mayúscula y un número."
               error={errores.nueva}
               value={nueva}
@@ -160,10 +174,19 @@ export function PrimerAccesoPage() {
               name="repetir"
               type="password"
               autoComplete="new-password"
+              maxLength={PASSWORD_MAX}
               error={errores.repetir}
               value={repetir}
               onChange={(e) => setRepetir(e.target.value)}
             />
+            <ul aria-label="Requisitos de la contraseña" className="flex flex-col gap-1 text-xs">
+              {checklist.map((item) => (
+                <li key={item.texto} className={item.ok ? "font-semibold text-green-700" : "text-gray-500"}>
+                  <span aria-hidden>{item.ok ? "✓ " : "○ "}</span>
+                  {item.texto}
+                </li>
+              ))}
+            </ul>
             {error && <Alert variant="error">{error}</Alert>}
             <Button type="submit" loading={enviando} className="mt-2 w-full">
               Guardar y continuar

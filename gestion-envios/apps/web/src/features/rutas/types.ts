@@ -10,6 +10,12 @@ export interface RutaListItem {
   repartidor_id: string;
   repartidor_nombre?: string;
   cantidad_envios: number;
+  /** Avance y carga (la API los manda desde el listado del 11/11). */
+  entregados?: number;
+  no_entregados?: number;
+  peso_total?: number;
+  vehiculo_patente?: string;
+  vehiculo_tipo?: string;
 }
 
 /** Envío tal como viene embebido en el detalle de ruta: sin datos del destinatario. */

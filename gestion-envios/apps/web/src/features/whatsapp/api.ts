@@ -7,11 +7,14 @@ export interface EstadoWhatsapp {
   numero?: string;
   qr_imagen?: string;
   qr_vence?: string;
+  /** Canal de respaldo de los avisos (mail). */
+  mail?: { configurado: boolean; proveedor: "gmail" | "smtp" | "resend" | "log"; remitente?: string };
 }
 
 export interface AvisoEnvio {
   tipo: string;
-  estado: "pendiente" | "enviado" | "fallido" | "omitido";
+  canal?: "whatsapp" | "mail";
+  estado: "pendiente" | "enviado" | "fallido" | "omitido" | "simulado";
   mensaje: string;
   error: string | null;
   created_at: string;

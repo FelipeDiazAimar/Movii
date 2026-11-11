@@ -50,6 +50,26 @@ body {
   }
 }
 
+/* Barra de scroll discreta para paneles oscuros (menú lateral): fina, gris
+   translúcida y sin canal blanco, en vez de la barra nativa. */
+.scroll-oscuro {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.16) transparent;
+}
+.scroll-oscuro::-webkit-scrollbar {
+  width: 6px;
+}
+.scroll-oscuro::-webkit-scrollbar-track {
+  background: transparent;
+}
+.scroll-oscuro::-webkit-scrollbar-thumb {
+  background-color: rgba(255, 255, 255, 0.16);
+  border-radius: 9999px;
+}
+.scroll-oscuro::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(255, 255, 255, 0.28);
+}
+
 /* Foco visible y consistente con la marca. */
 :focus-visible {
   outline: 2px solid #f4b400;

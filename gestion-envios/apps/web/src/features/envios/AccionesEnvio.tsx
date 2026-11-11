@@ -1,8 +1,10 @@
-import { useState, type FormEvent } from "react";
+import { useRef, useState, type FormEvent } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { cambiarEstado, registrarIncidencia, reprogramarEnvio } from "./api";
+import { ImagePlus, X } from "lucide-react";
+import { registrarIncidencia, reprogramarEnvio } from "./api";
 import { incidenciaSchema, reprogramacionSchema } from "./schema";
 import { motivoLegible } from "./HistorialTimeline";
+import { franjaLegible, hoyISO } from "./formato";
 import { FRANJAS, MOTIVOS_FALLO, type EstadoEnvio } from "./types";
 import { Button } from "@/components/ui/Button";
 import { DateField, FieldWrapper, InputField, SelectField } from "@/components/ui/Field";
@@ -14,17 +16,19 @@ import { getApiErrorMessage } from "@/services/api-client";
  * la confirmación de entrega es del móvil y no tiene formulario en web.
  *
  * Visibilidad por estado (igual que el móvil):
- * - asignado → "Iniciar reparto" (→en_camino) + incidencia
- * - en_camino → "Volver a asignado" + incidencia
+ * - asignado → sin acciones: sale a reparto cuando se inicia su ruta (nota)
+ * - en_camino → incidencia
  * - no_entregado → reprogramar
  * - entregado / pendiente → sin acciones (nota informativa)
+ *
+ * El "en camino" ya no se marca envío por envío: lo pone "Iniciar ruta" para
+ * todos los envíos de la ruta a la vez (el camión sale del depósito con ellos).
  */
 
-export type AccionEnvio = "iniciar-reparto" | "volver-asignado" | "incidencia" | "reprogramar";
+export type AccionEnvio = "incidencia" | "reprogramar";
 
 export function accionesDisponibles(estado: EstadoEnvio): AccionEnvio[] {
-  if (estado === "asignado") return ["iniciar-reparto", "incidencia"];
-  if (estado === "en_camino") return ["volver-asignado", "incidencia"];
+  if (estado === "en_camino") return ["incidencia"];
   if (estado === "no_entregado") return ["reprogramar"];
   return [];
 }
@@ -32,6 +36,7 @@ export function accionesDisponibles(estado: EstadoEnvio): AccionEnvio[] {
 export function notaSinAcciones(estado: EstadoEnvio): string | null {
   if (estado === "entregado") return "Este envío ya fue entregado y no admite más acciones.";
   if (estado === "pendiente") return "Este envío todavía no fue asignado a una ruta, por eso no admite acciones de seguimiento.";
+  if (estado === "asignado") return "Todavía está en el depósito: sale a reparto cuando se inicia su ruta.";
   return null;
 }
 
@@ -58,45 +63,6 @@ async function invalidarEnvio(queryClient: ReturnType<typeof useQueryClient>, id
   ]);
 }
 
-/** HU-06: botones asignado ⇄ en_camino. */
-export function CambiarEstadoButtons({ envioId, estado }: { envioId: string; estado: "asignado" | "en_camino" }) {
-  const queryClient = useQueryClient();
-  const [exito, setExito] = useState<string | null>(null);
-
-  const mutation = useMutation({
-    mutationFn: (nuevo: "asignado" | "en_camino") => cambiarEstado(envioId, { estado: nuevo }),
-    onSuccess: async (_, nuevo) => {
-      setExito(nuevo === "en_camino" ? "Reparto iniciado: el envío está en camino." : "El envío volvió a asignado.");
-      await invalidarEnvio(queryClient, envioId);
-    },
-  });
-
-  return (
-    <div className="flex flex-col gap-2">
-      {exito && <Alert variant="success">{exito}</Alert>}
-      {mutation.isError && <Alert variant="error">{getApiErrorMessage(mutation.error, "No se pudo cambiar el estado")}</Alert>}
-      {estado === "asignado" ? (
-        <div>
-          <Button type="button" loading={mutation.isPending} onClick={() => { setExito(null); mutation.mutate("en_camino"); }}>
-            Iniciar reparto
-          </Button>
-        </div>
-      ) : (
-        <div>
-          <Button
-            type="button"
-            variant="secondary"
-            loading={mutation.isPending}
-            onClick={() => { setExito(null); mutation.mutate("asignado"); }}
-          >
-            Volver a asignado
-          </Button>
-        </div>
-      )}
-    </div>
-  );
-}
-
 /** HU-07: registrar incidencia (motivo + comentario + foto opcional). Colapsable: al éxito muestra el mensaje y se cierra. */
 export function IncidenciaForm({ envioId }: { envioId: string }) {
   const queryClient = useQueryClient();
@@ -107,6 +73,7 @@ export function IncidenciaForm({ envioId }: { envioId: string }) {
   const [nombreArchivo, setNombreArchivo] = useState<string | null>(null);
   const [errores, setErrores] = useState<Record<string, string>>({});
   const [exito, setExito] = useState<string | null>(null);
+  const inputFoto = useRef<HTMLInputElement>(null);
 
   const mutation = useMutation({
     mutationFn: (input: { motivo: string; comentario?: string; foto_base64?: string }) => registrarIncidencia(envioId, input),
@@ -122,8 +89,16 @@ export function IncidenciaForm({ envioId }: { envioId: string }) {
     },
   });
 
+  function quitarFoto() {
+    setNombreArchivo(null);
+    setFotoBase64(undefined);
+    setErrores(({ foto: _foto, ...resto }) => resto);
+    if (inputFoto.current) inputFoto.current.value = "";
+  }
+
   function onArchivoElegido(archivo: File | undefined) {
     setNombreArchivo(archivo?.name ?? null);
+    setErrores(({ foto: _foto, ...resto }) => resto);
     if (!archivo) {
       setFotoBase64(undefined);
       return;
@@ -186,19 +161,46 @@ export function IncidenciaForm({ envioId }: { envioId: string }) {
         label="Comentario"
         name="comentario"
         value={comentario}
+        maxLength={500}
+        contador
         onChange={(e) => setComentario(e.target.value)}
         error={errores.comentario}
         hint='Obligatorio cuando el motivo es "otro motivo"'
       />
-      <FieldWrapper label="Foto (opcional)" htmlFor="incidencia-foto" error={errores.foto} hint={nombreArchivo ?? "Solo imágenes"}>
-        <input
-          id="incidencia-foto"
-          name="foto"
-          type="file"
-          accept="image/*"
-          onChange={(e) => onArchivoElegido(e.target.files?.[0])}
-          className="text-sm text-gray-700"
-        />
+      <FieldWrapper label="Foto (opcional)" htmlFor="incidencia-foto" error={errores.foto} hint="Solo imágenes">
+        {/* El input nativo queda oculto (sr-only, sigue accesible por teclado) y el label hace de botón. */}
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
+          <input
+            ref={inputFoto}
+            id="incidencia-foto"
+            name="foto"
+            type="file"
+            accept="image/*"
+            onChange={(e) => onArchivoElegido(e.target.files?.[0])}
+            className="peer sr-only"
+          />
+          <label
+            htmlFor="incidencia-foto"
+            className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-hormigon-300 bg-white px-3 py-2 text-sm font-semibold text-gray-800 transition-colors hover:border-gray-400 hover:bg-hormigon-50 peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-gray-400"
+          >
+            <ImagePlus className="h-4 w-4 text-gray-500" aria-hidden />
+            {nombreArchivo ? "Cambiar foto" : "Elegir foto"}
+          </label>
+          <span className="min-w-0 max-w-full truncate text-sm text-gray-600" data-testid="foto-nombre" title={nombreArchivo ?? undefined}>
+            {nombreArchivo ?? "Ninguna foto elegida"}
+          </span>
+          {nombreArchivo && (
+            <button
+              type="button"
+              onClick={quitarFoto}
+              className="rounded-md p-1 text-gray-400 hover:bg-hormigon-100 hover:text-gray-700"
+              title="Quitar la foto"
+            >
+              <X className="h-3.5 w-3.5" aria-hidden />
+              <span className="sr-only">Quitar la foto</span>
+            </button>
+          )}
+        </div>
       </FieldWrapper>
       <div className="flex gap-2">
         <Button type="submit" loading={mutation.isPending}>
@@ -211,12 +213,6 @@ export function IncidenciaForm({ envioId }: { envioId: string }) {
     </form>
   );
 }
-
-const FRANJA_LABELS: Record<string, string> = {
-  manana: "mañana",
-  tarde: "tarde",
-  noche: "noche",
-};
 
 /** HU-09: reprogramar entrega (fecha + franja). Colapsable: al éxito muestra el mensaje y se cierra. */
 export function ReprogramarForm({ envioId }: { envioId: string }) {
@@ -267,11 +263,22 @@ export function ReprogramarForm({ envioId }: { envioId: string }) {
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-3" noValidate>
       {mutation.isError && <Alert variant="error">{getApiErrorMessage(mutation.error, "No se pudo reprogramar la entrega")}</Alert>}
-      <DateField label="Nueva fecha *" name="nueva_fecha" value={nuevaFecha} onChange={setNuevaFecha} error={errores.nueva_fecha} />
+      <DateField
+        label="Nueva fecha *"
+        name="nueva_fecha"
+        min={hoyISO()}
+        value={nuevaFecha}
+        onChange={(v) => {
+          setNuevaFecha(v);
+          if (v) setErrores(({ nueva_fecha: _f, ...resto }) => resto);
+        }}
+        error={errores.nueva_fecha}
+        hint="De hoy en adelante."
+      />
       <SelectField label="Franja *" name="franja" required value={franja} onChange={(e) => setFranja(e.target.value)} error={errores.franja}>
         {FRANJAS.map((f) => (
           <option key={f} value={f}>
-            {FRANJA_LABELS[f]}
+            {franjaLegible(f)}
           </option>
         ))}
       </SelectField>
@@ -298,8 +305,6 @@ export function AccionesEnvio({ envioId, estado }: { envioId: string; estado: Es
 
   return (
     <div className="flex flex-col gap-4">
-      {acciones.includes("iniciar-reparto") && <CambiarEstadoButtons envioId={envioId} estado="asignado" />}
-      {acciones.includes("volver-asignado") && <CambiarEstadoButtons envioId={envioId} estado="en_camino" />}
       {acciones.includes("incidencia") && <IncidenciaForm envioId={envioId} />}
       {acciones.includes("reprogramar") && <ReprogramarForm envioId={envioId} />}
     </div>

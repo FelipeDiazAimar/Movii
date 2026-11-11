@@ -36,8 +36,14 @@ export function Operaciones3D({ vehiculo, color, recorrido, paquetes, vivo, envi
       ),
     [paquetes],
   );
-  const pos = vivo ?? { lat: vehiculo.latitud, lng: vehiculo.longitud, rumbo: vehiculo.rumbo, velocidad: vehiculo.velocidad };
-  const gps = useMemo(() => ({ lng: pos.lng, lat: pos.lat, rumbo: pos.rumbo, velocidad: pos.velocidad }), [pos.lng, pos.lat, pos.rumbo, pos.velocidad]);
+  // Con GPS en vivo, el camión lo sigue. Sin GPS: si tiene ruta la recorre en
+  // simulación (igual que el mapa 2D); si no, queda en su última posición.
+  const simular = !vivo && vehiculo.estado === "activo" && linea.length > 1;
+  const pos = vivo ?? (simular ? null : { lat: vehiculo.latitud, lng: vehiculo.longitud, rumbo: vehiculo.rumbo, velocidad: vehiculo.velocidad });
+  const gps = useMemo(
+    () => (pos ? { lng: pos.lng, lat: pos.lat, rumbo: pos.rumbo, velocidad: pos.velocidad } : undefined),
+    [pos?.lng, pos?.lat, pos?.rumbo, pos?.velocidad], // eslint-disable-line react-hooks/exhaustive-deps
+  );
   const elegido = paquetes.find((p) => p.envio_id === envioElegido)?.coordenadas;
   const enfoque = useMemo<LngLat | null>(() => (elegido ? [elegido.lng, elegido.lat] : null), [elegido?.lng, elegido?.lat]); // eslint-disable-line react-hooks/exhaustive-deps
   const aBordo = paquetes.filter((p) => p.estado === "asignado" || p.estado === "en_camino").length;
@@ -49,6 +55,7 @@ export function Operaciones3D({ vehiculo, color, recorrido, paquetes, vivo, envi
       paradas={paradas}
       color={color}
       vivo={gps}
+      simular={simular}
       enfoque={enfoque}
       hud={(velocidad) => (
         <div className="rounded-2xl border border-white/10 bg-asfalto-900/85 p-3 text-white shadow-lift backdrop-blur-md">
@@ -57,10 +64,10 @@ export function Operaciones3D({ vehiculo, color, recorrido, paquetes, vivo, envi
             {vehiculo.patente}
           </p>
           <p className="font-expandida truncate text-sm font-black">{vehiculo.ruta_nombre || "Sin ruta hoy"}</p>
-          <div className="mt-2 grid grid-cols-3 gap-2">
+          <div className="mt-2 flex flex-wrap gap-x-4 gap-y-2">
             <Hud icono={Package} etiqueta="A bordo" valor={aBordo} acento />
             <Hud icono={Gauge} etiqueta="km/h" valor={velocidad} />
-            <Hud icono={Route} etiqueta="Resta" valor={recorrido ? `${(recorrido.distancia_m / 1000).toFixed(1)} km` : "–"} />
+            <Hud icono={Route} etiqueta="Resta" valor={recorrido ? `${(recorrido.distancia_m / 1000).toFixed(1).replace(".", ",")} km` : "–"} />
           </div>
         </div>
       )}

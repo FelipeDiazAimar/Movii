@@ -7,7 +7,9 @@ import { Spinner } from "@/components/ui/Spinner";
 import { PageHeader, PAGE_NARROW } from "@/components/ui/PageHeader";
 import { getApiErrorMessage } from "@/services/api-client";
 
-import { MessageCircle } from "lucide-react";
+import { Mail, MessageCircle } from "lucide-react";
+
+const PROVEEDOR_MAIL: Record<string, string> = { gmail: "Gmail", smtp: "SMTP", resend: "Resend", log: "Log del servidor" };
 /** Admin: vincula la cuenta de WhatsApp que manda los códigos de acceso y los avisos (HU-16/HU-17). */
 export function WhatsappConfigPage() {
   const queryClient = useQueryClient();
@@ -24,7 +26,7 @@ export function WhatsappConfigPage() {
 
   return (
     <div className={PAGE_NARROW}>
-      <PageHeader title="WhatsApp" icon={MessageCircle} description="Cuenta que envía los códigos de acceso y los avisos a clientes y repartidores." />
+      <PageHeader title="WhatsApp y mail" icon={MessageCircle} description="Canales que envían los códigos de acceso y los avisos a clientes y repartidores." />
       {isLoading && <Spinner label="Consultando la conexión…" />}
       {isError && <Alert variant="error">{getApiErrorMessage(error, "No se pudo consultar WhatsApp")}</Alert>}
       {data && !data.habilitado && (
@@ -68,6 +70,23 @@ export function WhatsappConfigPage() {
               </li>
               <li>Escaneá este código. Se renueva solo cada 20 segundos.</li>
             </ol>
+          </div>
+        </Card>
+      )}
+      {data?.mail && (
+        <Card>
+          <div className="flex items-start gap-4">
+            <span className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full ${data.mail.configurado ? "bg-sky-100 text-sky-700" : "bg-gray-100 text-gray-500"}`} aria-hidden>
+              <Mail className="h-5 w-5" />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="font-semibold text-gray-900">Mail de respaldo · {PROVEEDOR_MAIL[data.mail.proveedor] ?? data.mail.proveedor}</p>
+              <p className="text-sm text-gray-600">
+                {data.mail.configurado
+                  ? `Los avisos salen por mail desde ${data.mail.remitente} cuando WhatsApp no está vinculado o el número no tiene WhatsApp, y el destinatario cargó su mail.`
+                  : "Sin configurar: los mails se escriben en el log de la API. Para usar Gmail, cargá SMTP_USER y SMTP_PASSWORD (contraseña de aplicación) en el servidor."}
+              </p>
+            </div>
           </div>
         </Card>
       )}

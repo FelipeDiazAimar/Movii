@@ -29,6 +29,7 @@ export function BarraFiltros({ busqueda, onBusqueda, placeholder = "Buscar…", 
           value={busqueda}
           onChange={(e) => onBusqueda(e.target.value)}
           placeholder={placeholder}
+          maxLength={100}
           className="w-full rounded-xl border border-hormigon-300 bg-white py-2.5 pl-9 pr-9 text-sm shadow-sm transition-shadow focus:border-movii-500 focus:shadow-[0_0_0_3px_rgba(244,180,0,0.2)] focus:outline-none"
         />
         {busqueda && (

@@ -43,11 +43,21 @@ export interface ApiErrorBody {
   };
 }
 
-/** Extrae un mensaje legible de un error de axios contra esta API. */
+/** Primera letra en mayúscula: la API manda sus mensajes en minúscula. */
+function conMayuscula(texto: string): string {
+  const limpio = texto.trim();
+  return limpio.charAt(0).toLocaleUpperCase("es") + limpio.slice(1);
+}
+
+/**
+ * Extrae un mensaje legible de un error de axios contra esta API. Es el único
+ * lugar por donde pasan los mensajes de la API hacia la interfaz: acá se les
+ * pone la mayúscula inicial.
+ */
 export function getApiErrorMessage(error: unknown, fallback = "Ocurrió un error inesperado"): string {
   if (axios.isAxiosError<ApiErrorBody>(error)) {
     const message = error.response?.data?.error?.message;
-    if (message) return message;
+    if (message?.trim()) return conMayuscula(message);
     if (error.code === "ECONNABORTED") {
       return "El servidor tardó demasiado en responder. Probá de nuevo.";
     }

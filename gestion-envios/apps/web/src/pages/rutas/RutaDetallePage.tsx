@@ -10,11 +10,14 @@ import { EstadoRutaBadge, EstadoEnvioBadge } from "@/components/ui/Badge";
 import { Card, EmptyState } from "@/components/ui/Card";
 import { SkeletonPagina } from "@/components/ui/Skeleton";
 import { BotonEliminar } from "@/components/ui/BotonEliminar";
+import { BotonIniciarRuta } from "@/features/rutas/BotonIniciarRuta";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { getApiErrorMessage } from "@/services/api-client";
 import { PageHeader, PAGE_WIDE } from "@/components/ui/PageHeader";
 import { Dato } from "@/components/ui/Dato";
+import { formatearDia } from "@/utils/fechas";
+import { obtenerMapaRuta } from "@/features/analitica/api";
 
 import { Route } from "lucide-react";
 import { BotonAbrirMaps } from "@/features/mapas/BotonAbrirMaps";
@@ -38,6 +41,14 @@ export function RutaDetallePage() {
     queryFn: () => obtenerRuta(rutaId),
     enabled: Boolean(rutaId),
   });
+  // El detalle de ruta trae los envíos sin destinatario; el mapa de la ruta sí lo trae
+  // (y ya se pide en esta pantalla para "Abrir en Maps": misma query, sin pedido extra).
+  const mapa = useQuery({
+    queryKey: ["rutas", rutaId, "mapa"],
+    queryFn: () => obtenerMapaRuta(rutaId),
+    enabled: Boolean(rutaId),
+  });
+  const paradaPorEnvio = new Map((mapa.data?.paradas ?? []).map((p) => [p.envio_id, p]));
 
   const editarMutation = useMutation({
     mutationFn: (input: RutaInput) => editarRuta(rutaId, input),
@@ -69,7 +80,7 @@ export function RutaDetallePage() {
 
   return (
     <div className={PAGE_WIDE}>
-      <PageHeader back={{ to: "/rutas", label: "Volver a rutas" }} title={ruta.nombre || "(sin nombre)"} icon={Route} badge={<EstadoRutaBadge estado={ruta.estado} />} action={<BotonEliminar nombre={ruta.nombre || "(sin nombre)"} eliminar={() => eliminarRuta(rutaId)} invalidar={[["rutas"], ["envios"]]} onEliminado={() => navigate("/rutas")} />} />
+      <PageHeader back={{ to: "/rutas", label: "Volver a rutas" }} title={ruta.nombre || "(sin nombre)"} icon={Route} badge={<EstadoRutaBadge estado={ruta.estado} />} action={<div className="flex items-center gap-2"><BotonIniciarRuta rutaId={rutaId} estado={ruta.estado} asignados={ruta.envios.filter((e) => e.estado === "asignado").length} /><BotonEliminar nombre={ruta.nombre || "(sin nombre)"} eliminar={() => eliminarRuta(rutaId)} invalidar={[["rutas"], ["envios"]]} onEliminado={() => navigate("/rutas")} /></div>} />
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex gap-2 text-sm font-semibold">
@@ -97,7 +108,8 @@ export function RutaDetallePage() {
           />
         ) : (
           <div className="flex items-center justify-between">
-            <dl className="grid grid-cols-3 gap-4">
+            <dl className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+              <Dato label="Fecha" value={formatearDia(ruta.fecha)} />
               <Dato label="Zona" value={ruta.zona || "—"} />
               <Dato label="Repartidor" value={ruta.repartidor_nombre ?? ruta.repartidor_id} />
             </dl>
@@ -148,27 +160,44 @@ export function RutaDetallePage() {
         {ruta.envios.length === 0 ? (
           <EmptyState title="Sin envíos asignados" description="Asigná envíos pendientes desde el botón de arriba." />
         ) : (
+          <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-hormigon-200 text-sm">
             <thead className="bg-hormigon-50 text-left text-xs font-semibold text-gray-500">
               <tr>
                 <th className="px-3 py-2">Código de guía</th>
+                <th className="px-3 py-2">Destinatario</th>
                 <th className="px-3 py-2">Estado</th>
                 <th className="px-3 py-2">Peso</th>
                 {esPlanificada && <th className="px-3 py-2" />}
               </tr>
             </thead>
             <tbody className="divide-y divide-hormigon-100">
-              {ruta.envios.map((envio) => (
+              {ruta.envios.map((envio) => {
+                const parada = paradaPorEnvio.get(envio.id);
+                return (
                 <tr key={envio.id}>
-                  <td className="px-3 py-2 font-medium text-gray-900">
-                    <Link to={`/envios/${envio.id}`} className="hover:text-movii-600 hover:underline">
+                  <td className="whitespace-nowrap px-3 py-2 font-medium">
+                    <Link to={`/envios/${envio.id}`} className="text-movii-700 underline-offset-2 hover:text-movii-600 hover:underline">
                       {envio.codigo_guia}
                     </Link>
+                  </td>
+                  <td className="px-3 py-2 text-gray-700">
+                    {parada ? (
+                      <>
+                        <span className="block font-medium text-gray-900">{parada.destinatario_nombre}</span>
+                        <span className="block text-xs text-gray-500">
+                          {parada.direccion}
+                          {parada.localidad ? `, ${parada.localidad}` : ""}
+                        </span>
+                      </>
+                    ) : (
+                      <span className="text-gray-400">—</span>
+                    )}
                   </td>
                   <td className="px-3 py-2">
                     <EstadoEnvioBadge estado={envio.estado} />
                   </td>
-                  <td className="px-3 py-2 text-gray-700">{envio.peso} kg</td>
+                  <td className="whitespace-nowrap px-3 py-2 text-gray-700">{envio.peso} kg</td>
                   {esPlanificada && (
                     <td className="px-3 py-2 text-right">
                       {envio.estado === "asignado" && (
@@ -184,9 +213,11 @@ export function RutaDetallePage() {
                     </td>
                   )}
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table>
+          </div>
         )}
 
         {desasignarMutation.isError && (

@@ -113,7 +113,7 @@ export function Select({ id, value, onChange, opciones, placeholder = "Seleccion
 
   // Mantiene visible la opción activa al navegar con el teclado.
   useEffect(() => {
-    if (abierto && activa >= 0) document.getElementById(`${listaId}-${activa}`)?.scrollIntoView({ block: "nearest" });
+    if (abierto && activa >= 0) document.getElementById(`${listaId}-${activa}`)?.scrollIntoView({ block: "nearest", inline: "nearest" });
   }, [abierto, activa, listaId]);
 
   const pad = tamano === "sm" ? "min-h-[36px] px-2.5 py-1.5" : "min-h-[42px] px-3 py-2";

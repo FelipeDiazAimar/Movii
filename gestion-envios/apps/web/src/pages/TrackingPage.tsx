@@ -32,6 +32,7 @@ import { esHex } from "@/features/flota/colores";
 import { ETIQUETA_TIPO_VEHICULO, type LatLng } from "@/features/flota/types";
 import { getApiErrorMessage } from "@/services/api-client";
 import { useBordesNavegador } from "@/hooks/useBordesNavegador";
+import { formatearCodigoGuiaAlEscribir } from "@/utils/mascaras";
 import { Spinner } from "@/components/ui/Spinner";
 import { hayWebGL } from "@/features/mapas/webgl";
 
@@ -89,11 +90,30 @@ function useAhora() {
   return ahora;
 }
 
+/** Si la última posición del vehículo es más vieja que esto, no se promete hora de llegada. */
+const POSICION_VIEJA_MS = 15 * 60_000;
+
+/**
+ * Ventana de llegada que se puede mostrar sin mentir (H27/H37): hacen falta los
+ * dos extremos, que el final no haya pasado y que la posición sea reciente.
+ * El inicio nunca queda antes de "ahora". Si no se cumple, devuelve null.
+ */
+function ventanaConfiable(vivo: TrackingEnVivo, ahora: number): { desde: number; hasta: number } | null {
+  if (!vivo.eta_desde || !vivo.eta_hasta) return null;
+  const desde = new Date(vivo.eta_desde).getTime();
+  const hasta = new Date(vivo.eta_hasta).getTime();
+  const posicion = new Date(vivo.vehiculo.en).getTime();
+  if (!Number.isFinite(desde) || !Number.isFinite(hasta) || !Number.isFinite(posicion)) return null;
+  if (hasta <= ahora || ahora - posicion > POSICION_VIEJA_MS) return null;
+  return { desde: Math.max(desde, ahora), hasta };
+}
+
 function Encabezado({ data, ahora }: { data: TrackingResponse; ahora: number }) {
   const vivo = data.en_vivo;
   const dia = diaRelativo(data.fecha_entrega);
   const franja = data.franja ? FRANJAS[data.franja] : "";
   const ultimo = data.historial[data.historial.length - 1];
+  const ventana = vivo ? ventanaConfiable(vivo, ahora) : null;
 
   let eyebrow = "";
   let titulo: ReactNode = "";
@@ -107,12 +127,13 @@ function Encabezado({ data, ahora }: { data: TrackingResponse; ahora: number }) 
     eyebrow = "No pudimos entregarlo";
     titulo = <>Intentamos entregarlo</>;
     detalle = <>{ultimo?.descripcion ?? "La visita no pudo completarse"}. Vamos a coordinar una nueva visita.</>;
-  } else if (vivo?.eta_desde && vivo.eta_hasta) {
-    const minutos = Math.max(1, Math.round(((new Date(vivo.eta_desde).getTime() + new Date(vivo.eta_hasta).getTime()) / 2 - ahora) / 60_000));
+  } else if (vivo && ventana) {
+    const minutos = Math.max(1, Math.round(((ventana.desde + ventana.hasta) / 2 - ahora) / 60_000));
     eyebrow = data.estado === "en_camino" ? "En camino a tu domicilio" : "Sale hoy a reparto";
     titulo = (
       <>
-        Llega entre <span className="text-movii-500">{hora(vivo.eta_desde)}</span> y <span className="text-movii-500">{hora(vivo.eta_hasta)}</span>
+        Llega entre <span className="text-movii-500">{hora(new Date(ventana.desde).toISOString())}</span> y{" "}
+        <span className="text-movii-500">{hora(new Date(ventana.hasta).toISOString())}</span>
       </>
     );
     detalle = (
@@ -121,6 +142,11 @@ function Encabezado({ data, ahora }: { data: TrackingResponse; ahora: number }) 
         {vivo.paradas_antes > 0 ? <>, después de {vivo.paradas_antes} {vivo.paradas_antes === 1 ? "parada" : "paradas"}</> : <>: sos la próxima parada</>}.
       </>
     );
+  } else if (vivo) {
+    // Hay vehículo pero la ETA falta, ya venció o la posición es vieja: no se prometen minutos.
+    eyebrow = data.estado === "en_camino" ? "En camino a tu domicilio" : "Sale hoy a reparto";
+    titulo = <>Estamos actualizando el horario de llegada</>;
+    detalle = franja ? <>Entrega estimada {franja}. En cuanto tengamos la posición del vehículo te mostramos la hora.</> : <>En cuanto tengamos la posición del vehículo te mostramos la hora.</>;
   } else if (data.estado === "pendiente") {
     eyebrow = "Preparando tu envío";
     titulo = dia ? <>Llega {dia}</> : <>Estamos preparando tu envío</>;
@@ -451,10 +477,11 @@ export function TrackingPage() {
               id="codigo"
               name="codigo"
               value={codigo}
-              onChange={(e) => setCodigo(e.target.value)}
+              onChange={(e) => setCodigo(formatearCodigoGuiaAlEscribir(e.target.value))}
               placeholder="MOV-20260909-0001"
               autoComplete="off"
               spellCheck={false}
+              maxLength={17}
               className="min-w-0 flex-1 bg-transparent py-2.5 font-mono text-sm uppercase tracking-wider text-gray-900 outline-none placeholder:normal-case placeholder:tracking-normal placeholder:text-gray-400"
             />
             <button type="submit" className="rounded-xl bg-movii-500 px-5 py-2.5 text-sm font-bold text-asfalto-900 transition hover:bg-movii-400 disabled:opacity-60" disabled={isLoading && buscado !== null}>

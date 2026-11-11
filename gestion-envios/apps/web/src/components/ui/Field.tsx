@@ -34,22 +34,32 @@ interface InputFieldProps extends InputHTMLAttributes<HTMLInputElement> {
   label: string;
   error?: string;
   hint?: string;
+  /** Muestra el contador `n/máx.` usando `maxLength` (ej. `123/500`). */
+  contador?: boolean;
 }
 
 export const InputField = forwardRef<HTMLInputElement, InputFieldProps>(function InputField(
-  { label, error, hint, id, className = "", ...props },
+  { label, error, hint, contador, maxLength, value, className = "", ...props },
   ref,
 ) {
-  const fieldId = id ?? props.name ?? label;
+  const fieldId = props.id ?? props.name ?? label;
+  const usados = typeof maxLength === "number" ? String(value ?? "").length : 0;
   return (
     <FieldWrapper label={label} htmlFor={fieldId} error={error} hint={hint}>
       <input
         ref={ref}
         id={fieldId}
         aria-invalid={Boolean(error)}
+        maxLength={maxLength}
+        value={value}
         className={`${inputBaseClass} ${error ? "border-red-400" : "border-gray-300"} ${className}`}
         {...props}
       />
+      {contador && typeof maxLength === "number" && (
+        <p className="self-end text-xs text-gray-400" aria-hidden>
+          {usados}/{maxLength}
+        </p>
+      )}
     </FieldWrapper>
   );
 });

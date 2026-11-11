@@ -16,6 +16,9 @@ interface Props {
 }
 
 const SEPARACION = 8;
+// Nace fijo y oculto: si se monta sin posicionar queda al final del <body> y cualquier
+// scrollIntoView (la opción activa de una lista) arrastra la página hasta abajo.
+const OCULTO: CSSProperties = { position: "fixed", top: 0, left: 0, visibility: "hidden" };
 const MARGEN = 12;
 
 /**
@@ -25,7 +28,7 @@ const MARGEN = 12;
  */
 export function Popover({ anchor, abierto, onCerrar, children, igualarAncho = false, className = "", role, id, label }: Props) {
   const panel = useRef<HTMLDivElement>(null);
-  const [estilo, setEstilo] = useState<CSSProperties>({ visibility: "hidden" });
+  const [estilo, setEstilo] = useState<CSSProperties>(OCULTO);
   const [arriba, setArriba] = useState(false);
 
   const posicionar = useCallback(() => {
@@ -53,7 +56,7 @@ export function Popover({ anchor, abierto, onCerrar, children, igualarAncho = fa
 
   useLayoutEffect(() => {
     if (abierto) posicionar();
-    else setEstilo({ visibility: "hidden" });
+    else setEstilo(OCULTO);
   }, [abierto, posicionar, children]);
 
   useEffect(() => {

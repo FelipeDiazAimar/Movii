@@ -41,3 +41,9 @@ export async function desasignarEnvio(rutaId: string, envioId: string): Promise<
 export async function eliminarRuta(id: string): Promise<void> {
   await apiClient.delete(`/rutas/${id}`);
 }
+
+/** La ruta sale del depósito: todos sus envíos asignados pasan a "en camino". */
+export async function iniciarRuta(rutaId: string): Promise<{ envios_en_camino: number }> {
+  const { data } = await apiClient.post<{ envios_en_camino: number }>(`/rutas/${rutaId}/iniciar`);
+  return data;
+}

@@ -41,7 +41,7 @@ function TabEnvios({ desde, hasta }: { desde: string; hasta: string }) {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-end gap-3">
+      <div className="flex flex-wrap items-end gap-3">
         <SelectField label="Estado" value={estado} onChange={(e) => setEstado(e.target.value)}>
           <option value="">Todos</option>
           {ESTADOS.map((e) => (
@@ -63,6 +63,8 @@ function TabEnvios({ desde, hasta }: { desde: string; hasta: string }) {
         ) : (
           <>
             <p className="text-xs text-gray-500">Total: {q.data.total}</p>
+            {/* La tabla scrollea dentro de su contenedor: la página no se desborda en celulares (H35). */}
+            <div className="-mx-5 overflow-x-auto px-5">
             <table className="min-w-full divide-y divide-hormigon-200 text-sm">
               <thead className="bg-hormigon-50 text-left text-xs font-semibold text-gray-500">
                 <tr>
@@ -104,10 +106,20 @@ function TabEnvios({ desde, hasta }: { desde: string; hasta: string }) {
                 ))}
               </tbody>
             </table>
+            </div>
           </>
         ))}
     </div>
   );
+}
+
+/** Hay tasa solo si el repartidor cerró algún envío (entregado o fallido) en el período (H28b). */
+function tieneCerrados(r: { entregados: number; fallidos: number }): boolean {
+  return r.entregados + r.fallidos > 0;
+}
+
+function formatearTasa(tasa: number): string {
+  return `${tasa.toLocaleString("es-AR", { maximumFractionDigits: 1 })}%`;
 }
 
 function TabRepartidores({ desde, hasta }: { desde: string; hasta: string }) {
@@ -123,16 +135,22 @@ function TabRepartidores({ desde, hasta }: { desde: string; hasta: string }) {
           <EmptyState title="Sin datos de repartidores en el período" />
         ) : (
           <>
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
               {ranking.slice(0, 3).map((r, i) => (
                 <div key={r.repartidor_id} className={`rounded-2xl border p-4 text-center ${medallas[i]}`}>
                   <Medal className={`mx-auto h-7 w-7 ${["text-amber-500", "text-slate-400", "text-orange-700"][i]}`} aria-hidden />
                   <p className="font-expandida text-2xl font-black text-gray-900">#{r.posicion}</p>
                   <p className="font-medium text-gray-900">{r.nombre}</p>
-                  <p className="text-sm text-gray-600">{r.tasa_efectividad}% efectividad</p>
+                  <p className="text-sm text-gray-600">
+                    {tieneCerrados(r) ? `${formatearTasa(r.tasa_efectividad)} de efectividad` : "Sin envíos cerrados"}
+                  </p>
                 </div>
               ))}
             </div>
+            <p className="text-xs text-gray-500">
+              La efectividad se calcula sobre los envíos cerrados (entregados + fallidos); los que siguen en curso no cuentan.
+            </p>
+            <div className="-mx-5 overflow-x-auto px-5">
             <table className="min-w-full divide-y divide-hormigon-200 text-sm">
               <thead className="bg-hormigon-50 text-left text-xs font-semibold text-gray-500">
                 <tr>
@@ -141,7 +159,7 @@ function TabRepartidores({ desde, hasta }: { desde: string; hasta: string }) {
                   <th className="px-3 py-2">Asignados</th>
                   <th className="px-3 py-2">Entregados</th>
                   <th className="px-3 py-2">Fallidos</th>
-                  <th className="px-3 py-2">Tasa</th>
+                  <th className="whitespace-nowrap px-3 py-2">Tasa sobre cerrados</th>
                   <th className="px-3 py-2">Prom. min</th>
                 </tr>
               </thead>
@@ -163,12 +181,13 @@ function TabRepartidores({ desde, hasta }: { desde: string; hasta: string }) {
                     <td className="px-3 py-2 text-gray-700">{r.asignados}</td>
                     <td className="px-3 py-2 text-gray-700">{r.entregados}</td>
                     <td className="px-3 py-2 text-gray-700">{r.fallidos}</td>
-                    <td className="px-3 py-2 text-gray-700">{r.tasa_efectividad}%</td>
+                    <td className="px-3 py-2 text-gray-700">{tieneCerrados(r) ? formatearTasa(r.tasa_efectividad) : "—"}</td>
                     <td className="px-3 py-2 text-gray-700">{r.promedio_minutos_entrega ?? "—"}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
+            </div>
           </>
         ))}
     </div>
@@ -232,7 +251,7 @@ export function ReportesPage() {
   const errorPeriodo = !desde || !hasta ? "Indicá desde y hasta" : desde > hasta ? "La fecha desde no puede ser posterior a hasta" : undefined;
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex min-w-0 flex-col gap-6">
       <PageHeader
         title="Reportes" icon={BarChart3}
         description="Envíos, desempeño de repartidores e incidencias del período elegido."
@@ -245,7 +264,7 @@ export function ReportesPage() {
         }
       />
 
-      <div role="tablist" aria-label="Reportes" className="flex gap-1 border-b border-gray-200">
+      <div role="tablist" aria-label="Reportes" className="flex gap-1 overflow-x-auto border-b border-gray-200">
         {PESTANAS.map((p) => (
           <button
             key={p.id}
@@ -255,7 +274,7 @@ export function ReportesPage() {
             aria-selected={pestana === p.id}
             aria-controls={`panel-${p.id}`}
             onClick={() => setPestana(p.id)}
-            className={`inline-flex items-center gap-2 px-4 py-2.5 text-sm font-semibold ${
+            className={`inline-flex shrink-0 items-center gap-2 px-4 py-2.5 text-sm font-semibold ${
               pestana === p.id ? "border-b-2 border-movii-500 text-gray-900" : "text-gray-500 hover:text-gray-700"
             }`}
           >
@@ -265,7 +284,7 @@ export function ReportesPage() {
         ))}
       </div>
 
-      <Card>
+      <Card className="min-w-0">
         <div role="tabpanel" id={`panel-${pestana}`} aria-labelledby={`tab-${pestana}`}>
           {errorPeriodo ? (
             <Alert variant="error">{errorPeriodo}</Alert>

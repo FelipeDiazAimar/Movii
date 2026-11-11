@@ -18,6 +18,39 @@ import { TelefonoEditable } from "@/features/whatsapp/TelefonoEditable";
 import { CircleCheck, CircleOff, Headset, Mail, Plus, ShieldCheck, Smartphone, Truck, UserRound, Users, type LucideIcon } from "lucide-react";
 const ICONO_ROL: Record<string, LucideIcon> = { admin: ShieldCheck, operador: Headset, repartidor: Truck };
 
+/**
+ * La API guarda celulares con y sin "+" ("+5493564021559" y "5493564021559").
+ * Se pasan solo los dígitos para que el listado los muestre todos con el mismo
+ * formato (+54 9 …); al editar, la API vuelve a normalizar lo que se cargue (H34b).
+ */
+function telefonoUniforme(telefono?: string | null): string {
+  return (telefono ?? "").replace(/\D/g, "");
+}
+
+function RolConIcono({ rol }: { rol: string }) {
+  const Icono = ICONO_ROL[rol] ?? UserRound;
+  return (
+    <span className="inline-flex items-center gap-1.5">
+      <Icono className="h-4 w-4 text-movii-600" aria-hidden />
+      <RolBadge rol={rol} />
+    </span>
+  );
+}
+
+function EstadoUsuario({ activo }: { activo: boolean }) {
+  return activo ? (
+    <span className="inline-flex items-center gap-1.5 whitespace-nowrap font-medium text-emerald-700">
+      <CircleCheck className="h-4 w-4" aria-hidden />
+      Activo
+    </span>
+  ) : (
+    <span className="inline-flex items-center gap-1.5 whitespace-nowrap text-gray-400">
+      <CircleOff className="h-4 w-4" aria-hidden />
+      Inactivo
+    </span>
+  );
+}
+
 export function UsuariosListPage() {
   const { sesion } = useAuth();
   const { data, isLoading, isError, error } = useQuery({
@@ -71,8 +104,40 @@ Nuevo usuario</Button>
 
       {data && data.length > 0 && visibles.length === 0 && <EmptyState title="Ningún usuario coincide con los filtros" />}
 
+      {/* Celular: tarjetas apiladas, sin tabla que desborde la página (H35). */}
       {visibles.length > 0 && (
-        <Card className="overflow-x-auto p-0">
+        <ul className="flex flex-col gap-3 md:hidden">
+          {visibles.map((usuario) => (
+            <li key={usuario.id} className="rounded-panel border border-hormigon-200 bg-white p-4 shadow-panel">
+              <div className="flex items-start justify-between gap-3">
+                <span className="flex min-w-0 items-center gap-3">
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-asfalto-900 text-sm font-bold text-movii-500">{usuario.nombre.slice(0, 1).toUpperCase()}</span>
+                  <span className="min-w-0">
+                    <span className="block truncate font-semibold text-gray-900">{usuario.nombre}</span>
+                    <span className="block break-all text-xs text-gray-500">{usuario.email}</span>
+                  </span>
+                </span>
+                {usuario.id !== sesion?.usuarioId && (
+                  <BotonEliminar nombre={usuario.nombre} eliminar={() => eliminarUsuario(usuario.id)} invalidar={[["usuarios"]]} />
+                )}
+              </div>
+              <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-gray-700">
+                <RolConIcono rol={usuario.rol} />
+                <EstadoUsuario activo={usuario.activo} />
+                <span className="inline-flex items-center gap-1.5">
+                  <Smartphone className="h-4 w-4 shrink-0 text-gray-400" aria-hidden />
+                  <TelefonoEditable usuarioId={usuario.id} telefono={telefonoUniforme(usuario.telefono)} />
+                </span>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {/* Tablet y escritorio: tabla con scroll horizontal propio si no entra. */}
+      {visibles.length > 0 && (
+        <Card className="hidden min-w-0 overflow-hidden p-0 md:block">
+          <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-hormigon-200 text-sm">
             <thead className="bg-hormigon-50 text-left text-xs font-semibold text-gray-500">
               <tr>
@@ -95,37 +160,21 @@ Nuevo usuario</Button>
                   </td>
                   <td className="px-4 py-3 text-gray-700">
                     <span className="inline-flex items-center gap-1.5">
-                      <Mail className="h-4 w-4 text-gray-400" aria-hidden />
+                      <Mail className="h-4 w-4 shrink-0 text-gray-400" aria-hidden />
                       {usuario.email}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-gray-700">
+                  <td className="whitespace-nowrap px-4 py-3 text-gray-700">
                     <span className="inline-flex items-center gap-1.5">
                       <Smartphone className="h-4 w-4 shrink-0 text-gray-400" aria-hidden />
-                      <TelefonoEditable usuarioId={usuario.id} telefono={usuario.telefono ?? ""} />
+                      <TelefonoEditable usuarioId={usuario.id} telefono={telefonoUniforme(usuario.telefono)} />
                     </span>
                   </td>
                   <td className="px-4 py-3">
-                    <span className="inline-flex items-center gap-1.5">
-                      {(() => {
-                        const Icono = ICONO_ROL[usuario.rol] ?? UserRound;
-                        return <Icono className="h-4 w-4 text-movii-600" aria-hidden />;
-                      })()}
-                      <RolBadge rol={usuario.rol} />
-                    </span>
+                    <RolConIcono rol={usuario.rol} />
                   </td>
                   <td className="px-4 py-3">
-                    {usuario.activo ? (
-                      <span className="inline-flex items-center gap-1.5 font-medium text-emerald-700">
-                        <CircleCheck className="h-4 w-4" aria-hidden />
-                        Activo
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center gap-1.5 text-gray-400">
-                        <CircleOff className="h-4 w-4" aria-hidden />
-                        Inactivo
-                      </span>
-                    )}
+                    <EstadoUsuario activo={usuario.activo} />
                   </td>
                   <td className="px-4 py-3">
                     {usuario.id !== sesion?.usuarioId && (
@@ -136,6 +185,7 @@ Nuevo usuario</Button>
               ))}
             </tbody>
           </table>
+          </div>
         </Card>
       )}
     </div>

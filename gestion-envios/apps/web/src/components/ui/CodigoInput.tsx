@@ -76,7 +76,9 @@ export function CodigoInput({ value, onChange, largo = 6, error, ok, disabled, l
       <span className="text-sm font-medium text-gray-700">{label}</span>
 
       <div className="relative" key={error ?? "sin-error"}>
-        <div className={`flex justify-between gap-2 sm:gap-2.5 ${errorActivo ? "otp-sacudir" : ""}`} aria-hidden>
+        {/* Las celdas son visuales: el teclado lo recibe el <input> de abajo. Igual
+            se exponen como lista para que el lector de pantalla diga cada dígito. */}
+        <ul className={`flex justify-between gap-2 sm:gap-2.5 ${errorActivo ? "otp-sacudir" : ""}`} aria-label="Dígitos del código">
           {Array.from({ length: largo }, (_, i) => {
             const digito = value[i];
             const esActiva = i === activa;
@@ -91,8 +93,9 @@ export function CodigoInput({ value, onChange, largo = 6, error, ok, disabled, l
                     ? "border-movii-600/60 bg-white text-movii-900"
                     : "border-hormigon-300 bg-white text-gray-400";
             return (
-              <div
+              <li
                 key={i}
+                aria-label={`Dígito ${i + 1} de ${largo}${lleno ? `: ${digito}` : ", vacío"}`}
                 style={{ animationDelay: ok ? `${i * 70}ms` : `${i * 45}ms` }}
                 className={`otp-celda relative flex h-14 min-w-0 flex-1 items-center justify-center rounded-xl border-2 font-display text-2xl font-extrabold tabular-nums transition-[border-color,background-color,box-shadow,transform] duration-200 sm:h-16 sm:text-3xl ${estilo} ${esActiva ? "-translate-y-0.5" : ""} ${ok ? "otp-ola" : ""}`}
               >
@@ -103,10 +106,10 @@ export function CodigoInput({ value, onChange, largo = 6, error, ok, disabled, l
                 )}
                 {esActiva && !lleno && <span className="otp-cursor h-6 w-0.5 rounded-full bg-movii-600" />}
                 {ok && <Check className="otp-check absolute -right-1 -top-1 h-4 w-4 rounded-full bg-emerald-500 p-0.5 text-white" aria-hidden />}
-              </div>
+              </li>
             );
           })}
-        </div>
+        </ul>
 
         <input
           ref={ref}

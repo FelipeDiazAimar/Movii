@@ -58,6 +58,25 @@ describe("ReportesPage", () => {
     expect(screen.getByText("25 (55.56%)")).toBeInTheDocument();
   });
 
+  it("la tasa se aclara sobre envíos cerrados y muestra — si no hay cerrados (H28b)", async () => {
+    const user = userEvent.setup();
+    renderPage();
+    vi.mocked(api.rankingRepartidores).mockResolvedValue({
+      periodo,
+      ranking: [
+        { posicion: 1, repartidor_id: "a", nombre: "Carla", asignados: 30, entregados: 28, fallidos: 2, tasa_efectividad: 93.33, promedio_minutos_entrega: 12 },
+        { posicion: 2, repartidor_id: "b", nombre: "Dario", asignados: 5, entregados: 0, fallidos: 0, tasa_efectividad: 0, promedio_minutos_entrega: 8 },
+      ],
+    });
+    await user.click(screen.getByRole("tab", { name: "Repartidores" }));
+    expect(await screen.findByRole("columnheader", { name: "Tasa sobre cerrados" })).toBeInTheDocument();
+    expect(screen.getByText(/se calcula sobre los envíos cerrados/)).toBeInTheDocument();
+    expect(screen.getByText("93,3% de efectividad")).toBeInTheDocument();
+    expect(screen.getByText("Sin envíos cerrados")).toBeInTheDocument();
+    expect(screen.getByText("—")).toBeInTheDocument();
+    expect(screen.queryByText("0%")).not.toBeInTheDocument();
+  });
+
   it("Descargar CSV llama a la API con desde/hasta", async () => {
     const user = userEvent.setup();
     renderPage();

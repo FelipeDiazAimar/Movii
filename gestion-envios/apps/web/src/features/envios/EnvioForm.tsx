@@ -5,8 +5,21 @@ import { Button } from "@/components/ui/Button";
 import { DateField, InputField, SelectField } from "@/components/ui/Field";
 import { Alert } from "@/components/ui/Alert";
 import { envioFormSchema, ENVIO_FORM_DEFAULTS } from "./schema";
+import { hoyISO } from "./formato";
 import { TAMANOS } from "./types";
 import type { CrearEnvioInput } from "./types";
+import {
+  colapsarEspacios,
+  formatearTelefonoAR,
+  limpiarCodigoPostalAlEscribir,
+  limpiarDecimalAlEscribir,
+  limpiarEmailAlEscribir,
+  limpiarNombreComercioAlEscribir,
+  limpiarNombrePersonaAlEscribir,
+  limpiarPisoDeptoAlEscribir,
+  limpiarTelefonoAlEscribir,
+  soloDigitos,
+} from "@/utils/mascaras";
 
 interface Props {
   /** rutaId vacío = el envío queda pendiente, sin ruta (la asignación es opcional). */
@@ -17,35 +30,65 @@ interface Props {
 
 type RawValues = Record<keyof typeof ENVIO_FORM_DEFAULTS, string | boolean>;
 
+/** Un error por campo (el primero que informa Zod). */
+function erroresDe(valores: RawValues): Record<string, string> {
+  const resultado = envioFormSchema.safeParse(valores);
+  if (resultado.success) return {};
+  const errores: Record<string, string> = {};
+  for (const issue of resultado.error.issues) {
+    const campo = issue.path[0] as string;
+    if (!(campo in errores)) errores[campo] = issue.message;
+  }
+  return errores;
+}
+
 function valoresIniciales(): RawValues {
   return {
     ...ENVIO_FORM_DEFAULTS,
     peso: "",
-    fechaEntrega: new Date().toLocaleDateString("en-CA"),
+    fechaEntrega: hoyISO(),
   } as unknown as RawValues;
 }
+
+type TelefonoCampo = "remitenteTelefono" | "destinatarioTelefono";
 
 export function EnvioForm({ onSubmit, enviando, errorServidor }: Props) {
   const [valores, setValores] = useState<RawValues>(valoresIniciales());
   const [errores, setErrores] = useState<Record<string, string>>({});
+  const [intentado, setIntentado] = useState(false);
   const [rutaId, setRutaId] = useState("");
   const { data: rutas } = useQuery({ queryKey: ["rutas", { fecha: undefined }], queryFn: () => listarRutas({}) });
   const planificadas = (rutas ?? []).filter((r) => r.estado === "planificada");
 
   function setCampo<K extends keyof RawValues>(campo: K, valor: RawValues[K]) {
-    setValores((prev) => ({ ...prev, [campo]: valor }));
+    const siguientes = { ...valores, [campo]: valor };
+    setValores(siguientes);
+    // Después del primer intento de envío se revalida al cambiar: el error
+    // de un campo desaparece apenas se corrige (y aparece si se rompe).
+    if (intentado) setErrores(erroresDe(siguientes));
+  }
+
+  /** Al salir del teléfono lo deja con el formato argentino usual. */
+  function formatearTelefono(campo: TelefonoCampo) {
+    const actual = valores[campo] as string;
+    const formateado = formatearTelefonoAR(actual);
+    if (formateado !== actual) setCampo(campo, formateado);
+  }
+
+  /** Al salir colapsa los espacios dobles. */
+  function colapsar(campo: "destinatarioNombre" | "localidad") {
+    const actual = valores[campo] as string;
+    const colapsado = colapsarEspacios(actual);
+    if (colapsado !== actual) setCampo(campo, colapsado);
   }
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
 
+    setIntentado(true);
     const resultado = envioFormSchema.safeParse(valores);
     if (!resultado.success) {
-      const nuevosErrores: Record<string, string> = {};
-      for (const issue of resultado.error.issues) {
-        nuevosErrores[issue.path[0] as string] = issue.message;
-      }
-      setErrores(nuevosErrores);
+      setErrores(erroresDe(valores));
       return;
     }
     setErrores({});
@@ -60,6 +103,7 @@ export function EnvioForm({ onSubmit, enviando, errorServidor }: Props) {
       destinatario: {
         nombre: v.destinatarioNombre,
         telefono: v.destinatarioTelefono ?? "",
+        email: v.destinatarioEmail ?? "",
         calle: v.calle,
         numero: v.numero ?? "",
         piso_depto: v.pisoDepto ?? "",
@@ -87,20 +131,30 @@ export function EnvioForm({ onSubmit, enviando, errorServidor }: Props) {
           <InputField
             label="Nombre"
             name="remitenteNombre"
+            maxLength={100}
+            autoComplete="off"
             value={valores.remitenteNombre as string}
-            onChange={(e) => setCampo("remitenteNombre", e.target.value)}
+            onChange={(e) => setCampo("remitenteNombre", limpiarNombreComercioAlEscribir(e.target.value))}
             error={errores.remitenteNombre}
           />
           <InputField
             label="Teléfono"
             name="remitenteTelefono"
+            type="tel"
+            inputMode="tel"
+            autoComplete="tel"
+            maxLength={20}
+            placeholder="3564 41-2345"
             value={valores.remitenteTelefono as string}
-            onChange={(e) => setCampo("remitenteTelefono", e.target.value)}
+            onChange={(e) => setCampo("remitenteTelefono", limpiarTelefonoAlEscribir(e.target.value))}
+            onBlur={() => formatearTelefono("remitenteTelefono")}
             error={errores.remitenteTelefono}
           />
           <InputField
             label="Dirección"
             name="remitenteDireccion"
+            maxLength={200}
+            autoComplete="off"
             value={valores.remitenteDireccion as string}
             onChange={(e) => setCampo("remitenteDireccion", e.target.value)}
             error={errores.remitenteDireccion}
@@ -115,16 +169,40 @@ export function EnvioForm({ onSubmit, enviando, errorServidor }: Props) {
             label="Nombre *"
             name="destinatarioNombre"
             required
+            maxLength={100}
+            autoComplete="off"
             value={valores.destinatarioNombre as string}
-            onChange={(e) => setCampo("destinatarioNombre", e.target.value)}
+            onChange={(e) => setCampo("destinatarioNombre", limpiarNombrePersonaAlEscribir(e.target.value))}
+            onBlur={() => colapsar("destinatarioNombre")}
             error={errores.destinatarioNombre}
           />
           <InputField
             label="Teléfono"
             name="destinatarioTelefono"
+            type="tel"
+            inputMode="tel"
+            autoComplete="tel"
+            maxLength={20}
+            placeholder="3564 41-2345"
             value={valores.destinatarioTelefono as string}
-            onChange={(e) => setCampo("destinatarioTelefono", e.target.value)}
+            onChange={(e) => setCampo("destinatarioTelefono", limpiarTelefonoAlEscribir(e.target.value))}
+            onBlur={() => formatearTelefono("destinatarioTelefono")}
             error={errores.destinatarioTelefono}
+          />
+        </div>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <InputField
+            label="Email"
+            name="destinatarioEmail"
+            type="email"
+            inputMode="email"
+            autoComplete="email"
+            maxLength={150}
+            placeholder="nombre@empresa.com"
+            value={valores.destinatarioEmail as string}
+            onChange={(e) => setCampo("destinatarioEmail", limpiarEmailAlEscribir(e.target.value))}
+            error={errores.destinatarioEmail}
+            hint="Si no tiene WhatsApp, los avisos le llegan por mail."
           />
         </div>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-4">
@@ -132,6 +210,8 @@ export function EnvioForm({ onSubmit, enviando, errorServidor }: Props) {
             label="Calle *"
             name="calle"
             required
+            maxLength={120}
+            autoComplete="off"
             className="sm:col-span-2"
             value={valores.calle as string}
             onChange={(e) => setCampo("calle", e.target.value)}
@@ -140,15 +220,20 @@ export function EnvioForm({ onSubmit, enviando, errorServidor }: Props) {
           <InputField
             label="Número"
             name="numero"
+            inputMode="numeric"
+            maxLength={5}
+            autoComplete="off"
             value={valores.numero as string}
-            onChange={(e) => setCampo("numero", e.target.value)}
+            onChange={(e) => setCampo("numero", soloDigitos(e.target.value, 5))}
             error={errores.numero}
           />
           <InputField
             label="Piso / Depto"
             name="pisoDepto"
+            maxLength={10}
+            autoComplete="off"
             value={valores.pisoDepto as string}
-            onChange={(e) => setCampo("pisoDepto", e.target.value)}
+            onChange={(e) => setCampo("pisoDepto", limpiarPisoDeptoAlEscribir(e.target.value))}
             error={errores.pisoDepto}
           />
         </div>
@@ -157,15 +242,21 @@ export function EnvioForm({ onSubmit, enviando, errorServidor }: Props) {
             label="Localidad *"
             name="localidad"
             required
+            maxLength={100}
+            autoComplete="off"
             value={valores.localidad as string}
-            onChange={(e) => setCampo("localidad", e.target.value)}
+            onChange={(e) => setCampo("localidad", limpiarNombrePersonaAlEscribir(e.target.value))}
+            onBlur={() => colapsar("localidad")}
             error={errores.localidad}
           />
           <InputField
             label="Código postal"
             name="codigoPostal"
+            maxLength={8}
+            autoComplete="postal-code"
+            placeholder="X2400ABC"
             value={valores.codigoPostal as string}
-            onChange={(e) => setCampo("codigoPostal", e.target.value)}
+            onChange={(e) => setCampo("codigoPostal", limpiarCodigoPostalAlEscribir(e.target.value))}
             error={errores.codigoPostal}
           />
         </div>
@@ -177,12 +268,13 @@ export function EnvioForm({ onSubmit, enviando, errorServidor }: Props) {
           <InputField
             label="Peso (kg) *"
             name="peso"
-            type="number"
-            step="0.1"
-            min="0"
+            type="text"
+            inputMode="decimal"
+            autoComplete="off"
+            placeholder="2,5"
             required
             value={valores.peso as string}
-            onChange={(e) => setCampo("peso", e.target.value)}
+            onChange={(e) => setCampo("peso", limpiarDecimalAlEscribir(e.target.value))}
             error={errores.peso}
           />
           <SelectField
@@ -202,6 +294,8 @@ export function EnvioForm({ onSubmit, enviando, errorServidor }: Props) {
           <InputField
             label="Tipo de contenido"
             name="tipoContenido"
+            maxLength={100}
+            autoComplete="off"
             value={valores.tipoContenido as string}
             onChange={(e) => setCampo("tipoContenido", e.target.value)}
             error={errores.tipoContenido}
@@ -211,7 +305,7 @@ export function EnvioForm({ onSubmit, enviando, errorServidor }: Props) {
           <DateField
             label="Fecha de entrega *"
             name="fechaEntrega"
-            min={new Date().toLocaleDateString("en-CA")}
+            min={hoyISO()}
             value={valores.fechaEntrega as string}
             onChange={(v) => setCampo("fechaEntrega", v)}
             error={errores.fechaEntrega}

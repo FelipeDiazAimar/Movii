@@ -40,8 +40,8 @@ export function RutaForm({ valoresIniciales, onSubmit, enviando, errorServidor, 
     <form onSubmit={handleSubmit} className="flex flex-col gap-4" noValidate>
       {errorServidor && <Alert variant="error">{errorServidor}</Alert>}
 
-      <InputField label="Nombre" value={nombre} onChange={(e) => setNombre(e.target.value)} error={errores.nombre} />
-      <InputField label="Zona" value={zona} onChange={(e) => setZona(e.target.value)} error={errores.zona} />
+      <InputField id="ruta-nombre" label="Nombre *" required maxLength={100} value={nombre} onChange={(e) => setNombre(e.target.value)} error={errores.nombre} />
+      <InputField id="ruta-zona" label="Zona" maxLength={100} value={zona} onChange={(e) => setZona(e.target.value)} error={errores.zona} />
       <RepartidorSelect value={repartidorId} onChange={setRepartidorId} error={errores.repartidor_id} />
 
       <div>

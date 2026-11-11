@@ -6,6 +6,7 @@ import { EmptyState } from "@/components/ui/Card";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { formatearFecha } from "@/utils/fechas";
+import { comentarioLegible } from "./formato";
 
 /**
  * Textos legibles del historial. Espejan `describirEvento` /
@@ -178,7 +179,7 @@ export function HistorialTimeline({
               <p className="text-sm font-medium text-gray-900">{descripcionEvento(e)}</p>
               <time className="text-xs text-gray-500">{formatearFecha(e.fecha)}</time>
               {e.actor_nombre && <p className="text-xs text-gray-500">Por {e.actor_nombre}</p>}
-              {e.comentario && <p className="text-xs text-gray-600">“{e.comentario}”</p>}
+              {e.comentario && <p className="text-xs text-gray-600">“{comentarioLegible(e.comentario)}”</p>}
               {e.motivo !== null && e.tiene_foto && envioId && (
                 <FotoIncidencia envioId={envioId} eventoId={e.id} />
               )}

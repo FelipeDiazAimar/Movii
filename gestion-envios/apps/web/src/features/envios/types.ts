@@ -23,6 +23,8 @@ export interface Destinatario {
   id: string;
   nombre: string;
   telefono: string;
+  /** Mail opcional para los avisos cuando no hay WhatsApp. */
+  email?: string;
   calle: string;
   numero: string;
   piso_depto: string;
@@ -62,6 +64,8 @@ export interface CrearEnvioInput {
   destinatario: {
     nombre: string;
     telefono: string;
+    /** Mail opcional: la API lo usa para los avisos cuando no hay WhatsApp. */
+    email: string;
     calle: string;
     numero: string;
     piso_depto: string;

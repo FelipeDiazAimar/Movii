@@ -20,6 +20,16 @@ describe("CodigoInput", () => {
     expect(onCompleto).toHaveBeenCalledWith("123456");
   });
 
+  it("cada casilla tiene su aria-label (Dígito 1 de 6, ...) con el valor cargado", async () => {
+    render(<Demo />);
+    expect(screen.getByRole("listitem", { name: "Dígito 1 de 6, vacío" })).toBeInTheDocument();
+    expect(screen.getAllByRole("listitem")).toHaveLength(6);
+    await userEvent.type(screen.getByLabelText("Código de verificación"), "48");
+    expect(screen.getByRole("listitem", { name: "Dígito 1 de 6: 4" })).toBeInTheDocument();
+    expect(screen.getByRole("listitem", { name: "Dígito 2 de 6: 8" })).toBeInTheDocument();
+    expect(screen.getByRole("listitem", { name: "Dígito 6 de 6, vacío" })).toBeInTheDocument();
+  });
+
   it("el botón Pegar lee el portapapeles y completa las celdas", async () => {
     render(<Demo />);
     Object.defineProperty(navigator, "clipboard", { value: { readText: () => Promise.resolve("code: 482 915") }, configurable: true });

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { getApiErrorMessage } from "@/services/api-client";
 import { actualizarTelefono, formatearTelefono } from "./api";
+import { TELEFONO_ERROR, formatearTelefonoAR, limpiarTelefonoAlEscribir, normalizarTelefonoAR } from "@/utils/mascaras";
 
 /** Celda de tabla para ver y cargar el celular de un usuario (acceso y avisos por WhatsApp). */
 export function TelefonoEditable({ usuarioId, telefono }: { usuarioId: string; telefono: string }) {
@@ -12,10 +13,16 @@ export function TelefonoEditable({ usuarioId, telefono }: { usuarioId: string; t
   const [guardando, setGuardando] = useState(false);
 
   async function guardar() {
+    const tel = valor.trim();
+    // Error propio antes de llamar a la API: vacío = sin teléfono (se borra).
+    if (tel && normalizarTelefonoAR(tel) === null) {
+      setError(TELEFONO_ERROR);
+      return;
+    }
     setGuardando(true);
     setError(null);
     try {
-      await actualizarTelefono(usuarioId, valor.trim());
+      await actualizarTelefono(usuarioId, tel);
       await queryClient.invalidateQueries({ queryKey: ["usuarios"] });
       setEditando(false);
     } catch (err) {
@@ -40,9 +47,15 @@ export function TelefonoEditable({ usuarioId, telefono }: { usuarioId: string; t
           type="tel"
           aria-label="Celular"
           className="w-36 rounded-md border border-gray-300 px-2 py-1 text-sm"
-          placeholder="3564 412345"
+          placeholder="3564 41-2345"
+          maxLength={20}
+          inputMode="tel"
           value={valor}
-          onChange={(e) => setValor(e.target.value)}
+          onChange={(e) => {
+            setValor(limpiarTelefonoAlEscribir(e.target.value));
+            setError(null);
+          }}
+          onBlur={() => setValor((v) => formatearTelefonoAR(v))}
           onKeyDown={(e) => {
             if (e.key === "Enter") void guardar();
             if (e.key === "Escape") setEditando(false);

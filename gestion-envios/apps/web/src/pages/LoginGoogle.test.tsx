@@ -87,6 +87,10 @@ describe("LoginPage — Google y primer acceso", () => {
     obtenerConfigAuth.mockResolvedValue({ google: false });
     login.mockResolvedValue({ user_id: "u1", token: "t428", email: "supervisor@movii.demo" });
     renderPage();
+    await userEvent.click(screen.getByLabelText("Email"));
+    await userEvent.paste("supervisor@movii.demo");
+    await userEvent.click(screen.getByLabelText("Contraseña"));
+    await userEvent.paste("clave-temporal");
     await userEvent.click(screen.getByRole("button", { name: "Ingresar" }));
     expect(await screen.findByText("Primer acceso de supervisor@movii.demo")).toBeInTheDocument();
   });

@@ -33,12 +33,26 @@ export function esHex(c: string | undefined | null): c is string {
 }
 
 /**
- * Color de cada vehículo: el que se eligió al editarlo o, si es "automático",
- * uno de la paleta según su lugar en la flota (estable mientras no cambie la flota).
+ * Color "automático" de un vehículo: sale de un hash de su patente (o de su id),
+ * así es siempre el mismo sin importar el orden en que llegue la flota.
  */
-export function colorDeFlota(vehiculos: { id: string; color?: string }[]): Record<string, string> {
+export function colorAutomatico(clave: string): string {
+  // FNV-1a de 32 bits: simple, estable y bien repartido para textos cortos.
+  let h = 0x811c9dc5;
+  for (const ch of clave.trim().toUpperCase()) {
+    h ^= ch.codePointAt(0)!;
+    h = Math.imul(h, 0x01000193);
+  }
+  return COLORES_RUTA[(h >>> 0) % COLORES_RUTA.length];
+}
+
+/**
+ * Color de cada vehículo: el que se eligió al editarlo o, si es "automático",
+ * uno de la paleta derivado de su patente (o de su id si no la tiene).
+ */
+export function colorDeFlota(vehiculos: { id: string; patente?: string; color?: string }[]): Record<string, string> {
   const m: Record<string, string> = {};
-  vehiculos.forEach((v, i) => (m[v.id] = esHex(v.color) ? v.color.toLowerCase() : COLORES_RUTA[i % COLORES_RUTA.length]));
+  for (const v of vehiculos) m[v.id] = esHex(v.color) ? v.color.toLowerCase() : colorAutomatico(v.patente || v.id);
   return m;
 }
 

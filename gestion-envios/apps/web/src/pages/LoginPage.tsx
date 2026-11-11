@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from "react";
+import axios from "axios";
 import { Navigate, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { getApiErrorMessage } from "@/services/api-client";
@@ -10,6 +11,7 @@ import type { DesafioLogin, Sesion } from "@/features/auth/types";
 import { useBordesNavegador } from "@/hooks/useBordesNavegador";
 import { ShieldCheck } from "lucide-react";
 import { CodigoInput } from "@/components/ui/CodigoInput";
+import { PASSWORD_MAX, limpiarEmailAlEscribir } from "@/utils/mascaras";
 
 /** Mensajes para el ?error= con que vuelve el login con Google (T2). */
 const ERRORES_GOOGLE: Record<string, string> = {
@@ -22,17 +24,30 @@ const ERRORES_GOOGLE: Record<string, string> = {
   codigo_no_enviado: "No pudimos enviarte el código de verificación. Probá de nuevo en un minuto.",
 };
 
+/**
+ * Un rechazo de la API (credenciales o código incorrectos: 4xx) es un caso
+ * esperado y ya se muestra en pantalla: no ensucia la consola con un error.
+ * Solo los fallos de red o del servidor quedan como console.error.
+ */
+function registrarFallo(mensaje: string, err: unknown) {
+  const status = axios.isAxiosError(err) ? err.response?.status : undefined;
+  if (status !== undefined && status >= 400 && status < 500) {
+    console.info(`${mensaje}: la API respondió ${status}`);
+  } else {
+    console.error(mensaje, err);
+  }
+}
+
 export function LoginPage() {
   const { sesion, login, verificarCodigo, abrirSesion } = useAuth();
   const navigate = useNavigate();
   useBordesNavegador("#1a1a1a");
   const location = useLocation();
 
-  // Credenciales del admin de la demo (migrations/0002_seed.up.sql)
-  // precargadas, igual que en la app móvil. autoComplete="off" evita que el
-  // navegador pise la contraseña con una vieja guardada.
-  const [email, setEmail] = useState("supervisor@movii.demo");
-  const [password, setPassword] = useState("Movii2026!");
+  // Los campos arrancan vacíos: nunca precargar credenciales (van en el bundle
+  // público). autoComplete deja que el gestor de contraseñas los complete.
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
 
   // Segundo paso (HU-16): código de 6 dígitos que llega por WhatsApp.
   const [desafio, setDesafio] = useState<DesafioLogin | null>(null);
@@ -92,6 +107,10 @@ export function LoginPage() {
 
   async function handlePassword(e: FormEvent) {
     e.preventDefault();
+    if (!email.trim() || !password) {
+      setError("Completá el email y la contraseña.");
+      return;
+    }
     setError(null);
     setEnviando(true);
     const t0 = performance.now();
@@ -110,7 +129,7 @@ export function LoginPage() {
         entrar(r);
       }
     } catch (err) {
-      console.error(`[login] paso 1 falló después de ${Math.round(performance.now() - t0)} ms`, err);
+      registrarFallo(`[login] paso 1 falló después de ${Math.round(performance.now() - t0)} ms`, err);
       setError(getApiErrorMessage(err, "No se pudo iniciar sesión"));
     } finally {
       setEnviando(false);
@@ -130,7 +149,7 @@ export function LoginPage() {
       await new Promise((r) => setTimeout(r, 650)); // deja ver la ola verde de aceptación
       entrar(nueva);
     } catch (err) {
-      console.error("[login] paso 2 falló", err);
+      registrarFallo("[login] paso 2 falló", err);
       setError(getApiErrorMessage(err, "No se pudo verificar el código"));
     } finally {
       setEnviando(false);
@@ -172,13 +191,24 @@ export function LoginPage() {
 
         {!desafio ? (
           <form onSubmit={handlePassword} className="flex flex-col gap-4" noValidate>
-            <InputField label="Email" name="email" type="email" autoComplete="off" required value={email} onChange={(e) => setEmail(e.target.value)} />
+            <InputField
+              label="Email"
+              name="email"
+              type="email"
+              autoComplete="username"
+              inputMode="email"
+              required
+              maxLength={150}
+              value={email}
+              onChange={(e) => setEmail(limpiarEmailAlEscribir(e.target.value))}
+            />
             <InputField
               label="Contraseña"
               name="password"
               type="password"
-              autoComplete="new-password"
+              autoComplete="current-password"
               required
+              maxLength={PASSWORD_MAX}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
             />

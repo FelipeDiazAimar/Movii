@@ -2,7 +2,8 @@ import { useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { obtenerMapaRuta } from "@/features/analitica/api";
-import { obtenerTrayecto } from "@/features/flota/api";
+import { listarFlota, obtenerTrayecto } from "@/features/flota/api";
+import { colorDeFlota } from "@/features/flota/colores";
 import { useFlotaEnVivo } from "@/features/flota/useFlotaEnVivo";
 import { MapaMovii, type ParadaEnMapa, type VehiculoEnMapa } from "@/features/flota/MapaMovii";
 import type { LatLng } from "@/features/flota/types";
@@ -13,6 +14,7 @@ import { Alert } from "@/components/ui/Alert";
 import { Toggle2D3D } from "@/components/ui/Toggle2D3D";
 import { BotonAbrirMaps } from "@/features/mapas/BotonAbrirMaps";
 import { getApiErrorMessage } from "@/services/api-client";
+import { formatearDia } from "@/utils/fechas";
 
 /** HU-12: la ruta en un mapa real con paradas numeradas, recorrido por calles y el camión en vivo. */
 export function RutaMapaPage() {
@@ -26,6 +28,7 @@ export function RutaMapaPage() {
     refetchInterval: 30_000,
   });
   const { posiciones } = useFlotaEnVivo(Boolean(data?.vehiculo));
+  const flota = useQuery({ queryKey: ["operaciones", "flota"], queryFn: () => listarFlota(), enabled: Boolean(data?.vehiculo) });
   const trayecto = useQuery({
     queryKey: ["envios", elegido, "trayecto"],
     queryFn: () => obtenerTrayecto(elegido!),
@@ -60,8 +63,28 @@ export function RutaMapaPage() {
 
   const v = data.vehiculo;
   const vivo = v ? posiciones[v.vehiculo_id] : undefined;
+  // Mismo color y mismo criterio que la vista 3D: con GPS lo sigue, sin GPS recorre la ruta en simulación.
+  const delVehiculo = v ? flota.data?.find((x) => x.id === v.vehiculo_id) : undefined;
+  const color = v && flota.data ? colorDeFlota(flota.data)[v.vehiculo_id] : undefined;
+  const pendientes = paradas.some((p) => p.estado === "asignado" || p.estado === "en_camino");
+  // La ruta salió del depósito cuando algún envío ya está en camino o resuelto (igual que en la API).
+  const iniciada = paradas.some((p) => p.estado !== "asignado" && p.estado !== "pendiente");
+  const simularEn = v && !vivo && pendientes && iniciada ? (data.recorrido?.geometria ?? null) : null;
   const camiones: VehiculoEnMapa[] = v
-    ? [{ id: v.vehiculo_id, patente: v.patente, pos: [vivo?.lat ?? v.lat, vivo?.lng ?? v.lng], rumbo: vivo?.rumbo ?? v.rumbo, velocidad: vivo?.velocidad ?? v.velocidad, destacado: true }]
+    ? [
+        {
+          id: v.vehiculo_id,
+          patente: v.patente,
+          pos: [vivo?.lat ?? v.lat, vivo?.lng ?? v.lng],
+          rumbo: vivo?.rumbo ?? v.rumbo,
+          velocidad: vivo?.velocidad ?? v.velocidad,
+          destacado: true,
+          color: color ?? "#f4b400",
+          tipo: delVehiculo?.tipo,
+          enVivo: Boolean(vivo),
+          simularEn,
+        },
+      ]
     : [];
 
   return (
@@ -74,7 +97,7 @@ export function RutaMapaPage() {
           <h1 className="mt-1 text-xl font-semibold text-gray-900">
             {data.nombre}{" "}
             <span className="text-sm font-normal text-gray-500">
-              {data.fecha} · {data.repartidor.nombre}
+              {formatearDia(data.fecha)} · {data.repartidor.nombre}
               {v && ` · ${v.patente}`}
             </span>
           </h1>
@@ -100,6 +123,8 @@ export function RutaMapaPage() {
             vehiculos={camiones}
             deposito={data.deposito ? [data.deposito.lat, data.deposito.lng] : null}
             recorrido={trayecto.data?.recorrido ? null : (data.recorrido?.geometria ?? null)}
+            colorRecorrido={color ?? "#f4b400"}
+            estadoGps={v && data.recorrido ? (vivo ? "vivo" : simularEn ? "simulado" : null) : null}
             trayecto={trayecto.data?.recorrido?.geometria ?? null}
             onParadaClick={setElegido}
             encuadre={elegido ?? "ruta"}

@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
+import axios from "axios";
 import { useQuery } from "@tanstack/react-query";
 import { obtenerEnvio, eliminarEnvio } from "@/features/envios/api";
 import { AccionesEnvio, accionesDisponibles } from "@/features/envios/AccionesEnvio";
 import { HistorialTimeline } from "@/features/envios/HistorialTimeline";
+import { textoCompromiso } from "@/features/envios/formato";
 import { formatearDia, formatearFecha } from "@/utils/fechas";
 import { Dato } from "@/components/ui/Dato";
 import { AsignacionCard } from "@/features/envios/AsignacionCard";
@@ -18,12 +20,36 @@ import { PageHeader, PAGE_WIDE } from "@/components/ui/PageHeader";
 import { SeguimientoEnvioCard } from "@/features/flota/SeguimientoEnvioCard";
 import { AvisosEnvioCard } from "@/features/whatsapp/AvisosEnvioCard";
 
-import { Package } from "lucide-react";
-const FRANJA_LABELS: Record<string, string> = {
-  manana: "mañana",
-  tarde: "tarde",
-  noche: "noche",
-};
+import { ArrowLeft, Package, PackageX } from "lucide-react";
+
+/** Estado vacío cuando el envío no existe (o el id no es válido): título + volver al listado. */
+function EnvioInexistente() {
+  return (
+    <div className={PAGE_WIDE}>
+      <PageHeader back={{ to: "/envios", label: "Volver a envíos" }} title="Envío no encontrado" icon={Package} />
+      <Card>
+        <div className="flex flex-col items-center gap-3 py-8 text-center" data-testid="envio-inexistente">
+          <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-hormigon-100 text-gray-500">
+            <PackageX className="h-6 w-6" aria-hidden />
+          </span>
+          <h2 className="text-base font-semibold text-gray-900">Este envío no existe</h2>
+          <p className="max-w-sm text-sm text-gray-500">Puede que se haya eliminado o que el enlace esté mal. Buscalo por su código de guía en el listado.</p>
+          <Link
+            to="/envios"
+            className="mt-1 inline-flex items-center gap-1.5 rounded-xl bg-asfalto-900 px-4 py-2 text-sm font-semibold text-white hover:bg-asfalto-800"
+          >
+            <ArrowLeft className="h-4 w-4" aria-hidden />
+            Volver a envíos
+          </Link>
+        </div>
+      </Card>
+    </div>
+  );
+}
+
+/** 404 (no existe) o 400 (id con formato inválido): para el usuario es lo mismo. */
+const esInexistente = (error: unknown) =>
+  axios.isAxiosError(error) && (error.response?.status === 404 || error.response?.status === 400);
 
 /**
  * Evidencia de entrega (HU-08, solo vista): los binarios exigen auth,
@@ -108,8 +134,9 @@ export function EnvioDetallePage() {
   });
 
   if (isLoading) return <SkeletonPagina label="Cargando envío…" />;
+  if (isError && esInexistente(error)) return <EnvioInexistente />;
   if (isError) return <Alert variant="error">{getApiErrorMessage(error, "No se pudo cargar el envío")}</Alert>;
-  if (!envio) return null;
+  if (!envio) return id ? null : <EnvioInexistente />;
 
   return (
     <div className={PAGE_WIDE}>
@@ -121,6 +148,7 @@ export function EnvioDetallePage() {
         <dl className="grid grid-cols-2 gap-4">
           <Dato label="Nombre" value={envio.destinatario.nombre} />
           <Dato label="Teléfono" value={envio.destinatario.telefono || "—"} />
+          <Dato label="Email" value={envio.destinatario.email || "—"} />
           <Dato
             label="Dirección"
             value={`${envio.destinatario.calle} ${envio.destinatario.numero}${
@@ -174,13 +202,13 @@ export function EnvioDetallePage() {
           <dl>
             <Dato
               label="Nuevo compromiso"
-              value={`Comprometido para ${envio.reprogramado_para} (${FRANJA_LABELS[envio.franja ?? ""] ?? envio.franja ?? "—"})`}
+              value={textoCompromiso(envio.reprogramado_para, envio.franja)}
             />
           </dl>
         </Card>
       )}
 
-      {accionesDisponibles(envio.estado).length > 0 && (
+      {(accionesDisponibles(envio.estado).length > 0 || envio.estado === "asignado") && (
         <Card>
           <h2 className="mb-3 text-sm font-semibold text-gray-900">Acciones</h2>
           <AccionesEnvio envioId={envio.id} estado={envio.estado} />

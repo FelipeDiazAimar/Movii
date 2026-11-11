@@ -81,3 +81,16 @@ export function mezclarAngulo(desde: number, hasta: number, t: number): number {
   const d = ((hasta - desde + 540) % 360) - 180;
   return (desde + d * t + 360) % 360;
 }
+
+/**
+ * Margen para encuadrar la escena 3D sin que el panel de datos (arriba a la
+ * izquierda) ni la barra de cámaras (abajo) tapen paradas (QA H19).
+ * En contenedores angostos se achica para que MapLibre siempre tenga lugar.
+ */
+export function paddingEncuadre(ancho: number, alto: number, conHud: boolean): { top: number; bottom: number; left: number; right: number } {
+  const base = Math.max(24, Math.min(90, Math.round(Math.min(ancho, alto) / 6)));
+  const bottom = Math.min(Math.round(alto / 3), base + 50);
+  // El panel mide hasta 300 px; solo se reserva su ancho si deja al menos la mitad del mapa libre.
+  const left = conHud && ancho >= 640 ? Math.min(330, Math.round(ancho / 2)) : base;
+  return { top: base, bottom, left, right: base };
+}

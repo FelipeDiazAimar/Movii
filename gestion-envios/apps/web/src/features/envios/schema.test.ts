@@ -135,6 +135,12 @@ describe("reprogramacionSchema", () => {
     expect(reprogramacionSchema.safeParse({ nueva_fecha: "", franja: "manana" }).success).toBe(false);
   });
 
+  it('fecha vacía pide "Elegí una fecha"', () => {
+    const r = reprogramacionSchema.safeParse({ nueva_fecha: "", franja: "manana" });
+    expect(r.success).toBe(false);
+    expect(r.error?.issues[0]?.message).toBe("Elegí una fecha");
+  });
+
   it("rechaza franja fuera de la lista cerrada", () => {
     expect(reprogramacionSchema.safeParse({ nueva_fecha: "2026-09-20", franja: "madrugada" }).success).toBe(false);
   });
@@ -160,5 +166,47 @@ describe("trackingCodigoSchema", () => {
     expect(trackingCodigoSchema.safeParse("MOV-2026-1").success).toBe(false);
     expect(trackingCodigoSchema.safeParse("OTRO-20260909-0001").success).toBe(false);
     expect(trackingCodigoSchema.safeParse("MOV-20260909-01").success).toBe(false);
+  });
+});
+
+describe("envioFormSchema: máscaras y límites", () => {
+  it("acepta el peso con coma y lo convierte a número", () => {
+    const resultado = envioFormSchema.safeParse({ ...base, peso: "2,5" });
+    expect(resultado.success).toBe(true);
+    if (resultado.success) expect(resultado.data.peso).toBe(2.5);
+  });
+
+  it("el peso fuera de 0,01–1000 kg da el error propio", () => {
+    for (const peso of ["0", "1000,01"]) {
+      const r = envioFormSchema.safeParse({ ...base, peso });
+      expect(r.success).toBe(false);
+      if (!r.success) expect(r.error.issues[0]?.message).toBe("El peso tiene que estar entre 0,01 y 1000 kg");
+    }
+  });
+
+  it("los teléfonos se validan como argentinos y el email nuevo también", () => {
+    expect(envioFormSchema.safeParse({ ...base, peso: "1", remitenteTelefono: "03564 15-412345" }).success).toBe(true);
+    const telMal = envioFormSchema.safeParse({ ...base, peso: "1", destinatarioTelefono: "123" });
+    expect(telMal.success).toBe(false);
+    if (!telMal.success) expect(telMal.error.issues[0]?.message).toBe("El teléfono no es válido. Ejemplo: 3564 41-2345");
+
+    expect(envioFormSchema.safeParse({ ...base, peso: "1", destinatarioEmail: "juan@empresa.com" }).success).toBe(true);
+    const mailMal = envioFormSchema.safeParse({ ...base, peso: "1", destinatarioEmail: "no-es-mail" });
+    expect(mailMal.success).toBe(false);
+    if (!mailMal.success) expect(mailMal.error.issues[0]?.message).toBe("El email no es válido. Ejemplo: nombre@empresa.com");
+  });
+
+  it("código postal viejo o CPA; número solo dígitos de hasta 5", () => {
+    expect(envioFormSchema.safeParse({ ...base, peso: "1", codigoPostal: "X2400ABC" }).success).toBe(true);
+    expect(envioFormSchema.safeParse({ ...base, peso: "1", codigoPostal: "2400" }).success).toBe(true);
+    expect(envioFormSchema.safeParse({ ...base, peso: "1", codigoPostal: "24" }).success).toBe(false);
+    expect(envioFormSchema.safeParse({ ...base, peso: "1", numero: "123456" }).success).toBe(false);
+    expect(envioFormSchema.safeParse({ ...base, peso: "1", numero: "12a" }).success).toBe(false);
+  });
+
+  it("los máximos nuevos coinciden con la base", () => {
+    expect(envioFormSchema.safeParse({ ...base, peso: "1", destinatarioNombre: "n".repeat(100) }).success).toBe(true);
+    expect(envioFormSchema.safeParse({ ...base, peso: "1", destinatarioNombre: "n".repeat(101) }).success).toBe(false);
+    expect(envioFormSchema.safeParse({ ...base, peso: "1", tipoContenido: "c".repeat(101) }).success).toBe(false);
   });
 });

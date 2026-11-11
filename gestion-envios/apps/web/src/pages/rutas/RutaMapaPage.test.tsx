@@ -55,6 +55,14 @@ describe("RutaMapaPage", () => {
     expect(screen.getAllByTestId("marker")).toHaveLength(1);
   });
 
+  it("muestra la fecha legible, no la cruda (H17)", async () => {
+    vi.mocked(obtenerMapaRuta).mockResolvedValue(mapa);
+    renderPage();
+    await screen.findByText("MOV-1");
+    expect(screen.queryByText(/2026-10-22/)).not.toBeInTheDocument();
+    expect(screen.getByText(/oct/)).toBeInTheDocument();
+  });
+
   it("sin ninguna coordenada no renderiza el mapa", async () => {
     vi.mocked(obtenerMapaRuta).mockResolvedValue({ ...mapa, paradas: [mapa.paradas[1]] });
     renderPage();

@@ -30,7 +30,9 @@ interface Props {
   invalido?: boolean;
   /** Muestra la "x" para dejar el campo vacío. */
   limpiable?: boolean;
+  /** YYYY-MM-DD opcional: deshabilita los días anteriores. Sin `min`, no hay límite. */
   min?: string;
+  /** YYYY-MM-DD opcional: deshabilita los días posteriores. */
   max?: string;
   "aria-label"?: string;
   className?: string;
@@ -194,7 +196,7 @@ export function DatePicker({ id, value, onChange, placeholder = "Elegí una fech
           })}
         </div>
         <div className="mt-2 flex items-center justify-between border-t border-hormigon-100 pt-2">
-          <button type="button" onClick={() => elegir(new Date())} className="rounded-lg px-2 py-1 text-xs font-semibold text-movii-700 hover:bg-movii-50">
+          <button type="button" onClick={() => elegir(new Date())} disabled={fueraDeRango(new Date())} className="rounded-lg px-2 py-1 text-xs font-semibold text-movii-700 hover:bg-movii-50 disabled:cursor-not-allowed disabled:text-gray-300 disabled:hover:bg-transparent">
             Hoy
           </button>
           {limpiable && (

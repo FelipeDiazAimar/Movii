@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useId, useState } from "react";
 import axios from "axios";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { listarEnvios } from "@/features/envios/api";
@@ -25,14 +25,16 @@ function textoReco(e: EstadoReco): { clave: string; texto: string } {
   if (e.tipo === "cargando") return { clave: "sin_recomendacion", texto: "Validando dirección…" };
   if (e.tipo === "invalida") return { clave: "invalida", texto: "Dirección inválida" };
   const { rec } = e;
-  const detalle = `+${rec.extra_km}km, +${rec.desvio_pct}%`;
+  // Con la ruta vacía el desvío es 0: no se muestra "+0%" (no dice nada).
+  const partes = [rec.extra_km > 0 ? `+${rec.extra_km}km` : "", rec.desvio_pct > 0 ? `+${rec.desvio_pct}%` : ""].filter(Boolean);
+  const detalle = partes.length > 0 ? ` (${partes.join(", ")})` : "";
   switch (rec.recomendacion) {
     case "conviene":
-      return { clave: "conviene", texto: `Conviene (${detalle})` };
+      return { clave: "conviene", texto: `Conviene${detalle}` };
     case "dudoso":
-      return { clave: "dudoso", texto: `Dudoso (${detalle})` };
+      return { clave: "dudoso", texto: `Dudoso${detalle}` };
     case "no_conviene":
-      return { clave: "no_conviene", texto: `No conviene (${detalle}, fuera de zona)` };
+      return { clave: "no_conviene", texto: `No conviene (${[...partes, "fuera de zona"].join(", ")})` };
     default:
       return { clave: "sin_recomendacion", texto: "Sin recomendación (se puede asignar)" };
   }
@@ -41,7 +43,7 @@ function textoReco(e: EstadoReco): { clave: string; texto: string } {
 /** Badge verde / amarillo / rojo con la recomendación de distancia de un envío. */
 export function RecomendacionBadge({ estado }: { estado: EstadoReco }) {
   const { clave, texto } = textoReco(estado);
-  return <span className={`rounded-full border px-2 py-0.5 text-xs font-medium ${BADGE[clave]}`}>{texto}</span>;
+  return <span className={`inline-block max-w-full rounded-full border px-2 py-0.5 text-xs font-medium ${BADGE[clave]}`}>{texto}</span>;
 }
 
 const SIN_RECOMENDACION: EstadoReco = {
@@ -55,6 +57,7 @@ export function AsignarEnviosPanel({ rutaId, onAsignado }: { rutaId: string; onA
   const [seleccionados, setSeleccionados] = useState<Set<string>>(new Set());
   const [recos, setRecos] = useState<Record<string, EstadoReco>>({});
   const [asignarIgual, setAsignarIgual] = useState(false);
+  const idMotivo = useId();
 
   const { data: pendientes, isLoading } = useQuery({
     queryKey: ["envios", { estado: "pendiente" }],
@@ -102,6 +105,13 @@ export function AsignarEnviosPanel({ rutaId, onAsignado }: { rutaId: string; onA
   const validando = estados.some((e) => !e || e.tipo === "cargando");
   const hayRoja = estados.some((e) => e?.tipo === "ok" && e.rec.recomendacion === "no_conviene");
 
+  // Por qué "Asignar" está deshabilitado (si lo está), para no dejar el botón mudo.
+  let motivoDeshabilitado: string | null = null;
+  if (hayInvalida) motivoDeshabilitado = "Quitá los envíos con dirección inválida para poder asignar.";
+  else if (validando) motivoDeshabilitado = "Validando direcciones…";
+  else if (hayRoja && !asignarIgual) motivoDeshabilitado = "Hay envíos que no conviene sumar a esta ruta: tildá \"Asignar igual\" para confirmarlos.";
+  const deshabilitado = seleccionados.size === 0 || motivoDeshabilitado !== null;
+
   if (isLoading) return <Spinner label="Cargando envíos pendientes…" />;
 
   if (!pendientes || pendientes.length === 0) {
@@ -114,17 +124,28 @@ export function AsignarEnviosPanel({ rutaId, onAsignado }: { rutaId: string; onA
 
       <ul className="divide-y divide-gray-100 rounded-md border border-gray-200">
         {pendientes.map((envio) => (
-          <li key={envio.id} className="flex items-center gap-3 px-3 py-2 text-sm">
+          // Código y peso en la primera línea (sin cortarse), destinatario debajo y el badge al final:
+          // así el peso nunca se sale de la tarjeta aunque el panel sea angosto.
+          <li key={envio.id} className="flex items-start gap-3 px-3 py-2 text-sm">
             <input
               type="checkbox"
-              className="h-4 w-4 rounded border-gray-300 text-movii-500 focus:ring-movii-400"
+              aria-label={`Seleccionar ${envio.codigo_guia} (${envio.destinatario})`}
+              className="mt-0.5 h-4 w-4 shrink-0 rounded border-gray-300 text-movii-500 focus:ring-movii-400"
               checked={seleccionados.has(envio.id)}
               onChange={() => toggle(envio.id)}
             />
-            <span className="font-medium text-gray-900">{envio.codigo_guia}</span>
-            <span className="text-gray-500">{envio.destinatario}</span>
-            {seleccionados.has(envio.id) && recos[envio.id] && <RecomendacionBadge estado={recos[envio.id]} />}
-            <span className="ml-auto text-gray-500">{envio.peso} kg</span>
+            <div className="flex min-w-0 flex-1 flex-col gap-1">
+              <div className="flex items-baseline justify-between gap-2">
+                <span className="whitespace-nowrap font-medium text-gray-900">{envio.codigo_guia}</span>
+                <span className="shrink-0 whitespace-nowrap text-gray-500">{envio.peso} kg</span>
+              </div>
+              <span className="truncate text-gray-500" title={envio.destinatario}>{envio.destinatario}</span>
+              {seleccionados.has(envio.id) && recos[envio.id] && (
+                <div>
+                  <RecomendacionBadge estado={recos[envio.id]} />
+                </div>
+              )}
+            </div>
           </li>
         ))}
       </ul>
@@ -136,15 +157,21 @@ export function AsignarEnviosPanel({ rutaId, onAsignado }: { rutaId: string; onA
         </label>
       )}
 
-      <div>
+      <div className="flex flex-col items-start gap-2">
         <Button
           type="button"
-          disabled={seleccionados.size === 0 || hayInvalida || validando || (hayRoja && !asignarIgual)}
+          disabled={deshabilitado}
+          aria-describedby={motivoDeshabilitado ? idMotivo : undefined}
           loading={mutation.isPending}
           onClick={() => mutation.mutate()}
         >
           Asignar {seleccionados.size > 0 ? `(${seleccionados.size})` : ""}
         </Button>
+        {motivoDeshabilitado && (
+          <p id={idMotivo} role="status" className={`text-xs ${hayInvalida || hayRoja ? "text-red-700" : "text-gray-500"}`}>
+            {motivoDeshabilitado}
+          </p>
+        )}
       </div>
     </div>
   );

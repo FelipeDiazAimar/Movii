@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { acumulados, caja, distanciaM, distanciaSobreLinea, mezclarAngulo, puntoEnDistancia, rumbo, type LngLat } from "./geo3d";
+import { acumulados, caja, distanciaM, distanciaSobreLinea, mezclarAngulo, paddingEncuadre, puntoEnDistancia, rumbo, type LngLat } from "./geo3d";
 
 // Un tramo hacia el norte y otro hacia el este, en Rafaela.
 const linea: LngLat[] = [
@@ -41,5 +41,27 @@ describe("geo3d", () => {
   it("mezcla ángulos por el camino corto", () => {
     expect(mezclarAngulo(350, 10, 0.5)).toBeCloseTo(0, 5);
     expect(mezclarAngulo(10, 350, 0.5)).toBeCloseTo(0, 5);
+  });
+});
+
+describe("paddingEncuadre (H19)", () => {
+  it("con el panel de datos en pantalla ancha reserva su ancho a la izquierda", () => {
+    const p = paddingEncuadre(1200, 700, true);
+    expect(p.left).toBeGreaterThanOrEqual(310);
+    expect(p.right).toBe(90);
+    expect(p.bottom).toBeGreaterThan(p.top);
+  });
+
+  it("sin panel o en pantalla angosta no reserva el ancho del panel", () => {
+    expect(paddingEncuadre(1200, 700, false).left).toBe(90);
+    expect(paddingEncuadre(400, 460, true).left).toBeLessThan(100);
+  });
+
+  it("nunca deja sin lugar al mapa", () => {
+    for (const [w, h] of [[320, 300], [640, 460], [1920, 1080]]) {
+      const p = paddingEncuadre(w, h, true);
+      expect(p.left + p.right).toBeLessThan(w);
+      expect(p.top + p.bottom).toBeLessThan(h);
+    }
   });
 });

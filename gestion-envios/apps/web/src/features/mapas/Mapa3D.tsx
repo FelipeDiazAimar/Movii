@@ -68,7 +68,7 @@ export function Mapa3D({ rutaId, paradaDestacadaId }: { rutaId: string; paradaDe
         color={color}
         vivo={vivo}
         enfoque={enfoque}
-        simular
+        simular={(data?.paradas ?? []).some((p) => p.estado !== "asignado" && p.estado !== "pendiente")}
         hud={(velocidad) => (
           <div className="rounded-2xl border border-white/10 bg-asfalto-900/85 p-4 text-white shadow-lift backdrop-blur-md">
             <p className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.16em] text-movii-500">

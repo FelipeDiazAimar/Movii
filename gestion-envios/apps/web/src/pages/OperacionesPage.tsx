@@ -1,10 +1,11 @@
-import { lazy, Suspense, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { useQueries, useQuery } from "@tanstack/react-query";
 import { obtenerDashboard } from "@/features/analitica/api";
 import { listarFlota, obtenerTrayecto, obtenerVehiculo } from "@/features/flota/api";
 import { useFlotaEnVivo } from "@/features/flota/useFlotaEnVivo";
-import { MapaMovii, type ParadaEnMapa, type RutaEnMapa, type VehiculoEnMapa } from "@/features/flota/MapaMovii";
+import type { RutaEnMapa, VehiculoEnMapa } from "@/features/flota/MapaMovii";
+import { SeguimientoEnVivo, type VistaSeguimiento } from "@/features/flota/SeguimientoEnVivo";
 import { REGION_CARGA, VehiculoIllustration } from "@/features/flota/VehiculoIllustration";
 import { ContenedorPaquetes } from "@/features/flota/ContenedorPaquetes";
 import { colorDeFlota } from "@/features/flota/colores";
@@ -12,16 +13,12 @@ import { CapacityGauge } from "@/features/flota/CapacityGauge";
 import { VehicleSlider } from "@/features/flota/VehicleSlider";
 import { LineaDeParadas } from "@/features/flota/LineaDeParadas";
 import { ETIQUETA_ESTADO_VEHICULO, ETIQUETA_TIPO_VEHICULO, type LatLng, type Vehiculo } from "@/features/flota/types";
-import { EstadoEnvioBadge } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/Card";
-import { Spinner } from "@/components/ui/Spinner";
 import { SkeletonPagina } from "@/components/ui/Skeleton";
 import { Alert } from "@/components/ui/Alert";
 import { getApiErrorMessage } from "@/services/api-client";
-import { hayWebGL } from "@/features/mapas/webgl";
+import { BotonSimulacion } from "@/features/demo/BotonSimulacion";
 
-// La vista 3D (MapLibre) se baja solo si la eligen.
-const Operaciones3D = lazy(() => import("@/features/mapas/Operaciones3D").then((m) => ({ default: m.Operaciones3D })));
 import { formatearFecha, formatearHora } from "@/utils/fechas";
 import { CountUp, PuntoVivo, SpotlightCard } from "@/components/ui/Efectos";
 import {
@@ -29,7 +26,6 @@ import {
   CircleCheck,
   Gauge,
   LayoutDashboard,
-  MapPinned,
   Package,
   PackageOpen,
   Phone,
@@ -75,16 +71,13 @@ function Tile({ titulo, valor, unidad, icono: Icono }: { titulo: string; valor: 
   );
 }
 
-function duracion(seg: number) {
-  const min = Math.round(seg / 60);
-  return min < 60 ? `${min} min` : `${Math.floor(min / 60)} h ${min % 60} min`;
-}
-
 /** Centro de operaciones (HU-11 + HU-18): la flota alrededor del camión, con su carga, ruta y posición en vivo. */
 export function OperacionesPage() {
   const [seleccionadoId, setSeleccionadoId] = useState<string | null>(null);
   const [envioElegido, setEnvioElegido] = useState<string | null>(null);
   const [vistaMapa, setVistaMapa] = useState<"2d" | "3d">("2d");
+  const [vista, setVista] = useState<VistaSeguimiento>("ruta");
+  const seccionSeguimiento = useRef<HTMLElement>(null);
   const { posiciones, estado: conexion } = useFlotaEnVivo();
 
   const dashboard = useQuery({ queryKey: ["operaciones", "dashboard"], queryFn: () => obtenerDashboard(), refetchInterval: 30_000 });
@@ -124,8 +117,6 @@ export function OperacionesPage() {
       conRuta.flatMap((v, i) => {
         const geo = detalles[i]?.data?.recorrido?.geometria;
         if (!geo) return [];
-        const pendientes = (detalles[i]?.data?.paquetes ?? []).filter((p) => (p.estado === "asignado" || p.estado === "en_camino") && p.coordenadas);
-        const ultimo = pendientes[pendientes.length - 1];
         return [
           {
             id: v.id,
@@ -133,17 +124,13 @@ export function OperacionesPage() {
             color: colorDe[v.id],
             geometria: geo,
             destacada: v.id === seleccionado?.id,
-            destino: ultimo?.coordenadas ? ([ultimo.coordenadas.lat, ultimo.coordenadas.lng] as LatLng) : undefined,
-            destinoTexto: ultimo ? `${v.ruta_nombre}: ${ultimo.direccion}` : v.ruta_nombre,
           },
         ];
       }),
+    // Una sola clave con los refrescos: la lista de dependencias no puede cambiar de tamaño.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [conRuta, colorDe, seleccionado?.id, ...detalles.map((d) => d.dataUpdatedAt)],
+    [conRuta, colorDe, seleccionado?.id, detalles.map((d) => d.dataUpdatedAt).join(",")],
   );
-
-  // Un solo recorrido a la vez: el del camión elegido (los demás no se dibujan).
-  const rutasVisibles = useMemo(() => rutasEnMapa.filter((r) => r.id === seleccionado?.id), [rutasEnMapa, seleccionado?.id]);
 
   const enMapa = useMemo<VehiculoEnMapa[]>(
     () =>
@@ -156,32 +143,36 @@ export function OperacionesPage() {
           rumbo: vivo?.rumbo ?? v.rumbo,
           velocidad: vivo?.velocidad ?? v.velocidad,
           destacado: v.id === seleccionado?.id,
-          color: colorDe[v.id],
+          color: v.estado === "mantenimiento" ? "#9ca3af" : colorDe[v.id],
+          tipo: v.tipo,
+          enVivo: Boolean(vivo),
+          // Sin GPS, el camión elegido recorre su ruta en simulación (como en 3D).
+          simularEn: v.id === seleccionado?.id && v.estado === "activo" && v.ruta_estado === "en_curso" ? (detalle.data?.recorrido?.geometria ?? null) : null,
         };
       }),
-    [vehiculos, posiciones, seleccionado?.id, colorDe],
+    [vehiculos, posiciones, seleccionado?.id, colorDe, detalle.data?.recorrido?.geometria],
   );
 
   const paquetes = useMemo(() => detalle.data?.paquetes ?? [], [detalle.data]);
-  const paradas = useMemo<ParadaEnMapa[]>(
-    () =>
-      paquetes.flatMap((p) =>
-        p.coordenadas
-          ? [
-              {
-                id: p.envio_id,
-                orden: p.orden,
-                estado: p.estado,
-                pos: [p.coordenadas.lat, p.coordenadas.lng] as LatLng,
-                titulo: `${p.orden}. ${p.codigo_guia}`,
-                detalle: `${p.destinatario_nombre} · ${p.direccion}`,
-                destacada: p.envio_id === envioElegido,
-              },
-            ]
-          : [],
-      ),
-    [paquetes, envioElegido],
-  );
+
+  /** Elegir un camión (lista, mapa o filtro) lo muestra con sus paradas. */
+  const elegirVehiculo = (id: string) => {
+    setSeleccionadoId(id);
+    setVista("ruta");
+  };
+  const cambiarVista = (v: VistaSeguimiento) => {
+    setVista(v);
+    if (v === "todas") {
+      setEnvioElegido(null);
+      setVistaMapa("2d");
+    }
+  };
+  /** Un paquete elegido en la caja del camión se ubica en el seguimiento. */
+  const elegirDesdeElCamion = (id: string) => {
+    setVista("ruta");
+    setEnvioElegido(id);
+    seccionSeguimiento.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
 
   if (dashboard.isLoading || flota.isLoading) return <SkeletonPagina label="Cargando el centro de operaciones…" />;
   if (flota.isError) return <Alert variant="error">{getApiErrorMessage(flota.error, "No se pudo cargar la flota")}</Alert>;
@@ -205,10 +196,13 @@ export function OperacionesPage() {
             <p className="text-sm text-gray-500">La flota del día, su carga y dónde está cada camión.</p>
           </div>
         </div>
-        <span className="inline-flex items-center gap-2 rounded-full border border-hormigon-200 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 shadow-panel">
-          <PuntoVivo activo={conexion === "en_vivo"} />
-          {conexion === "en_vivo" ? "En vivo" : "Conectando…"}
-        </span>
+        <div className="flex items-center gap-3">
+          <span className="inline-flex items-center gap-2 rounded-full border border-hormigon-200 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 shadow-panel">
+            <PuntoVivo activo={conexion === "en_vivo"} />
+            {conexion === "en_vivo" ? "En vivo" : "Conectando…"}
+          </span>
+          <BotonSimulacion />
+        </div>
       </div>
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -240,20 +234,20 @@ export function OperacionesPage() {
                     <p className="mt-1 text-[11px] uppercase tracking-wider text-gray-400">Patente</p>
                     <p className="text-2xl font-black text-gray-900">#{seleccionado.patente}</p>
                     <dl className="mt-3 divide-y divide-gray-100 text-sm">
-                      <div className="flex justify-between py-1.5">
+                      <div className="flex justify-between gap-3 py-1.5">
                         <dt className="text-gray-500">Tipo</dt>
-                        <dd className="font-medium text-gray-900">
+                        <dd className="text-right font-medium text-gray-900">
                           {ETIQUETA_TIPO_VEHICULO[seleccionado.tipo]} · {seleccionado.modelo}
                         </dd>
                       </div>
-                      <div className="flex justify-between py-1.5">
+                      <div className="flex justify-between gap-3 py-1.5">
                         <dt className="text-gray-500">Estado</dt>
                         <dd className="flex items-center gap-1.5 font-medium text-gray-900">
                           <span className={`h-2 w-2 rounded-full ${seleccionado.estado === "activo" ? "bg-green-500" : seleccionado.estado === "mantenimiento" ? "bg-red-500" : "bg-gray-400"}`} />
                           {ETIQUETA_ESTADO_VEHICULO[seleccionado.estado]}
                         </dd>
                       </div>
-                      <div className="flex justify-between py-1.5">
+                      <div className="flex justify-between gap-3 py-1.5">
                         <dt className="text-gray-500">Ruta</dt>
                         <dd className="truncate pl-2 font-medium text-gray-900">
                           {seleccionado.ruta_id ? (
@@ -265,7 +259,7 @@ export function OperacionesPage() {
                           )}
                         </dd>
                       </div>
-                      <div className="flex justify-between py-1.5">
+                      <div className="flex justify-between gap-3 py-1.5">
                         <dt className="text-gray-500">A bordo</dt>
                         <dd className="font-medium text-gray-900">
                           {aBordo} de {seleccionado.total_paquetes} paquetes
@@ -280,14 +274,14 @@ export function OperacionesPage() {
                         containerCode={seleccionado.patente}
                         color={seleccionado.estado === "mantenimiento" ? "#e9ecef" : colorDe[seleccionado.id]}
                       />
-                      <ContenedorPaquetes key={seleccionado.id} paquetes={paquetes} region={REGION_CARGA[seleccionado.tipo]} />
+                      <ContenedorPaquetes key={seleccionado.id} paquetes={paquetes} region={REGION_CARGA[seleccionado.tipo]} elegido={envioElegido} onElegir={elegirDesdeElCamion} />
                     </div>
                     <div aria-hidden className="mx-4 -mt-3 h-1 rounded-full bg-[repeating-linear-gradient(90deg,#f4b400_0_28px,transparent_28px_52px)] opacity-70" />
                   </div>
                 </div>
               </section>
 
-              <VehicleSlider vehiculos={vehiculos} selectedId={seleccionado.id} onSelect={(v) => setSeleccionadoId(v.id)} />
+              <VehicleSlider vehiculos={vehiculos} selectedId={seleccionado.id} onSelect={(v) => elegirVehiculo(v.id)} />
 
               <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
                 <Tile titulo="Paquetes a bordo" valor={aBordo} unidad={`/ ${seleccionado.total_paquetes}`} icono={PackageOpen} />
@@ -296,100 +290,6 @@ export function OperacionesPage() {
                 <Tile titulo="Velocidad" valor={velocidad} unidad="km/h" icono={Gauge} />
               </div>
 
-              <section className="rounded-panel border border-hormigon-200 bg-white p-5 shadow-panel">
-                <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                  <div>
-                    <h2 className="flex items-center gap-2 text-sm font-bold text-gray-900"><MapPinned className="h-4 w-4 text-movii-600" aria-hidden />Seguimiento en vivo</h2>
-                    <p className="text-xs text-gray-500">
-                      Tocá un camión para inspeccionarlo o un paquete de la lista para ver el camino por las calles hasta su destino.
-                    </p>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    {detalle.data?.recorrido && (
-                      <span className="rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-700">
-                        Resta {(detalle.data.recorrido.distancia_m / 1000).toFixed(1)} km · ~{duracion(detalle.data.recorrido.duracion_s)}
-                      </span>
-                    )}
-                    {hayWebGL() && (
-                      <div className="flex rounded-xl bg-hormigon-100 p-1 text-xs font-bold" role="radiogroup" aria-label="Tipo de mapa">
-                        {(["2d", "3d"] as const).map((v) => (
-                          <button
-                            key={v}
-                            type="button"
-                            role="radio"
-                            aria-checked={vistaMapa === v}
-                            onClick={() => setVistaMapa(v)}
-                            className={`rounded-lg px-3 py-1 transition ${vistaMapa === v ? "bg-asfalto-900 text-movii-500 shadow-panel" : "text-gray-500 hover:text-gray-900"}`}
-                          >
-                            {v.toUpperCase()}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
-                {vistaMapa === "3d" ? (
-                  <Suspense fallback={<div className="flex h-[460px] items-center justify-center"><Spinner label="Cargando vista 3D…" /></div>}>
-                    <Operaciones3D
-                      key={seleccionado.id}
-                      vehiculo={seleccionado}
-                      color={colorDe[seleccionado.id] ?? "#f4b400"}
-                      recorrido={detalle.data?.recorrido}
-                      paquetes={paquetes}
-                      vivo={vivoSel}
-                      envioElegido={envioElegido}
-                    />
-                  </Suspense>
-                ) : (
-                <MapaMovii
-                  className="h-[420px]"
-                  vehiculos={enMapa}
-                  paradas={paradas}
-                  rutas={rutasVisibles.map((r) => ({ ...r, destacada: !trayecto.data?.recorrido }))}
-                  deposito={[-31.4279718, -62.0826608]}
-                  trayecto={trayecto.data?.recorrido?.geometria ?? null}
-                  onVehiculoClick={(id) => setSeleccionadoId(id)}
-                  onParadaClick={(id) => setEnvioElegido(id)}
-                  encuadre={`${seleccionado.id}-${envioElegido ?? ""}-${detalle.data ? "ok" : ""}`}
-                />
-                )}
-                {rutasEnMapa.length > 0 && (
-                  <ul className="mt-3 flex flex-wrap gap-2" role="radiogroup" aria-label="Recorrido que se ve en el mapa">
-                    {rutasEnMapa.map((r) => (
-                      <li key={r.id}>
-                        <button
-                          type="button"
-                          role="radio"
-                          aria-checked={r.id === seleccionado.id}
-                          onClick={() => {
-                            setSeleccionadoId(r.id);
-                            setEnvioElegido(null);
-                          }}
-                          className={`flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold transition-colors ${
-                            r.id === seleccionado.id ? "border-asfalto-900 bg-asfalto-900 text-white" : "border-hormigon-200 bg-white text-gray-500 hover:border-hormigon-300 hover:text-gray-800"
-                          }`}
-                        >
-                          <span className="h-2.5 w-5 rounded-full" style={{ background: `repeating-linear-gradient(90deg, ${r.color} 0 4px, transparent 4px 7px)` }} />
-                          {r.nombre}
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-                {trayecto.data && (
-                  <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-xl bg-amber-50 px-3 py-2 text-sm">
-                    <span>
-                      Camino a <strong>{trayecto.data.codigo_guia}</strong> — {trayecto.data.direccion}
-                      {trayecto.data.recorrido &&
-                        ` · ${(trayecto.data.recorrido.distancia_m / 1000).toFixed(1)} km, ~${duracion(trayecto.data.recorrido.duracion_s)}`}
-                      {trayecto.data.paradas_antes > 0 && ` · ${trayecto.data.paradas_antes} parada(s) antes`}
-                    </span>
-                    <button type="button" className="text-xs font-semibold text-gray-700 hover:underline" onClick={() => setEnvioElegido(null)}>
-                      Ver recorrido completo
-                    </button>
-                  </div>
-                )}
-              </section>
             </div>
 
             <aside className="flex min-w-0 flex-col gap-4">
@@ -449,46 +349,32 @@ export function OperacionesPage() {
                 maxCapacityKg={seleccionado.capacidad_peso}
               />
 
-              <section className="rounded-panel border border-hormigon-200 bg-white p-5 shadow-panel">
-                <h2 className="mb-2 flex items-center gap-2 text-sm font-bold text-gray-900"><Package className="h-4 w-4 text-movii-600" aria-hidden />Paquetes del camión</h2>
-                {detalle.isLoading ? (
-                  <Spinner label="Cargando paquetes…" />
-                ) : paquetes.length === 0 ? (
-                  <EmptyState title="Sin paquetes" description="El vehículo no tiene ruta asignada hoy." />
-                ) : (
-                  <ul className="max-h-80 divide-y divide-gray-100 overflow-y-auto text-sm">
-                    {paquetes.map((p) => (
-                      <li key={p.envio_id}>
-                        <button
-                          type="button"
-                          onClick={() => setEnvioElegido(p.envio_id)}
-                          className={`flex w-full items-center justify-between gap-2 rounded-lg px-2 py-2 text-left hover:bg-gray-50 ${envioElegido === p.envio_id ? "bg-amber-50" : ""}`}
-                        >
-                          <span className="min-w-0">
-                            <span className="block font-semibold text-gray-900">
-                              {p.orden}. {p.codigo_guia}
-                              {p.urgente && <span className="ml-1 text-[10px] font-bold text-red-600">URGENTE</span>}
-                              {p.fragil && <span className="ml-1 text-[10px] font-bold text-amber-700">FRÁGIL</span>}
-                            </span>
-                            <span className="block truncate text-xs text-gray-500">
-                              {p.destinatario_nombre} · {p.direccion} · {p.peso} kg
-                            </span>
-                          </span>
-                          <EstadoEnvioBadge estado={p.estado} />
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-                {envioElegido && (
-                  <Link to={`/envios/${envioElegido}`} className="mt-2 block text-right text-xs font-semibold text-movii-600 hover:underline">
-                    Abrir el envío →
-                  </Link>
-                )}
-              </section>
             </aside>
           </div>
         )
+      )}
+
+      {seleccionado && (
+        <SeguimientoEnVivo
+          seccionRef={seccionSeguimiento}
+          vehiculos={vehiculos}
+          colorDe={colorDe}
+          seleccionado={seleccionado}
+          vista={vista}
+          onVista={cambiarVista}
+          onElegirVehiculo={elegirVehiculo}
+          detalle={detalle.data}
+          detalleCargando={detalle.isLoading}
+          paquetes={paquetes}
+          rutas={rutasEnMapa}
+          enMapa={enMapa}
+          envioElegido={envioElegido}
+          onElegirEnvio={setEnvioElegido}
+          trayecto={trayecto.data}
+          vivo={vivoSel}
+          vistaMapa={vistaMapa}
+          onVistaMapa={setVistaMapa}
+        />
       )}
 
       {dashboard.data && (

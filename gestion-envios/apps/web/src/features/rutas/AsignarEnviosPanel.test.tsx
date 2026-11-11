@@ -44,6 +44,22 @@ describe("AsignarEnviosPanel (T4)", () => {
     await userEvent.click(await screen.findByRole("checkbox"));
     expect(await screen.findByText("Dirección inválida")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Asignar/ })).toBeDisabled();
+    // H15: el botón deshabilitado explica por qué.
+    expect(screen.getByText(/Quitá los envíos con dirección inválida/)).toBeInTheDocument();
+  });
+
+  it("checkbox con nombre accesible (código + destinatario)", async () => {
+    vi.mocked(recomendarEnvio).mockResolvedValue({ extra_km: 1, desvio_pct: 5, recomendacion: "conviene", motivo: "" });
+    renderPanel();
+    expect(await screen.findByRole("checkbox", { name: "Seleccionar MOV-1 (Ana)" })).toBeInTheDocument();
+  });
+
+  it("ruta vacía: no muestra +0%", async () => {
+    vi.mocked(recomendarEnvio).mockResolvedValue({ extra_km: 3.4, desvio_pct: 0, recomendacion: "conviene", motivo: "" });
+    renderPanel();
+    await userEvent.click(await screen.findByRole("checkbox"));
+    expect(await screen.findByText("Conviene (+3.4km)")).toBeInTheDocument();
+    expect(screen.queryByText(/\+0%/)).not.toBeInTheDocument();
   });
 
   it("rojo: exige Asignar igual y manda forzar=true", async () => {

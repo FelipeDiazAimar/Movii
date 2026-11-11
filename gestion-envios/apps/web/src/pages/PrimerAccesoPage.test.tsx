@@ -103,4 +103,19 @@ describe("PrimerAccesoPage (T1)", () => {
     expect(screen.getByText("por mail a a•••@gmail.com")).toBeInTheDocument();
     expect(screen.queryByLabelText("Contraseña nueva")).not.toBeInTheDocument();
   });
+
+  it("muestra el checklist de la contraseña en vivo", async () => {
+    renderPage();
+    const lista = screen.getByRole("list", { name: "Requisitos de la contraseña" });
+    expect(lista).toHaveTextContent("8 caracteres o más");
+    expect(lista).toHaveTextContent("una mayúscula");
+    expect(lista).toHaveTextContent("un número");
+    expect(lista).toHaveTextContent("coinciden");
+
+    await userEvent.type(screen.getByLabelText("Contraseña nueva"), "NuevaClave1");
+    await userEvent.type(screen.getByLabelText("Repetí la contraseña"), "NuevaClave1");
+    for (const item of lista.querySelectorAll("li")) {
+      expect(item.textContent).toMatch(/^✓/);
+    }
+  });
 });

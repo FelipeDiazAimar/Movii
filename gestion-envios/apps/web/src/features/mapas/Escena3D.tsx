@@ -5,7 +5,7 @@ import "maplibre-gl/dist/maplibre-gl.css";
 // módulo queda en otra carpeta, así que se sirve como asset y se indica la URL.
 import urlWorker from "maplibre-gl/dist/maplibre-gl-worker.mjs?url";
 import { Camera, ChevronDown, Clapperboard, Map as MapaIcono, Maximize2, Minimize2, Moon, Orbit, Pause, Play, Sun, Truck, type LucideIcon } from "lucide-react";
-import { COLOR_PARADA, acumulados, caja, distanciaM, mezclarAngulo, puntoEnDistancia, rumbo as rumboEntre, type LngLat } from "./geo3d";
+import { COLOR_PARADA, acumulados, caja, distanciaM, mezclarAngulo, paddingEncuadre, puntoEnDistancia, rumbo as rumboEntre, type LngLat } from "./geo3d";
 
 maplibregl.setWorkerUrl(urlWorker);
 
@@ -170,6 +170,12 @@ function encuadre(puntos: LngLat[]) {
   return puntos.reduce((acc, p) => acc.extend(p), new maplibregl.LngLatBounds(puntos[0], puntos[0]));
 }
 
+/** Margen del encuadre según el tamaño real del mapa: el panel de datos y la barra no tapan paradas. */
+function margenEncuadre(m: maplibregl.Map, conHud: boolean) {
+  const c = m.getContainer();
+  return paddingEncuadre(c.clientWidth, c.clientHeight, conHud);
+}
+
 /**
  * Escena 3D (MapLibre GL + OpenFreeMap, sin costo): edificios y terreno,
  * recorrido luminoso con cometas de luz, columnas en las paradas y un camión
@@ -274,7 +280,8 @@ export function Escena3D({ linea, paradas, color, vivo, simular = false, zona, h
       type: "line",
       source: "ruta",
       layout: { "line-cap": "round", "line-join": "round" },
-      paint: { "line-width": 7, "line-gradient": ["interpolate", ["linear"], ["line-progress"], 0, "#f4b400", 1, col] },
+      // Un solo color, el del vehículo (igual que el mapa 2D).
+      paint: { "line-width": 7, "line-color": col },
     });
     // Cometas de luz que recorren la ruta en el sentido del viaje (el dasharray animado rompe MapLibre 6).
     m.addSource("flujo", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
@@ -315,7 +322,7 @@ export function Escena3D({ linea, paradas, color, vivo, simular = false, zona, h
     m.once("load", () => {
       setListo(true);
       // Entrada de cine: de la vista cenital a la escena inclinada.
-      m.fitBounds(encuadre(puntos), { padding: 90, maxZoom: 16.5, pitch: 62, bearing: -25, duration: 3200, essential: true });
+      m.fitBounds(encuadre(puntos), { padding: margenEncuadre(m, Boolean(hud)), maxZoom: 16.5, pitch: 62, bearing: -25, duration: 3200, essential: true });
     });
     // Tocar una parada abre su tarjeta.
     const abrirParada = (e: maplibregl.MapLayerMouseEvent) => {
@@ -386,8 +393,10 @@ export function Escena3D({ linea, paradas, color, vivo, simular = false, zona, h
     return () => document.removeEventListener("fullscreenchange", cambio);
   }, []);
   const alternarCompleta = () => {
-    if (document.fullscreenElement) void document.exitFullscreen();
-    else void marco.current?.requestFullscreen?.();
+    // El navegador puede rechazar la pantalla completa (iframe, permisos, gesto vencido):
+    // se ignora en silencio en vez de dejar una promesa rechazada suelta en la consola.
+    const promesa = document.fullscreenElement ? document.exitFullscreen?.() : marco.current?.requestFullscreen?.();
+    promesa?.catch(() => {});
   };
 
   // Panel de datos: abierto en pantallas anchas, plegado en el celular.
@@ -414,7 +423,7 @@ export function Escena3D({ linea, paradas, color, vivo, simular = false, zona, h
   useEffect(() => {
     const m = mapa.current;
     if (!m || !listo || camara !== "general" || puntos.length === 0) return;
-    m.fitBounds(encuadre(puntos), { padding: 90, maxZoom: 16.5, pitch: 62, bearing: -25, duration: 1600 });
+    m.fitBounds(encuadre(puntos), { padding: margenEncuadre(m, Boolean(hud)), maxZoom: 16.5, pitch: 62, bearing: -25, duration: 1600 });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [camara, listo]);
 
@@ -509,7 +518,8 @@ export function Escena3D({ linea, paradas, color, vivo, simular = false, zona, h
         </div>
       )}
 
-      <div className="absolute bottom-9 left-1/2 z-10 flex max-w-[calc(100%-16px)] -translate-x-1/2 items-center gap-0.5 rounded-2xl border border-white/10 bg-asfalto-900/90 p-1 shadow-lift backdrop-blur-md sm:gap-1 sm:p-1.5">
+      {/* Más arriba que la atribución del mapa (abajo a la derecha) para no pisarla aunque se despliegue. */}
+      <div className="absolute bottom-14 left-1/2 z-10 flex max-w-[calc(100%-16px)] -translate-x-1/2 items-center gap-0.5 rounded-2xl border border-white/10 bg-asfalto-900/90 p-1 shadow-lift backdrop-blur-md sm:gap-1 sm:p-1.5">
         <BotonCamara activo={camara === "seguir"} onClick={() => setCamara("seguir")} icono={Truck}>
           Seguir
         </BotonCamara>
