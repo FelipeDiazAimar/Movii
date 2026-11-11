@@ -526,7 +526,10 @@ paths:
           description: >
             Body no es JSON válido (`body_invalido`), o faltan datos
             obligatorios: nombre del destinatario, calle, localidad o peso
-            (`campos_obligatorios`).
+            (`campos_obligatorios`), el tamaño del paquete no es `chico`,
+            `mediano` ni `grande` (`tamano_invalido`, mensaje "el tamaño del
+            paquete debe ser chico, mediano o grande"), o la fecha de entrega
+            no es YYYY-MM-DD de hoy en adelante (`fecha_invalida`).
           content:
             application/json:
               schema:
@@ -874,7 +877,8 @@ paths:
         "409":
           description: >
             Uno o más envíos no están pendientes
-            (`envio_no_disponible`), o la recomendación es `no_conviene` y
+            (`envio_no_disponible`), la ruta ya salió del depósito y no admite
+            envíos nuevos (`ruta_iniciada`), o la recomendación es `no_conviene` y
             falta `forzar: true` (`no_conviene`).
           content:
             application/json:
@@ -2189,6 +2193,64 @@ paths:
         "401": { $ref: "#/components/responses/NoAutenticado" }
         "403": { $ref: "#/components/responses/RolNoAutorizado" }
 
+  /rutas/{id}/iniciar:
+    post:
+      tags: [rutas]
+      summary: Iniciar la ruta (el camión sale del depósito)
+      description: |
+        Todos los envíos asignados de la ruta pasan a en_camino (cada uno con su evento en el
+        historial y su aviso al destinatario) y la ruta queda en_curso. El simulador GPS solo mueve
+        camiones con la ruta en curso. Un repartidor solo puede iniciar sus rutas (otra → 404).
+      operationId: iniciarRuta
+      x-required-role: [operador, admin, repartidor]
+      security:
+        - bearerAuth: []
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200":
+          description: Ruta iniciada (0 si ya no quedaba nada en el depósito).
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  envios_en_camino: { type: integer }
+        "401": { $ref: "#/components/responses/NoAutenticado" }
+        "404": { description: La ruta no existe (o no es del repartidor). }
+
+  /admin/demo/reiniciar:
+    post:
+      tags: [demo]
+      summary: Dejar el día de demostración en su estado inicial (botón ▶)
+      description: |
+        Completa el historial de 30 días si falta y vuelve a armar la operación de hoy (rutas con
+        vehículo, primeras entregas de la mañana hechas), los pendientes y las rutas de mañana.
+        Solo reescribe datos de demostración (destinatarios demo y la flota demo): no toca usuarios,
+        vehículos agregados a mano ni envíos o rutas reales. Mientras corre, el simulador GPS se pausa.
+        Se apaga con DEMO_REINICIO=false.
+      operationId: reiniciarDemo
+      x-required-role: [admin]
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Estado inicial listo.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  fecha: { type: string, format: date }
+                  rutas_hoy: { type: integer }
+                  envios_hoy: { type: integer }
+                  envios_borrados: { type: integer }
+                  dias_historial_nuevos: { type: integer }
+                  duracion_ms: { type: integer }
+        "401": { $ref: "#/components/responses/NoAutenticado" }
+        "403": { $ref: "#/components/responses/RolNoAutorizado" }
+        "409": { description: "Ya hay un reinicio en curso (reinicio_en_curso) o no hay repartidores activos (sin_repartidores)." }
+
 components:
   securitySchemes:
     bearerAuth:
@@ -2393,6 +2455,11 @@ components:
           type: string
         codigo_postal:
           type: string
+        email:
+          type: string
+          format: email
+          maxLength: 150
+          description: "Opcional. Respaldo de los avisos cuando no hay WhatsApp. Un mail mal escrito responde 400 email_invalido."
       required: [nombre, telefono, calle, numero, piso_depto, localidad, codigo_postal]
 
     DestinatarioConId:
@@ -2584,7 +2651,12 @@ components:
           properties:
             cantidad_envios:
               type: integer
-          required: [cantidad_envios]
+            entregados: { type: integer }
+            no_entregados: { type: integer }
+            peso_total: { type: number, description: "Suma del peso de los envíos (kg)." }
+            vehiculo_patente: { type: string, description: "Vacío si la ruta no tiene vehículo." }
+            vehiculo_tipo: { type: string }
+          required: [cantidad_envios, entregados, no_entregados, peso_total, vehiculo_patente, vehiculo_tipo]
 
     RutaDetalle:
       type: object
@@ -2904,7 +2976,13 @@ components:
               type: object
               nullable: true
             paradas_antes: { type: integer }
-            eta_desde: { type: string, format: date-time }
+            eta_desde:
+              type: string
+              format: date-time
+              description: |
+                Opcional (igual que eta_hasta y eta_minutos): se omite si no hay
+                recorrido o si la última posición del vehículo (vehiculo.en)
+                tiene más de 15 minutos. Nunca es anterior al momento de la consulta.
             eta_hasta: { type: string, format: date-time }
             eta_minutos: { type: integer }
       required: [codigo_guia, estado, localidad, actualizado_en, historial]
@@ -3354,7 +3432,11 @@ components:
       type: object
       properties:
         tipo: { type: string, enum: [envio_en_camino, envio_entregado, envio_no_entregado, envio_reprogramado, ruta_asignada] }
-        estado: { type: string, enum: [pendiente, enviado, fallido, omitido] }
+        canal: { type: string, enum: [whatsapp, mail], description: "Por dónde salió: WhatsApp, o mail de respaldo si WhatsApp no está vinculado o el número no tiene WhatsApp." }
+        estado:
+          type: string
+          enum: [pendiente, enviado, fallido, omitido, simulado]
+          description: "simulado = destinatario de datos de demostración (cmd/demo): se registra el mensaje pero no se envía."
         mensaje: { type: string }
         error: { type: string, nullable: true }
         created_at: { type: string, format: date-time }
@@ -3369,6 +3451,13 @@ components:
         qr: { type: string, description: Contenido del QR vigente. }
         qr_vence: { type: string, format: date-time }
         qr_imagen: { type: string, description: "QR listo para mostrar (data URL PNG)." }
+        mail:
+          type: object
+          description: Canal de mail de respaldo de los avisos (y del código de acceso).
+          properties:
+            configurado: { type: boolean }
+            proveedor: { type: string, enum: [gmail, smtp, resend, log] }
+            remitente: { type: string }
 
     DesafioLogin:
       type: object

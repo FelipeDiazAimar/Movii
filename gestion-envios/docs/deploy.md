@@ -44,6 +44,8 @@
    OTP_MAX_INTENTOS=3             # intentos por código
    RESEND_API_KEY=re_...          # mail del código a quien no tiene celular; vacío = va al log
    MAIL_FROM=Movii <no-reply@tu-dominio.com>
+   SMTP_USER=avisos.movii@gmail.com   # Gmail (prioridad sobre Resend): código y respaldo de avisos
+   SMTP_PASSWORD=abcdefghijklmnop     # contraseña de aplicación de Google (16 letras)
    GOOGLE_CLIENT_ID=...apps.googleusercontent.com
    GOOGLE_CLIENT_SECRET=...
    GOOGLE_CALLBACK_URL=https://<dominio-railway>/api/auth/google/callback
@@ -90,6 +92,20 @@ Mail con [Resend](https://resend.com) (gratis hasta 3.000 mails/mes):
 1. Crear cuenta → **API Keys** → crear una → `RESEND_API_KEY`.
 2. **Domains** → agregar el dominio de la empresa y cargar los registros DNS que indica. `MAIL_FROM` tiene que usar ese dominio (ej. `Movii <no-reply@empresa.com>`). Para probar sin dominio: `MAIL_FROM=onboarding@resend.dev` (solo envía al mail de la cuenta de Resend).
 3. Sin `RESEND_API_KEY`/`MAIL_FROM` el código se escribe en el log de Railway (igual que WhatsApp deshabilitado).
+
+Mail con **Gmail** (recomendado: manda a cualquier destinatario sin dominio propio; tiene prioridad sobre Resend):
+1. En la cuenta de Google que va a mandar los mails, activar la **verificación en dos pasos**.
+2. **Cuenta de Google → Seguridad → Contraseñas de aplicaciones** → crear una ("Movii") y copiar las 16 letras.
+3. Cargar `SMTP_USER=<la cuenta>@gmail.com` y `SMTP_PASSWORD=<las 16 letras>`. El panel **WhatsApp y mail** muestra "Mail de respaldo · Gmail".
+4. Los avisos al destinatario salen por WhatsApp; si WhatsApp no está vinculado, el número no es válido o no tiene WhatsApp, salen por mail (si el envío tiene el mail del destinatario). El detalle del envío muestra por qué canal salió cada aviso.
+
+**Datos de demostración: botón ▶.** En el centro de operaciones el admin ve un botón ▶ que deja el estado inicial de un día normal para simular: completa el historial de 30 días si falta y vuelve a armar la operación de hoy (rutas con vehículo y las primeras entregas de la mañana hechas), los pendientes y las rutas de mañana. Cada toque vuelve a ese estado. Solo reescribe datos de demostración (destinatarios marcados `demo` y la flota demo): usuarios, vehículos agregados a mano y envíos o rutas reales no se tocan. Los avisos de esos envíos quedan "simulado" (no se manda nada). Las direcciones salen de un catálogo con coordenadas fijas, así que no depende del geocodificador. `DEMO_REINICIO=false` lo apaga. Lo mismo por consola: `go run ./cmd/demo` (pide escribir "si" y muestra a qué base se conecta); `-limpiar` borra todo lo ficticio. Necesita las migraciones 0014 y 0015 aplicadas (la API nueva desplegada).
+
+**Salir a repartir.** Un envío pasa a "en camino" solo cuando se inicia su ruta (botón "Iniciar ruta" en la web o en la app): todos los envíos de la ruta salen a la vez. Ya no se marca envío por envío (el endpoint `PUT /envios/{id}/estado` sigue en la API, pero ni la web ni la app lo ofrecen). Una ruta que ya salió no admite envíos nuevos (409 `ruta_iniciada`).
+
+**Orden de las paradas.** Cada ruta se visita en el orden del recorrido más corto por calles (ida desde el depósito y vuelta), que se recalcula al asignar envíos y al iniciar la ruta. Ver `docs/decisions/orden-de-rutas.md`.
+
+**Entregas simuladas.** El simulador GPS (`SIMULADOR_GPS=true`) solo mueve camiones con la ruta **en curso**: una ruta planificada espera en el depósito hasta que se inicia (botón "Iniciar ruta" en Operaciones o en el detalle de la ruta, o el repartidor desde la app al marcar un envío en camino). Al iniciarla, todos sus envíos pasan a "en camino". Con `SIMULADOR_ENTREGAS=true` (por defecto), en cada domicilio el camión se queda `SIMULADOR_PARADA_SEG` segundos (40 por defecto) y, si el envío es de demostración, lo entrega con receptor, firma y foto o (1 de cada 10) registra una incidencia; si el envío es real, espera en la puerta a que el repartidor lo resuelva desde la app. Al terminar vuelve al depósito y la ruta queda completada. La web se entera al instante de cada cambio (evento SSE `cambio`). Para una presentación de ~30 minutos conviene `SIMULADOR_FACTOR=1.5`. Los camiones de `SIMULADOR_ENTREGA_MANUAL` (por defecto el TRK-318, el naranja, cuya ruta el ▶ deja sin iniciar para la cuenta `repartidor@movii.demo`) no entregan solos: llegan a cada puerta y esperan a que se confirme la entrega (o la incidencia) desde la app; van a `SIMULADOR_VELOCIDAD_MANUAL` km/h (45 por defecto) para no esperar tanto entre paradas.
 
 **Login con Google (T2).**
 1. [Google Cloud Console](https://console.cloud.google.com) → crear proyecto → **APIs y servicios → Pantalla de consentimiento OAuth** (tipo Externo, scopes `openid`, `email`, `profile`; mientras esté "en prueba" solo entran los usuarios de prueba cargados).
