@@ -23,6 +23,7 @@ import { reprogramarEnvio } from "@/features/envios/api";
 
 import { Route } from "lucide-react";
 import { BotonAbrirMaps } from "@/features/mapas/BotonAbrirMaps";
+import { formatearKg } from "@/utils/numeros";
 export function RutaDetallePage() {
   const { id } = useParams<{ id: string }>();
   const rutaId = id as string;
@@ -139,7 +140,6 @@ export function RutaDetallePage() {
             <dl className="grid grid-cols-2 gap-4 sm:grid-cols-3">
               <Dato label="Fecha" value={formatearDia(ruta.fecha)} />
               <Dato label="Zona" value={ruta.zona || "—"} />
-              <Dato label="Fecha" value={formatearDia(ruta.fecha)} />
               <Dato label="Repartidor" value={ruta.repartidor_nombre ?? ruta.repartidor_id} />
             </dl>
             {esPlanificada && !enReparto && (
@@ -168,7 +168,7 @@ export function RutaDetallePage() {
         </Card>
         <Card>
           <p className="text-xs font-medium text-gray-500">Peso total</p>
-          <p className="text-2xl font-semibold text-gray-900">{ruta.peso_total} kg</p>
+          <p className="text-2xl font-semibold text-gray-900">{formatearKg(ruta.peso_total)} kg</p>
         </Card>
       </div>
       <VehiculoRutaCard rutaId={ruta.id} fecha={ruta.fecha} pesoRuta={ruta.peso_total} />

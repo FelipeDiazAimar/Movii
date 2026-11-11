@@ -15,6 +15,7 @@ import { SkeletonPagina } from "@/components/ui/Skeleton";
 import { formatearDia } from "@/utils/fechas";
 
 import { Plus } from "lucide-react";
+import { formatearKg } from "@/utils/numeros";
 export function RepartidorDetallePage() {
   const { id } = useParams<{ id: string }>();
   const queryClient = useQueryClient();
@@ -91,7 +92,7 @@ Nueva ruta</Button>
                   <td className="whitespace-nowrap px-4 py-2 text-gray-700">{formatearDia(r.fecha)}</td>
                   <td className="px-4 py-2 text-gray-700">{r.zona || "—"}</td>
                   <td className="whitespace-nowrap px-4 py-2 text-gray-700">{r.vehiculo_patente || "—"}</td>
-                  <td className="whitespace-nowrap px-4 py-2 text-gray-700">{r.cantidad_envios} · {r.peso_total} kg</td>
+                  <td className="whitespace-nowrap px-4 py-2 text-gray-700">{r.cantidad_envios} · {formatearKg(r.peso_total)} kg</td>
                   <td className="px-4 py-2">
                     <EstadoRutaBadge estado={r.estado} />
                   </td>
@@ -127,7 +128,7 @@ Nueva ruta</Button>
                 <option value="">Seleccionar…</option>
                 {asignables.map((r) => (
                   <option key={r.id} value={r.id}>
-                    {r.nombre || "(sin nombre)"} · {formatearDia(r.fecha)} · {r.cantidad_envios} envío(s), {r.peso_total} kg · hoy de {r.repartidor_nombre ?? "nadie"}{r.vehiculo_patente ? ` · ${r.vehiculo_patente}` : ""}
+                    {r.nombre || "(sin nombre)"} · {formatearDia(r.fecha)} · {r.cantidad_envios} envío(s), {formatearKg(r.peso_total)} kg · hoy de {r.repartidor_nombre ?? "nadie"}{r.vehiculo_patente ? ` · ${r.vehiculo_patente}` : ""}
                   </option>
                 ))}
               </SelectField>

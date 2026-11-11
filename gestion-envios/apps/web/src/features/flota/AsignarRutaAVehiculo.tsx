@@ -5,6 +5,7 @@ import { Select } from "@/components/ui/Select";
 import { getApiErrorMessage } from "@/services/api-client";
 import { asignarVehiculoARuta } from "./api";
 import type { Vehiculo } from "./types";
+import { formatearKg } from "@/utils/numeros";
 
 /**
  * Asigna una ruta del día al vehículo (el mismo vínculo que se edita desde la
@@ -43,8 +44,8 @@ export function AsignarRutaAVehiculo({ vehiculo, fecha }: { vehiculo: Vehiculo; 
             label: `${r.nombre} · ${r.repartidor_nombre ?? "sin repartidor"}`,
             disabled: noEntra,
             detalle: noEntra
-              ? `No entra: ${r.peso_total} kg > ${vehiculo.capacidad_peso} kg`
-              : `${r.cantidad_envios} envío(s) · ${r.peso_total} kg · ${Math.round((r.peso_total / vehiculo.capacidad_peso) * 100)}% del vehículo`,
+              ? `No entra: ${formatearKg(r.peso_total)} kg > ${vehiculo.capacidad_peso} kg`
+              : `${r.cantidad_envios} envío(s) · ${formatearKg(r.peso_total)} kg · ${Math.round((r.peso_total / vehiculo.capacidad_peso) * 100)}% del vehículo`,
           };
         })}
       />
