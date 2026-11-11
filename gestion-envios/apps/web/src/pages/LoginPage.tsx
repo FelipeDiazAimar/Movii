@@ -28,11 +28,8 @@ export function LoginPage() {
   useBordesNavegador("#1a1a1a");
   const location = useLocation();
 
-  // Credenciales del admin de la demo (migrations/0002_seed.up.sql)
-  // precargadas, igual que en la app móvil. autoComplete="off" evita que el
-  // navegador pise la contraseña con una vieja guardada.
-  const [email, setEmail] = useState("supervisor@movii.demo");
-  const [password, setPassword] = useState("Movii2026!");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
 
   // Segundo paso (HU-16): código de 6 dígitos que llega por WhatsApp.
   const [desafio, setDesafio] = useState<DesafioLogin | null>(null);

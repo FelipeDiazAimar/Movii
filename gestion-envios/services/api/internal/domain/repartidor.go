@@ -5,6 +5,7 @@ package domain
 type EnvioDelDia struct {
 	Envio
 	Destinatario Destinatario `json:"destinatario"`
+	Remitente    Remitente    `json:"remitente"`
 	RutaNombre   string       `json:"ruta_nombre"`
 }
 

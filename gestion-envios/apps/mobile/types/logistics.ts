@@ -37,6 +37,13 @@ export type Shipment = {
   packageDescription: string;
   weight: string;
   fragile: boolean;
+  /** Datos extra del envío real (los trae la API del día). */
+  urgent?: boolean;
+  size?: string;
+  deliveryDate?: string;
+  senderPhone?: string;
+  senderAddress?: string;
+  recipientUnit?: string;
   notes?: string;
   timeline: TimelineEvent[];
   failureReason?: string;

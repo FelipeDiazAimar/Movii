@@ -176,6 +176,8 @@ export type EnvioDelDiaAPI = {
   urgente: boolean;
   ruta_id: string | null;
   ruta_nombre: string;
+  fecha_entrega?: string;
+  remitente?: { nombre: string; telefono?: string; direccion?: string };
   destinatario: {
     id: string;
     nombre: string;
@@ -228,7 +230,13 @@ export function mapEnvioDelDiaToShipment(envio: EnvioDelDiaAPI, driverId: string
       postalCode: envio.destinatario.codigo_postal,
       phone: envio.destinatario.telefono,
     },
-    sender: "",
+    sender: envio.remitente?.nombre ?? "",
+    senderPhone: envio.remitente?.telefono || undefined,
+    senderAddress: envio.remitente?.direccion || undefined,
+    size: envio.tamano || undefined,
+    urgent: envio.urgente,
+    deliveryDate: envio.fecha_entrega || undefined,
+    recipientUnit: envio.destinatario.piso_depto || undefined,
     zone: "Centro",
     driverId,
     routeName: envio.ruta_nombre,

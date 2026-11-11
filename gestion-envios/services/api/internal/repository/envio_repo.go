@@ -336,9 +336,10 @@ func (r *EnvioRepo) ListDelDiaPorRepartidor(ctx context.Context, repartidorID, f
 		SELECT e.id, e.codigo_guia, e.estado, e.peso, e.tamano, e.tipo_contenido, e.fragil, e.urgente,
 		       e.remitente_id, e.destinatario_id, e.ruta_id, to_char(e.fecha_entrega, 'YYYY-MM-DD'),
 		       d.id, d.nombre, d.telefono, d.calle, d.numero, COALESCE(d.piso_depto, ''), d.localidad, d.codigo_postal,
-		       r.nombre
+		       r.nombre, rem.nombre, COALESCE(rem.telefono, ''), COALESCE(rem.direccion, '')
 		FROM envios e
 		JOIN rutas r ON r.id = e.ruta_id
+		JOIN remitentes rem ON rem.id = e.remitente_id
 		JOIN destinatarios d ON d.id = e.destinatario_id
 		WHERE r.repartidor_id = $1
 		  AND (e.fecha_entrega = $2::date
@@ -355,16 +356,16 @@ func (r *EnvioRepo) ListDelDiaPorRepartidor(ctx context.Context, repartidorID, f
 	for rows.Next() {
 		var e domain.EnvioDelDia
 		var rutaID sql.NullString
-		// Orden exacto de columnas del SELECT (21 en total):
+		// Orden exacto de columnas del SELECT (24 en total):
 		// 1-10: e.id, codigo_guia, estado, peso, tamano, tipo_contenido, fragil, urgente, remitente_id, destinatario_id
 		// 11: e.ruta_id, 12: fecha_entrega
 		// 13-20: d.id, nombre, telefono, calle, numero, piso_depto, localidad, codigo_postal
-		// 21: r.nombre
+		// 21: r.nombre, 22-24: remitente nombre, telefono, direccion
 		if err := rows.Scan(&e.ID, &e.CodigoGuia, &e.Estado, &e.Peso, &e.Tamano, &e.TipoContenido, &e.Fragil, &e.Urgente,
 			&e.RemitenteID, &e.DestinatarioID, &rutaID, &e.FechaEntrega,
 			&e.Destinatario.ID, &e.Destinatario.Nombre, &e.Destinatario.Telefono, &e.Destinatario.Calle,
 			&e.Destinatario.Numero, &e.Destinatario.PisoDepto, &e.Destinatario.Localidad, &e.Destinatario.CodigoPostal,
-			&e.RutaNombre,
+			&e.RutaNombre, &e.Remitente.Nombre, &e.Remitente.Telefono, &e.Remitente.Direccion,
 		); err != nil {
 			return nil, err
 		}

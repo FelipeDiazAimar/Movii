@@ -18,6 +18,11 @@ vi.mock("@/services/api-client", () => ({
   getApiErrorMessage: (_e: unknown, fallback?: string) => fallback ?? "error",
 }));
 
+async function escribirCredenciales() {
+  await userEvent.type(screen.getByLabelText("Email"), "supervisor@movii.demo");
+  await userEvent.type(screen.getByLabelText("Contraseña"), "clave-de-prueba");
+}
+
 function renderPage() {
   render(
     <MemoryRouter initialEntries={["/login"]}>
@@ -40,6 +45,7 @@ describe("LoginPage — login en dos pasos (HU-16)", () => {
   it("sin celular entra directo con la contraseña", async () => {
     login.mockResolvedValue(sesion);
     renderPage();
+    await escribirCredenciales();
     await userEvent.click(screen.getByRole("button", { name: "Ingresar" }));
     expect(await screen.findByText("Panel")).toBeInTheDocument();
     expect(verificarCodigo).not.toHaveBeenCalled();
@@ -49,6 +55,7 @@ describe("LoginPage — login en dos pasos (HU-16)", () => {
     login.mockResolvedValue({ desafio_id: "d1", telefono: "+54 9 3564 ••••45", vence_en_segundos: 300 });
     verificarCodigo.mockResolvedValue(sesion);
     renderPage();
+    await escribirCredenciales();
 
     await userEvent.click(screen.getByRole("button", { name: "Ingresar" }));
     expect(await screen.findByText(/\+54 9 3564 ••••45/)).toBeInTheDocument();

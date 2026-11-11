@@ -8,7 +8,7 @@ import { ShipmentTimeline } from "@/components/timeline";
 import { GlassCard, PrimaryButton } from "@/components/ui/movii-ui";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { useAccionEnvio } from "@/hooks/use-accion-envio";
-import { getDriver } from "@/mock/shipments";
+import { InfoEnvio } from "@/components/info-envio";
 import { actualizarEstadoEnvio } from "@/lib/api-client";
 import { haptic } from "@/lib/haptics";
 import { useMovii } from "@/lib/movii-context";
@@ -32,11 +32,8 @@ export default function StopDetailScreen() {
       .map((e) => `${e.recipient.address}, ${e.recipient.locality}`);
   }, [rutasDelDia, shipment]);
   if (!shipment) return null;
-  // El repartidor es quien inició sesión (la API solo devuelve sus envíos); el mock solo aplica a los envíos de ejemplo.
-  const esEnvioReal = shipment.driverId === "drv-real";
-  const driver = esEnvioReal
-    ? { name: driverName, initials: driverName.split(" ").filter(Boolean).slice(0, 2).map((p) => p[0]?.toUpperCase()).join("") }
-    : getDriver(shipment.driverId);
+  // El repartidor es quien inició sesión: la API solo devuelve los envíos de su ruta.
+  const driver = { name: driverName, initials: driverName.split(" ").filter(Boolean).slice(0, 2).map((p) => p[0]?.toUpperCase()).join("") };
   const abrirMaps = () => {
     const paradas = modoMaps === "completo" && paradasRuta.length > 0 ? paradasRuta : [`${shipment.recipient.address}, ${shipment.recipient.locality}`];
     const url = urlGoogleMaps({ paradas, modo: modoMaps });
@@ -63,7 +60,7 @@ export default function StopDetailScreen() {
       <AppHeader title="Detalle de parada" subtitle={`Parada ${shipment.stopOrder} · ${shipment.routeName}`} />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <GlassCard oscura style={styles.hero}><View style={styles.heroTop}><View><Text style={styles.code}>{shipment.code}</Text><Text style={styles.recipient}>{shipment.recipient.name}</Text></View><StatusBadge status={shipment.status} /></View><View style={styles.addressRow}><Text style={styles.addressIcon}>⌖</Text><View style={styles.addressCopy}><Text style={styles.address}>{shipment.recipient.address}</Text><Text style={styles.locality}>{shipment.recipient.locality} · CP {shipment.recipient.postalCode}</Text></View></View><View style={styles.window}><Text style={styles.windowIcon}>◷</Text><Text style={styles.windowText}>Ventana de entrega: <Text style={styles.windowStrong}>{shipment.timeWindow}</Text></Text></View></GlassCard>
-        {real ? <TrayectoParada envioId={shipment.id} /> : <View style={styles.mapPlaceholder}><View style={styles.mapRoadA} /><View style={styles.mapRoadB} /><View style={styles.mapRoute} /><View style={styles.mapPin}><Text style={styles.mapPinText}>⌖</Text></View><View style={styles.mapCaption}><Text style={styles.mapCaptionText}>Mapa disponible con la ruta real</Text></View></View>}
+        <TrayectoParada envioId={shipment.id} />
         <GlassCard oscura style={styles.mapsCard}>
           <View style={styles.segmento}>
             {(["proximo", "completo"] as const).map((m) => (
@@ -78,7 +75,7 @@ export default function StopDetailScreen() {
         {resolved ? <View style={styles.actions}><GlassCard style={styles.resolved}><Text style={styles.resolvedTitle}>{shipment.status === "entregado" ? "Entrega confirmada" : "Entrega no realizada"}</Text><Text style={styles.resolvedCopy}>{shipment.status === "entregado" ? `Recibió: ${shipment.recipientName ?? shipment.recipient.name}. Evidencia registrada.` : shipment.failureReason ?? "Incidencia registrada."}</Text></GlassCard>{real && acciones.reprogramar ? reprogramarLink : null}</View> : <View style={styles.actions}>{canMarkEnRoute ? <PrimaryButton label={enviando ? "Actualizando…" : "Marcar en camino"} tone="secondary" onPress={() => cambiarEstado("en_camino")} disabled={enviando} icon="→" /> : <View style={styles.inRouteCard}><View style={styles.inRouteAccent} /><View style={styles.inRouteIcon}><Text style={styles.inRouteArrow}>→</Text></View><View style={styles.inRouteCopy}><Text style={styles.inRouteEyebrow}>RUTA ACTIVA</Text><Text style={styles.inRouteTitle}>Ya estás en camino</Text><Text style={styles.inRouteDescription}>Actualizá la entrega cuando llegues al destino.</Text></View><View style={styles.liveDot} /></View>}{real && acciones.volverAsignado ? <Pressable onPress={() => cambiarEstado("asignado")} disabled={enviando} style={({ pressed }) => [styles.reschedule, pressed && styles.pressed]} accessibilityRole="button"><Text style={styles.rescheduleText}>{enviando ? "Actualizando…" : "Volver a asignado"}</Text><Text style={styles.chevron}>‹</Text></Pressable> : null}<View style={styles.actionPair}><View style={styles.actionHalf}><PrimaryButton label="Entregado" onPress={() => router.push({ pathname: "/delivery/[id]", params: { id: shipment.id } })} icon="✓" /></View><View style={styles.actionHalf}><PrimaryButton label="No entregado" tone="danger" onPress={() => router.push({ pathname: "/failure/[id]", params: { id: shipment.id } })} icon="!" /></View></View>{!real ? reprogramarLink : null}</View>}
         {error ? <Text style={styles.error} accessibilityRole="alert">{error}</Text> : null}
         <Text style={styles.section}>Información del envío</Text>
-        <GlassCard style={styles.infoCard}><View style={styles.infoRow}><Text style={styles.infoLabel}>Remitente</Text><Text style={styles.infoValue}>{shipment.sender}</Text></View><View style={styles.divider} /><View style={styles.infoRow}><Text style={styles.infoLabel}>Paquete</Text><Text style={styles.infoValue}>{shipment.packageDescription}</Text></View><View style={styles.divider} /><View style={styles.infoRow}><Text style={styles.infoLabel}>Peso</Text><Text style={styles.infoValue}>{shipment.weight}{shipment.fragile ? " · Frágil" : ""}</Text></View>{shipment.notes ? <><View style={styles.divider} /><View style={styles.note}><Text style={styles.noteTitle}>Indicaciones</Text><Text style={styles.noteText}>{shipment.notes}</Text></View></> : null}</GlassCard>
+        <InfoEnvio envio={shipment} />
         <Text style={styles.section}>Estado del envío</Text><GlassCard><ShipmentTimeline events={shipment.timeline} /></GlassCard>
         <GlassCard style={styles.driverCard}><View style={styles.driverAvatar}><Text style={styles.driverInitials}>{driver.initials}</Text></View><View><Text style={styles.driverName}>{driver.name}</Text><Text style={styles.driverDetail}>Repartidor asignado · {shipment.routeName}</Text></View></GlassCard>
       </ScrollView>
