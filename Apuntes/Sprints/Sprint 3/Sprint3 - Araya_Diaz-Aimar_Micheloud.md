@@ -126,7 +126,7 @@ Detalle y justificación en la tabla 2.1 y las tareas T8 a T17 del Sprint Backlo
 | Suite | Cantidad | Resultado |
 | --- | :-: | --- |
 | Go (unitarias + integración contra PostgreSQL) | 297 funciones de test | ✅ en verde (`go test ./... -p 1`, 11/11) |
-| Web (Vitest + Testing Library) | 210 tests | ✅ |
+| Web (Vitest + Testing Library) | 215 tests | ✅ |
 | Mobile (Vitest) | 65 tests (+1 salteado) | ✅ |
 
 Cifras de la corrida del 11/11/2026, con las mejoras posteriores al cierre (al 07/11 eran 215, 71 y 51). Cobertura de la API (`-coverpkg=./...`): 66,3 % de las sentencias, 70,5 % sin contar los ejecutables `cmd/*` (el 10/11 era 71,4 %); la baja viene de los handlers nuevos sin test propio (iniciar ruta, demo, pedidos y sugerencias).

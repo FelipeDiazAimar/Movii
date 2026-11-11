@@ -1345,7 +1345,7 @@ La estrategia siguió el Plan de Pruebas del Sprint 3 (IEEE 829 / ISTQB): prueba
 
 Cifras de la API medidas el 10/11/2026 sobre `main` más los tests agregados en el cierre (las de web y móvil, sobre el commit `e9fc789`).
 
-**Corrida del 11/11/2026**, con las mejoras posteriores al cierre (6.12) integradas con las del equipo: API **297** funciones de test, web **210** y móvil **65** (+1 salteado), todo en verde (la API, contra una base PostgreSQL descartable).
+**Corrida del 11/11/2026**, con las mejoras posteriores al cierre (6.12) integradas con las del equipo: API **297** funciones de test, web **215** y móvil **65** (+1 salteado), todo en verde (la API, contra una base PostgreSQL descartable).
 
 **Cobertura de la API** (`go test ./... -coverpkg=./...`, que suma la cobertura que aportan las pruebas de flujo del paquete `tests`): **71,4 % de las sentencias**, por encima del umbral del 70 % de la DoD. Por paquete: `httprouter` 97,9 %, `middleware` 88,2 %, `google` 84,2 %, `repository` 82,9 %, `services` 82,4 %, `config` 77,5 %, `mail` 72,7 %, `handlers` 72,5 %, `geo` 70,1 % y `platform/db` 17,9 %. `platform/whatsapp` (cliente real de `whatsmeow`, que requiere una cuenta vinculada) y los ejecutables `cmd/*` (arranque, migración y datos de demo) no se prueban de forma automática (0 %); sin contar `cmd/*`, la cobertura es del 76,4 %. Durante el cierre se agregaron tests para los borrados (`eliminar_handler`), los repositorios de geo, perfil y WhatsApp, el handler de rutas (listado, edición y recomendación por distancia) y los handlers de WhatsApp y del perfil del repartidor, lo que llevó la cobertura del 65,0 % al 71,4 %. **Al 11/11 la cobertura es 66,3 % (70,5 % sin `cmd/*`)**: los servicios nuevos tienen tests (orden de rutas, simulador, notificador, estado inicial), pero los handlers nuevos (iniciar ruta, demo, pedidos y sugerencias) todavía no tienen test propio y `handlers` bajó al 63,2 %.
 
@@ -1408,7 +1408,7 @@ La tabla muestra el problema principal del sprint: el trabajo quedó por encima 
 
 1. **Código en `main` con revisión cruzada:** cumplida para HU-11 a HU-19 y las mejoras T1 a T7 mediante revisión conjunta de los cambios entre integrantes (comparación de las dos implementaciones, merges entre ramas). No se usaron Pull Requests formales en todas las integraciones; es una de las acciones de mejora de la retrospectiva.
 2. **Compilación:** cumplida (`go build`, `tsc`, `vite build`, `expo export`).
-3. **Tests en verde:** cumplida. `go test ./... -p 1` (260 tests de API, todos los paquetes en verde, incluidos los 10 E2E de flujos), 115 tests web y 62 móvil (más 1 salteado de plantilla). Al 11/11, con las mejoras posteriores al cierre: 297 de API, 210 web y 65 móvil, todos en verde.
+3. **Tests en verde:** cumplida. `go test ./... -p 1` (260 tests de API, todos los paquetes en verde, incluidos los 10 E2E de flujos), 115 tests web y 62 móvil (más 1 salteado de plantilla). Al 11/11, con las mejoras posteriores al cierre: 297 de API, 215 web y 65 móvil, todos en verde.
 4. **Integración continua:** cumplida. Los workflows `api-ci`, `web-ci` y `mobile-ci` terminaron en verde sobre el último commit de `main` (`e9fc789`, 07/11/2026, 22:18 UTC), según el historial de GitHub Actions.
 5. **Documentación de API:** cumplida; endpoints y esquemas del Sprint 3 en `docs/api/openapi.yaml`.
 6. **Criterios de aceptación verificados:** cumplida en el sistema corriendo (web, PWA y API desplegadas).

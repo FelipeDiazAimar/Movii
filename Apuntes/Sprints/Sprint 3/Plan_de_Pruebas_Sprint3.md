@@ -116,7 +116,7 @@ Prioridad: A = alta, M = media, B = baja. Tipo: Auto = automatizado, Man = manua
 | Suite | Tests | Resultado |
 | --- | :-: | --- |
 | Go | 297 funciones | ✅ |
-| Web | 210 | ✅ |
+| Web | 215 | ✅ |
 | Mobile | 65 (+1 salteado) | ✅ |
 
 Corrida del 11/11/2026 (al 07/11 eran 215, 71 y 51). Cobertura de la API: 66,3 % de las sentencias (70,5 % sin `cmd/*`).
