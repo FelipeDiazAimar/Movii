@@ -1,6 +1,6 @@
 import type { EstadoEnvioAPI } from "@/lib/api-client";
 import { M } from "@/constants/movii-design";
-import type { ShipmentStatus } from "@/types/logistics";
+import type { ShipmentStatus, TimelineEvent } from "@/types/logistics";
 
 /** Un código de guía completo, como MOV-20261111-0002 (para ir directo al detalle). */
 export const CODIGO_COMPLETO = /^MOV-\d{8}-\d{4}$/i;
@@ -49,3 +49,23 @@ export const ETIQUETA_ESTADO: Record<EstadoEnvioAPI, string> = {
 };
 
 export const ETIQUETA_TAMANO: Record<string, string> = { chico: "Chico", mediano: "Mediano", grande: "Grande" };
+
+const MOTIVOS_NO_ENTREGA: Record<string, string> = {
+  cliente_ausente: "Destinatario ausente",
+  direccion_incorrecta: "Dirección incorrecta",
+  rechazado: "Rechazado por el destinatario",
+  zona_insegura: "Zona insegura",
+  otro: "Otro motivo",
+};
+
+type EventoHistorial = { fecha: string; actor_nombre: string | null; estado_nuevo: EstadoEnvioAPI; motivo: string | null; comentario: string | null };
+
+/** Historial de un envío (del más viejo al más nuevo, como lo manda la API) → línea de tiempo, el más reciente arriba. */
+export function eventosDeHistorial(historial: EventoHistorial[], formatearFecha: (iso: string) => string): TimelineEvent[] {
+  return [...historial].reverse().map((ev) => ({
+    label: ev.estado_nuevo === "no_entregado" && ev.motivo ? `No entregado: ${MOTIVOS_NO_ENTREGA[ev.motivo] ?? ev.motivo}` : (ETIQUETA_ESTADO[ev.estado_nuevo] ?? ev.estado_nuevo),
+    detail: [ev.comentario, ev.actor_nombre ? `por ${ev.actor_nombre}` : ""].filter(Boolean).join(" · ") || "Registrado en el sistema",
+    timestamp: formatearFecha(ev.fecha),
+    completed: true,
+  }));
+}

@@ -14,7 +14,7 @@ import { M, SOMBRA } from "@/constants/movii-design";
 import { obtenerPedido, type PedidoDetalleAPI } from "@/lib/api-client";
 import { urlGoogleMaps } from "@/lib/google-maps";
 import { haptic } from "@/lib/haptics";
-import { colorCinta, ETIQUETA_ESTADO, ETIQUETA_TAMANO, estadoVisual, etiquetaRelativa, fechaCorta } from "@/lib/pedidos";
+import { colorCinta, ETIQUETA_ESTADO, ETIQUETA_TAMANO, estadoVisual, etiquetaRelativa, eventosDeHistorial, fechaCorta } from "@/lib/pedidos";
 import { formatearFecha, mensajeDeError } from "@/lib/seguimiento";
 import { useMovii } from "@/lib/movii-context";
 import type { TimelineEvent } from "@/types/logistics";
@@ -91,12 +91,7 @@ export default function PedidoScreen() {
   const direccion = `${d.calle} ${d.numero}${d.piso_depto ? `, ${d.piso_depto}` : ""}`;
   const hoy = new Date();
   const hoyISO = `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, "0")}-${String(hoy.getDate()).padStart(2, "0")}`;
-  const eventos: TimelineEvent[] = [...p.historial].reverse().map((ev) => ({
-    label: ev.estado_nuevo === "no_entregado" && ev.motivo ? `No entregado: ${MOTIVOS[ev.motivo] ?? ev.motivo}` : ETIQUETA_ESTADO[ev.estado_nuevo] ?? ev.estado_nuevo,
-    detail: [ev.comentario, ev.actor_nombre ? `por ${ev.actor_nombre}` : ""].filter(Boolean).join(" · ") || "Registrado en el sistema",
-    timestamp: formatearFecha(ev.fecha),
-    completed: true,
-  }));
+  const eventos = eventosDeHistorial(p.historial, formatearFecha);
   const cerrado = p.estado === "entregado" || p.estado === "no_entregado";
   const delDia = findShipment(p.id); // solo existe si es un envío de hoy: ahí se puede operar
   const llamar = () => { haptic.light(); void Linking.openURL(`tel:${d.telefono.replace(/[^\d+]/g, "")}`); };

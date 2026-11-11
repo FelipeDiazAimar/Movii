@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Linking, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 
 import { AppHeader } from "@/components/app-header";
@@ -9,11 +9,13 @@ import { GlassCard, PrimaryButton } from "@/components/ui/movii-ui";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { useAccionEnvio } from "@/hooks/use-accion-envio";
 import { InfoEnvio } from "@/components/info-envio";
-import { actualizarEstadoEnvio, obtenerMapaRuta, type MapaRutaAPI } from "@/lib/api-client";
+import { actualizarEstadoEnvio, obtenerMapaRuta, obtenerPedido, type MapaRutaAPI } from "@/lib/api-client";
+import { eventosDeHistorial } from "@/lib/pedidos";
+import type { TimelineEvent } from "@/types/logistics";
 import { haptic } from "@/lib/haptics";
 import { useMovii } from "@/lib/movii-context";
 import { TrayectoParada } from "@/components/trayecto-parada";
-import { accionesDisponibles } from "@/lib/seguimiento";
+import { accionesDisponibles, formatearFecha } from "@/lib/seguimiento";
 import { urlGoogleMaps, type ModoMaps } from "@/lib/google-maps";
 
 /** "2026-11-11" → "11/11/2026" (hoy se muestra como "Hoy"). */
@@ -50,6 +52,16 @@ export default function StopDetailScreen() {
     obtenerMapaRuta(rutaId).then((m) => vigente && setMapaRuta(m)).catch(() => undefined);
     return () => { vigente = false; };
   }, [rutaId]);
+  // Historial real del envío (la lista del día no lo trae): se vuelve a pedir cuando cambia el estado.
+  const [historial, setHistorial] = useState<TimelineEvent[] | null>(null);
+  const codigoEnvio = shipment?.code;
+  const estadoEnvio = shipment?.estadoApi;
+  useEffect(() => {
+    if (!codigoEnvio) return;
+    let vigente = true;
+    obtenerPedido(codigoEnvio).then((p) => vigente && setHistorial(eventosDeHistorial(p.historial, formatearFecha))).catch(() => vigente && setHistorial([]));
+    return () => { vigente = false; };
+  }, [codigoEnvio, estadoEnvio]);
   if (!shipment) return null;
   // El repartidor es quien inició sesión: la API solo devuelve los envíos de su ruta.
   const driver = { name: driverName, initials: driverName.split(" ").filter(Boolean).slice(0, 2).map((p) => p[0]?.toUpperCase()).join("") };
@@ -104,7 +116,7 @@ export default function StopDetailScreen() {
         {error ? <Text style={styles.error} accessibilityRole="alert">{error}</Text> : null}
         <Text style={styles.section}>Información del envío</Text>
         <InfoEnvio envio={shipment} />
-        <Text style={styles.section}>Estado del envío</Text><GlassCard><ShipmentTimeline events={shipment.timeline} /></GlassCard>
+        <Text style={styles.section}>Estado del envío</Text><GlassCard>{historial === null ? <ActivityIndicator color="#806700" /> : historial.length > 0 ? <ShipmentTimeline events={historial} /> : <Text style={styles.resolvedCopy}>Todavía no hay movimientos registrados.</Text>}</GlassCard>
         <GlassCard style={styles.driverCard}><View style={styles.driverAvatar}><Text style={styles.driverInitials}>{driver.initials}</Text></View><View><Text style={styles.driverName}>{driver.name}</Text><Text style={styles.driverDetail}>Repartidor asignado · {shipment.routeName}</Text></View></GlassCard>
       </ScrollView>
     </View>
