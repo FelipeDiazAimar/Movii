@@ -5,9 +5,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"strings"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"movii/api/internal/domain"
@@ -79,6 +81,13 @@ type EstadoService struct {
 	eventos        *repository.EventoRepo
 	confirmaciones *repository.ConfirmacionRepo
 	avisos         AvisosEnvio
+	orden          OrdenadorRuta
+}
+
+// ConOrden hace que, al iniciar una ruta, se recalcule su recorrido más corto desde el depósito.
+func (s *EstadoService) ConOrden(o OrdenadorRuta) *EstadoService {
+	s.orden = o
+	return s
 }
 
 // AvisosEnvio recibe cada cambio de estado confirmado de un envío para avisar
@@ -172,6 +181,53 @@ func (s *EstadoService) CambiarEstado(ctx context.Context, envioID, nuevo, actor
 	detalle.Estado = nuevo
 	s.avisar(detalle.Envio.ID)
 	return detalle.Envio, nil
+}
+
+// IniciarRuta hace salir la ruta del depósito: todos sus envíos asignados
+// pasan a "en camino" (cada uno con su evento y su aviso, igual que con
+// CambiarEstado). Con eso la ruta queda "en curso" y el camión arranca.
+// Devuelve cuántos envíos salieron. Un repartidor solo puede iniciar sus
+// rutas (otra ruta → repository.ErrNoEncontrado).
+func (s *EstadoService) IniciarRuta(ctx context.Context, rutaID, actorID, rol string) (int, error) {
+	var repartidorID string
+	err := s.pool.QueryRow(ctx, `SELECT repartidor_id::text FROM rutas WHERE id::text = $1`, rutaID).Scan(&repartidorID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return 0, repository.ErrNoEncontrado
+	}
+	if err != nil {
+		return 0, err
+	}
+	if rol == domain.RolRepartidor && repartidorID != actorID {
+		return 0, repository.ErrNoEncontrado
+	}
+	if s.orden != nil {
+		if err := s.orden.Ordenar(ctx, rutaID); err != nil {
+			log.Printf("iniciar ruta: no se pudo ordenar %s: %v", rutaID, err)
+		}
+	}
+	rows, err := s.pool.Query(ctx, `SELECT id::text FROM envios WHERE ruta_id::text = $1 AND estado = 'asignado' ORDER BY COALESCE(orden_ruta, 2147483647), created_at, id`, rutaID)
+	if err != nil {
+		return 0, err
+	}
+	var ids []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			rows.Close()
+			return 0, err
+		}
+		ids = append(ids, id)
+	}
+	rows.Close()
+	if err := rows.Err(); err != nil {
+		return 0, err
+	}
+	for i, id := range ids {
+		if _, err := s.CambiarEstado(ctx, id, domain.EstadoEnvioEnCamino, actorID, rol); err != nil {
+			return i, err
+		}
+	}
+	return len(ids), nil
 }
 
 // motivoValido indica si el motivo está en la lista cerrada de HU-07.
@@ -307,7 +363,7 @@ func (s *EstadoService) Reprogramar(ctx context.Context, envioID, nuevaFecha, fr
 		return domain.Envio{}, err
 	}
 	anterior := detalle.Estado
-	comentario := fmt.Sprintf("reprogramado para %s (%s)", nuevaFecha, franja)
+	comentario := comentarioReprogramacion(parsed, franja)
 	if err := s.eventos.Registrar(ctx, tx, envioID, &anterior, domain.EstadoEnvioPendiente, nil, &comentario, actorIDPtr(actorID), nil); err != nil {
 		return domain.Envio{}, err
 	}
@@ -318,6 +374,21 @@ func (s *EstadoService) Reprogramar(ctx context.Context, envioID, nuevaFecha, fr
 	detalle.Estado = domain.EstadoEnvioPendiente
 	s.avisar(detalle.Envio.ID)
 	return detalle.Envio, nil
+}
+
+// comentarioReprogramacion arma el comentario legible del evento de
+// reprogramación (H26): "Reprogramado para el 12/11/2026 (mañana)".
+func comentarioReprogramacion(fecha time.Time, franja string) string {
+	etiquetas := map[string]string{
+		domain.FranjaManana: "mañana",
+		domain.FranjaTarde:  "tarde",
+		domain.FranjaNoche:  "noche",
+	}
+	etiqueta, ok := etiquetas[franja]
+	if !ok {
+		etiqueta = franja
+	}
+	return fmt.Sprintf("Reprogramado para el %s (%s)", fecha.Format("02/01/2006"), etiqueta)
 }
 
 // relacionValida indica si la relación del receptor está en la lista

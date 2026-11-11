@@ -24,14 +24,14 @@ func CreateRemitente(ctx context.Context, q Querier, r domain.Remitente) (domain
 // CreateDestinatario inserta un destinatario nuevo. q puede ser el pool o una transacción.
 func CreateDestinatario(ctx context.Context, q Querier, d domain.Destinatario) (domain.Destinatario, error) {
 	row := q.QueryRow(ctx, `
-		INSERT INTO destinatarios (nombre, telefono, calle, numero, piso_depto, localidad, codigo_postal)
-		VALUES ($1, $2, $3, $4, $5, $6, $7)
-		RETURNING id, nombre, telefono, calle, numero, COALESCE(piso_depto, ''), localidad, codigo_postal
-	`, d.Nombre, d.Telefono, d.Calle, d.Numero, d.PisoDepto, d.Localidad, d.CodigoPostal)
+		INSERT INTO destinatarios (nombre, telefono, calle, numero, piso_depto, localidad, codigo_postal, email)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, NULLIF($8, ''))
+		RETURNING id, nombre, telefono, calle, numero, COALESCE(piso_depto, ''), localidad, codigo_postal, COALESCE(email, '')
+	`, d.Nombre, d.Telefono, d.Calle, d.Numero, d.PisoDepto, d.Localidad, d.CodigoPostal, d.Email)
 
 	var creado domain.Destinatario
 	err := row.Scan(&creado.ID, &creado.Nombre, &creado.Telefono, &creado.Calle, &creado.Numero,
-		&creado.PisoDepto, &creado.Localidad, &creado.CodigoPostal)
+		&creado.PisoDepto, &creado.Localidad, &creado.CodigoPostal, &creado.Email)
 	if err != nil {
 		return domain.Destinatario{}, err
 	}

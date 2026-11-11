@@ -18,6 +18,8 @@ type Destinatario struct {
 	PisoDepto    string `json:"piso_depto"`
 	Localidad    string `json:"localidad"`
 	CodigoPostal string `json:"codigo_postal"`
+	// Email opcional: respaldo de los avisos cuando no hay WhatsApp.
+	Email string `json:"email"`
 }
 
 // Envio representa un paquete a entregar.
@@ -33,7 +35,7 @@ type Envio struct {
 	RemitenteID    string  `json:"remitente_id"`
 	DestinatarioID string  `json:"destinatario_id"`
 	FechaEntrega   string  `json:"fecha_entrega"` // "YYYY-MM-DD": día en que se entrega
-	RutaID         *string `json:"ruta_id"` // nil si el envío todavía no fue asignado a una ruta
+	RutaID         *string `json:"ruta_id"`       // nil si el envío todavía no fue asignado a una ruta
 }
 
 // EnvioConDetalle agrega los datos del destinatario y la fecha de alta,

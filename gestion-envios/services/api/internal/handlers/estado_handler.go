@@ -72,6 +72,25 @@ func (h *EstadoHandler) CambiarEstado(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// IniciarRuta maneja POST /rutas/{id}/iniciar: la ruta sale del depósito y
+// todos sus envíos asignados pasan a "en camino".
+func (h *EstadoHandler) IniciarRuta(w http.ResponseWriter, r *http.Request) {
+	claims, ok := middleware.ClaimsFromContext(r.Context())
+	if !ok {
+		httpx.WriteError(w, http.StatusUnauthorized, "sin_token", "falta autenticación")
+		return
+	}
+	n, err := h.svc.IniciarRuta(r.Context(), chi.URLParam(r, "id"), claims.UsuarioID, claims.Rol)
+	switch {
+	case err == nil:
+		httpx.WriteJSON(w, http.StatusOK, map[string]int{"envios_en_camino": n})
+	case errors.Is(err, repository.ErrNoEncontrado):
+		httpx.WriteError(w, http.StatusNotFound, "no_encontrado", "la ruta no existe")
+	default:
+		httpx.WriteError(w, http.StatusInternalServerError, "error_interno", "no se pudo iniciar la ruta")
+	}
+}
+
 type reprogramacionRequest struct {
 	NuevaFecha string `json:"nueva_fecha"`
 	Franja     string `json:"franja"`

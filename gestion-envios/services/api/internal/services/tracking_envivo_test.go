@@ -24,6 +24,41 @@ func TestVentanaLlegada(t *testing.T) {
 	}
 }
 
+// H27: con segundos, truncar al minuto no deja la ventana empezando en el pasado.
+func TestVentanaLlegada_NuncaEmpiezaAntesDeAhora(t *testing.T) {
+	ahora := time.Date(2026, 11, 7, 19, 46, 30, 0, time.UTC)
+	for _, dur := range []float64{0, 30, 120, 300} {
+		desde, hasta, _ := VentanaLlegada(ahora, dur, 0)
+		if desde.Before(ahora) {
+			t.Fatalf("dur %v: desde %s es anterior a ahora %s", dur, desde.Format(time.RFC3339), ahora.Format(time.RFC3339))
+		}
+		if !hasta.After(desde) {
+			t.Fatalf("dur %v: hasta %s no es posterior a desde %s", dur, hasta, desde)
+		}
+	}
+}
+
+// H37: sin posición reciente (más de 15 min) no hay ETA.
+func TestPosicionVigente(t *testing.T) {
+	ahora := time.Date(2026, 11, 10, 19, 53, 0, 0, time.UTC)
+	casos := []struct {
+		nombre string
+		en     time.Time
+		want   bool
+	}{
+		{"recién reportada", ahora.Add(-30 * time.Second), true},
+		{"justo 15 min", ahora.Add(-15 * time.Minute), true},
+		{"16 min", ahora.Add(-16 * time.Minute), false},
+		{"81 h", ahora.Add(-81 * time.Hour), false},
+		{"sin posición", time.Time{}, false},
+	}
+	for _, c := range casos {
+		if got := PosicionVigente(ahora, c.en); got != c.want {
+			t.Errorf("%s: got %v, want %v", c.nombre, got, c.want)
+		}
+	}
+}
+
 func TestPatenteParcial(t *testing.T) {
 	casos := map[string]string{"AB123CD": "AB•••CD", "TRK-318": "TR•••18", "ABC": "ABC"}
 	for in, want := range casos {

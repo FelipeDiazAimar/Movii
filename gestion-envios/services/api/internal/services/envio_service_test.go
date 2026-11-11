@@ -41,7 +41,8 @@ func TestValidarCrearEnvioInput_RechazaTamanoFueraDeCatalogo(t *testing.T) {
 		err := validarCrearEnvioInput(CrearEnvioInput{
 			DestinatarioNombre: "Juan", Calle: "Calle 1", Localidad: "San Francisco", Peso: 2.5, Tamano: tam,
 		})
-		require.ErrorIs(t, err, ErrCamposObligatorios, "tamano=%q", tam)
+		require.ErrorIs(t, err, ErrTamanoInvalido, "tamano=%q", tam)
+		require.NotErrorIs(t, err, ErrCamposObligatorios, "tamano=%q", tam)
 	}
 }
 

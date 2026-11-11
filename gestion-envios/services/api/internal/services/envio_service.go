@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/mail"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -16,6 +18,21 @@ import (
 // ErrCamposObligatorios indica que faltan datos requeridos para crear un envío.
 var ErrCamposObligatorios = errors.New("faltan campos obligatorios")
 
+// ErrTamanoInvalido indica que el tamaño del paquete no es chico, mediano ni grande.
+var ErrTamanoInvalido = errors.New("tamaño de paquete invalido")
+
+// ErrEmailDestinatarioInvalido indica un mail de destinatario mal escrito.
+var ErrEmailDestinatarioInvalido = errors.New("email de destinatario invalido")
+
+// emailValido acepta una sola dirección "nombre@dominio.tld", sin espacios.
+func emailValido(s string) bool {
+	if len(s) > 150 || strings.ContainsAny(s, " 	<>,;") {
+		return false
+	}
+	a, err := mail.ParseAddress(s)
+	return err == nil && a.Address == s && strings.Contains(s[strings.LastIndex(s, "@"):], ".")
+}
+
 // CrearEnvioInput agrupa los datos del formulario de alta de envío (HU-02, CA-01).
 type CrearEnvioInput struct {
 	RemitenteNombre      string
@@ -23,6 +40,7 @@ type CrearEnvioInput struct {
 	RemitenteDireccion   string
 	DestinatarioNombre   string
 	DestinatarioTelefono string
+	DestinatarioEmail    string
 	Calle                string
 	Numero               string
 	PisoDepto            string
@@ -43,11 +61,15 @@ func validarCrearEnvioInput(in CrearEnvioInput) error {
 	if in.DestinatarioNombre == "" || in.Calle == "" || in.Localidad == "" || in.Peso <= 0 {
 		return ErrCamposObligatorios
 	}
-	// El tamaño es un enum en la base: un valor fuera de catálogo daba 500 en vez de 400.
+	// El tamaño es un enum en la base: un valor fuera de catálogo (o vacío)
+	// daba 500; ahora es un 400 propio (tamano_invalido).
 	switch in.Tamano {
 	case domain.TamanoChico, domain.TamanoMediano, domain.TamanoGrande:
 	default:
-		return ErrCamposObligatorios
+		return ErrTamanoInvalido
+	}
+	if in.DestinatarioEmail != "" && !emailValido(in.DestinatarioEmail) {
+		return ErrEmailDestinatarioInvalido
 	}
 	if in.FechaEntrega != "" {
 		f, err := time.Parse("2006-01-02", in.FechaEntrega)
@@ -106,6 +128,7 @@ func (s *EnvioService) Create(ctx context.Context, in CrearEnvioInput) (domain.E
 	destinatario, err := repository.CreateDestinatario(ctx, tx, domain.Destinatario{
 		Nombre: in.DestinatarioNombre, Telefono: in.DestinatarioTelefono, Calle: in.Calle,
 		Numero: in.Numero, PisoDepto: in.PisoDepto, Localidad: in.Localidad, CodigoPostal: in.CodigoPostal,
+		Email: in.DestinatarioEmail,
 	})
 	if err != nil {
 		return domain.Envio{}, fmt.Errorf("envios: no se pudo crear el destinatario: %w", err)
@@ -144,11 +167,11 @@ func (s *EnvioService) crearConCodigoUnico(ctx context.Context, q repository.Que
 
 	var ultimoErr error
 	for intento := 0; intento < 5; intento++ {
-		count, err := s.envioRepo.ContarPorPrefijoCodigo(ctx, q, prefijo)
+		ultimo, err := s.envioRepo.UltimoNumeroCodigo(ctx, q, prefijo)
 		if err != nil {
 			return domain.Envio{}, fmt.Errorf("envios: no se pudo generar el código de guía: %w", err)
 		}
-		codigo := fmt.Sprintf("%s%04d", prefijo, count+1+intento)
+		codigo := fmt.Sprintf("%s%04d", prefijo, ultimo+1+intento)
 
 		envio, err := s.envioRepo.Create(ctx, q, domain.Envio{
 			CodigoGuia: codigo, Peso: in.Peso, Tamano: in.Tamano, TipoContenido: in.TipoContenido,

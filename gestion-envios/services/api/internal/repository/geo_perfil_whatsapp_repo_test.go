@@ -199,20 +199,23 @@ func TestWhatsappRepo_Notificaciones(t *testing.T) {
 	require.NoError(t, err)
 	require.False(t, nueva)
 
-	require.NoError(t, repo.ResultadoNotificacion(ctx, id, nil))
+	require.NoError(t, repo.ResultadoNotificacion(ctx, id, "whatsapp", "5493564000000", nil))
 	id2, _, err := repo.RegistrarNotificacion(ctx, Notificacion{Clave: clave + "-b", Telefono: "+5493564000000", Tipo: "entregado", EnvioID: &envioID, Mensaje: "chau"})
 	require.NoError(t, err)
-	require.NoError(t, repo.ResultadoNotificacion(ctx, id2, errors.New("sin conexion")))
+	require.NoError(t, repo.ResultadoNotificacion(ctx, id2, "mail", "ana@correo.com.ar", errors.New("sin conexion")))
 
 	lista, err = repo.NotificacionesDeEnvio(ctx, envioID)
 	require.NoError(t, err)
 	require.Len(t, lista, 2)
-	estados := map[string]string{}
+	estados, canales := map[string]string{}, map[string]string{}
 	for _, n := range lista {
 		estados[n.Tipo] = n.Estado
+		canales[n.Tipo] = n.Canal
 	}
 	require.Equal(t, "enviado", estados["en_camino"])
 	require.Equal(t, "fallido", estados["entregado"])
+	require.Equal(t, "whatsapp", canales["en_camino"])
+	require.Equal(t, "mail", canales["entregado"])
 }
 
 func TestWhatsappRepo_DatosDeAviso(t *testing.T) {

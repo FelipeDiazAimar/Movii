@@ -32,6 +32,21 @@ type WhatsappHandler struct {
 	wa       whatsapp.Administrable
 	usuarios telefonosUsuarios
 	avisos   avisosDeEnvio
+	mail     EstadoMail
+}
+
+// EstadoMail describe el canal de mail de respaldo, para el panel del admin.
+type EstadoMail struct {
+	Configurado bool   `json:"configurado"`
+	Proveedor   string `json:"proveedor"` // gmail | smtp | resend | log
+	Remitente   string `json:"remitente,omitempty"`
+	Descripcion string `json:"-"`
+}
+
+// ConMail informa en el estado cómo está configurado el mail de respaldo.
+func (h *WhatsappHandler) ConMail(m EstadoMail) *WhatsappHandler {
+	h.mail = m
+	return h
 }
 
 // NewWhatsappHandler crea un WhatsappHandler.
@@ -43,6 +58,8 @@ type estadoWhatsappResponse struct {
 	whatsapp.Estado
 	// QRImagen es el QR listo para mostrar (data URL PNG).
 	QRImagen string `json:"qr_imagen,omitempty"`
+	// Mail es el canal de respaldo de los avisos.
+	Mail EstadoMail `json:"mail"`
 }
 
 // Estado maneja GET /admin/whatsapp/estado. Si la cuenta no está vinculada,
@@ -56,7 +73,7 @@ func (h *WhatsappHandler) Estado(w http.ResponseWriter, r *http.Request) {
 		}
 		e = h.wa.Estado()
 	}
-	resp := estadoWhatsappResponse{Estado: e}
+	resp := estadoWhatsappResponse{Estado: e, Mail: h.mail}
 	if e.QR != "" {
 		if png, err := qrcode.Encode(e.QR, qrcode.Medium, 320); err == nil {
 			resp.QRImagen = "data:image/png;base64," + base64.StdEncoding.EncodeToString(png)

@@ -54,12 +54,18 @@ func (r *EnvioRepo) Create(ctx context.Context, q Querier, e domain.Envio) (doma
 	return creado, nil
 }
 
-// ContarPorPrefijoCodigo cuenta los envíos cuyo código de guía empieza con
-// prefijo. Se usa para generar el siguiente número de secuencia diaria.
-func (r *EnvioRepo) ContarPorPrefijoCodigo(ctx context.Context, q Querier, prefijo string) (int, error) {
-	var count int
-	err := q.QueryRow(ctx, `SELECT COUNT(*) FROM envios WHERE codigo_guia LIKE $1`, prefijo+"%").Scan(&count)
-	return count, err
+// UltimoNumeroCodigo devuelve el número más alto ya usado en los códigos de
+// guía con ese prefijo (MOV-AAAAMMDD-NNNN), o 0 si no hay. Se usa el máximo y
+// no la cantidad: si se borró algún envío del día, contar repetiría un número
+// existente y el alta fallaría.
+func (r *EnvioRepo) UltimoNumeroCodigo(ctx context.Context, q Querier, prefijo string) (int, error) {
+	var n int
+	err := q.QueryRow(ctx, `
+		SELECT COALESCE(MAX(substring(codigo_guia FROM length($1) + 1)::int), 0)
+		FROM envios
+		WHERE codigo_guia LIKE $1 || '%' AND substring(codigo_guia FROM length($1) + 1) ~ '^[0-9]+$'
+	`, prefijo).Scan(&n)
+	return n, err
 }
 
 // List devuelve los envíos que matchean el filtro. estado o fecha vacíos
@@ -68,7 +74,7 @@ func (r *EnvioRepo) List(ctx context.Context, estado, fecha string) ([]domain.En
 	rows, err := r.pool.Query(ctx, `
 		SELECT e.id, e.codigo_guia, e.estado, e.peso, e.tamano, e.tipo_contenido, e.fragil, e.urgente,
 		       e.remitente_id, e.destinatario_id, e.ruta_id, to_char(e.fecha_entrega, 'YYYY-MM-DD'),
-		       d.id, d.nombre, d.telefono, d.calle, d.numero, COALESCE(d.piso_depto, ''), d.localidad, d.codigo_postal,
+		       d.id, d.nombre, d.telefono, d.calle, d.numero, COALESCE(d.piso_depto, ''), d.localidad, d.codigo_postal, COALESCE(d.email, ''),
 		       to_char(e.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"'),
 		       COALESCE(ru.nombre, ''), COALESCE(u.nombre, '')
 		FROM envios e
@@ -91,7 +97,7 @@ func (r *EnvioRepo) List(ctx context.Context, estado, fecha string) ([]domain.En
 		if err := rows.Scan(&e.ID, &e.CodigoGuia, &e.Estado, &e.Peso, &e.Tamano, &e.TipoContenido, &e.Fragil, &e.Urgente,
 			&e.RemitenteID, &e.DestinatarioID, &rutaID, &e.FechaEntrega,
 			&e.Destinatario.ID, &e.Destinatario.Nombre, &e.Destinatario.Telefono, &e.Destinatario.Calle,
-			&e.Destinatario.Numero, &e.Destinatario.PisoDepto, &e.Destinatario.Localidad, &e.Destinatario.CodigoPostal,
+			&e.Destinatario.Numero, &e.Destinatario.PisoDepto, &e.Destinatario.Localidad, &e.Destinatario.CodigoPostal, &e.Destinatario.Email,
 			&e.FechaCreacion, &e.RutaNombre, &e.RepartidorNombre,
 		); err != nil {
 			return nil, err
@@ -110,7 +116,7 @@ func (r *EnvioRepo) GetByID(ctx context.Context, id string) (domain.EnvioConDeta
 	row := r.pool.QueryRow(ctx, `
 		SELECT e.id, e.codigo_guia, e.estado, e.peso, e.tamano, e.tipo_contenido, e.fragil, e.urgente,
 		       e.remitente_id, e.destinatario_id, e.ruta_id, to_char(e.fecha_entrega, 'YYYY-MM-DD'),
-		       d.id, d.nombre, d.telefono, d.calle, d.numero, COALESCE(d.piso_depto, ''), d.localidad, d.codigo_postal,
+		       d.id, d.nombre, d.telefono, d.calle, d.numero, COALESCE(d.piso_depto, ''), d.localidad, d.codigo_postal, COALESCE(d.email, ''),
 		       to_char(e.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"'),
 		       COALESCE(ru.nombre, ''), COALESCE(u.nombre, '')
 		FROM envios e
@@ -125,7 +131,7 @@ func (r *EnvioRepo) GetByID(ctx context.Context, id string) (domain.EnvioConDeta
 	err := row.Scan(&e.ID, &e.CodigoGuia, &e.Estado, &e.Peso, &e.Tamano, &e.TipoContenido, &e.Fragil, &e.Urgente,
 		&e.RemitenteID, &e.DestinatarioID, &rutaID, &e.FechaEntrega,
 		&e.Destinatario.ID, &e.Destinatario.Nombre, &e.Destinatario.Telefono, &e.Destinatario.Calle,
-		&e.Destinatario.Numero, &e.Destinatario.PisoDepto, &e.Destinatario.Localidad, &e.Destinatario.CodigoPostal,
+		&e.Destinatario.Numero, &e.Destinatario.PisoDepto, &e.Destinatario.Localidad, &e.Destinatario.CodigoPostal, &e.Destinatario.Email,
 		&e.FechaCreacion, &e.RutaNombre, &e.RepartidorNombre,
 	)
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -317,7 +323,7 @@ func (r *EnvioRepo) ListDelDiaPorRepartidor(ctx context.Context, repartidorID, f
 	rows, err := r.pool.Query(ctx, `
 		SELECT e.id, e.codigo_guia, e.estado, e.peso, e.tamano, e.tipo_contenido, e.fragil, e.urgente,
 		       e.remitente_id, e.destinatario_id, e.ruta_id, to_char(e.fecha_entrega, 'YYYY-MM-DD'),
-		       d.id, d.nombre, d.telefono, d.calle, d.numero, COALESCE(d.piso_depto, ''), d.localidad, d.codigo_postal,
+		       d.id, d.nombre, d.telefono, d.calle, d.numero, COALESCE(d.piso_depto, ''), d.localidad, d.codigo_postal, COALESCE(d.email, ''),
 		       r.nombre
 		FROM envios e
 		JOIN rutas r ON r.id = e.ruta_id
@@ -326,7 +332,7 @@ func (r *EnvioRepo) ListDelDiaPorRepartidor(ctx context.Context, repartidorID, f
 		  AND (e.fecha_entrega = $2::date
 		       OR (e.fecha_entrega < $2::date AND e.estado IN ('asignado', 'en_camino'))) -- atrasados sin entregar
 		  AND ($3 = '' OR e.estado::text = $3)
-		ORDER BY r.nombre, e.created_at
+		ORDER BY r.nombre, COALESCE(e.orden_ruta, 2147483647), e.created_at, e.id
 	`, repartidorID, fecha, estado)
 	if err != nil {
 		return nil, err
@@ -337,15 +343,15 @@ func (r *EnvioRepo) ListDelDiaPorRepartidor(ctx context.Context, repartidorID, f
 	for rows.Next() {
 		var e domain.EnvioDelDia
 		var rutaID sql.NullString
-		// Orden exacto de columnas del SELECT (21 en total):
+		// Orden exacto de columnas del SELECT (22 en total):
 		// 1-10: e.id, codigo_guia, estado, peso, tamano, tipo_contenido, fragil, urgente, remitente_id, destinatario_id
 		// 11: e.ruta_id, 12: fecha_entrega
-		// 13-20: d.id, nombre, telefono, calle, numero, piso_depto, localidad, codigo_postal
-		// 21: r.nombre
+		// 13-21: d.id, nombre, telefono, calle, numero, piso_depto, localidad, codigo_postal, email
+		// 22: r.nombre
 		if err := rows.Scan(&e.ID, &e.CodigoGuia, &e.Estado, &e.Peso, &e.Tamano, &e.TipoContenido, &e.Fragil, &e.Urgente,
 			&e.RemitenteID, &e.DestinatarioID, &rutaID, &e.FechaEntrega,
 			&e.Destinatario.ID, &e.Destinatario.Nombre, &e.Destinatario.Telefono, &e.Destinatario.Calle,
-			&e.Destinatario.Numero, &e.Destinatario.PisoDepto, &e.Destinatario.Localidad, &e.Destinatario.CodigoPostal,
+			&e.Destinatario.Numero, &e.Destinatario.PisoDepto, &e.Destinatario.Localidad, &e.Destinatario.CodigoPostal, &e.Destinatario.Email,
 			&e.RutaNombre,
 		); err != nil {
 			return nil, err

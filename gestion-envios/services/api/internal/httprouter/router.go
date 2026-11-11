@@ -32,6 +32,7 @@ type Deps struct {
 	WhatsappHandler    *handlers.WhatsappHandler
 	EliminarHandler    *handlers.EliminarHandler // T3: borrados físicos, solo admin
 	GoogleHandler      *handlers.GoogleHandler   // T2: login con Google y GET /auth/config
+	DemoHandler        *handlers.DemoHandler     // botón ▶: estado inicial del día de demostración
 }
 
 // New arma el router HTTP completo de la API.
@@ -103,11 +104,15 @@ func New(deps Deps) http.Handler {
 				adminOnly.Get("/admin/whatsapp/estado", deps.WhatsappHandler.Estado)
 				adminOnly.Post("/admin/whatsapp/desvincular", deps.WhatsappHandler.Desvincular)
 			}
+			if deps.DemoHandler != nil {
+				adminOnly.Post("/admin/demo/reiniciar", deps.DemoHandler.Reiniciar)
+			}
 		})
 
 		protected.Get("/envios", deps.EnvioHandler.List)
 		protected.Get("/envios/{id}", deps.EnvioHandler.GetByID)
 		protected.Put("/envios/{id}/estado", deps.EstadoHandler.CambiarEstado)
+		protected.Post("/rutas/{id}/iniciar", deps.EstadoHandler.IniciarRuta)
 		protected.Post("/envios/{id}/incidencia", deps.EstadoHandler.RegistrarIncidencia)
 		protected.Get("/envios/{id}/eventos/{eventoId}/foto", deps.EstadoHandler.DescargarFotoIncidencia)
 		protected.Post("/envios/{id}/reprogramacion", deps.EstadoHandler.Reprogramar)

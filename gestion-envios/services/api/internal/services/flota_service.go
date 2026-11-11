@@ -164,7 +164,8 @@ func (s *FlotaService) Vehiculo(ctx context.Context, id string) (domain.Vehiculo
 }
 
 // AsignarARuta asigna el vehículo a la ruta (vehiculoID vacío = quitarlo).
-// Un vehículo en mantenimiento no puede salir a ruta.
+// Un vehículo en mantenimiento no puede salir a ruta; uno "en_base" pasa a
+// "activo" al asignarlo (si no, el simulador no lo movería: H20).
 func (s *FlotaService) AsignarARuta(ctx context.Context, rutaID, vehiculoID string) error {
 	if vehiculoID == "" {
 		return s.repo.AsignarARuta(ctx, rutaID, nil)
@@ -173,10 +174,31 @@ func (s *FlotaService) AsignarARuta(ctx context.Context, rutaID, vehiculoID stri
 	if err != nil {
 		return err
 	}
-	if v.Estado == domain.EstadoVehiculoMantenimiento {
-		return ErrVehiculoNoDisponible
+	nuevo, err := estadoAlAsignarARuta(v.Estado)
+	if err != nil {
+		return err
 	}
-	return s.repo.AsignarARuta(ctx, rutaID, &vehiculoID)
+	if err := s.repo.AsignarARuta(ctx, rutaID, &vehiculoID); err != nil {
+		return err
+	}
+	if nuevo != v.Estado {
+		return s.repo.ActualizarEstado(ctx, vehiculoID, nuevo)
+	}
+	return nil
+}
+
+// estadoAlAsignarARuta devuelve el estado que debe tener un vehículo al
+// asignarlo a una ruta: "en_base" pasa a "activo", "mantenimiento" no puede
+// salir (ErrVehiculoNoDisponible) y el resto queda igual.
+func estadoAlAsignarARuta(estado string) (string, error) {
+	switch estado {
+	case domain.EstadoVehiculoMantenimiento:
+		return "", ErrVehiculoNoDisponible
+	case domain.EstadoVehiculoEnBase:
+		return domain.EstadoVehiculoActivo, nil
+	default:
+		return estado, nil
+	}
 }
 
 // Trayecto devuelve el camino por calles desde el vehículo de la ruta hasta el

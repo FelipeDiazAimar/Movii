@@ -10,9 +10,11 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/joho/godotenv"
 
 	"movii/api/internal/config"
+	"movii/api/internal/demo"
 	"movii/api/internal/handlers"
 	"movii/api/internal/httprouter"
 	"movii/api/internal/platform/db"
@@ -83,7 +85,14 @@ func main() {
 	flotaRepo := repository.NewFlotaRepo(pool)
 	whatsappRepo := repository.NewWhatsappRepo(pool)
 
-	notificador := services.NewNotificador(whatsappRepo, wa, cfg.PublicWebURL, cfg.PublicAppURL)
+	// Mail: código de acceso para quien no tiene celular (T1) y respaldo de los
+	// avisos cuando WhatsApp no está vinculado o el número no tiene WhatsApp.
+	mailSender, estadoMail := elegirMail(cfg)
+	log.Printf("mail: %s", estadoMail.Descripcion)
+	notificador := services.NewNotificador(whatsappRepo, wa, cfg.PublicWebURL, cfg.PublicAppURL).ConMail(mailSender)
+	hub := services.NewFlotaHub()
+	// Cada cambio de un envío o de una ruta: aviso al destinatario/repartidor y aviso a la web en vivo.
+	avisos := avisosCombinados{notificador, hub}
 	go notificador.Correr(ctx)
 
 	geoService := services.NewGeoService(repository.NewGeoRepo(pool), geocoder)
@@ -94,9 +103,11 @@ func main() {
 		envioService.ConGeocodificacion(geoService)
 	}
 	rutaService := services.NewRutaService(rutaRepo)
-	asignacionService := services.NewAsignacionService(rutaRepo, envioRepo).ConAvisos(notificador)
+	// Recorrido más corto por calles al asignar envíos y al iniciar cada ruta.
+	ordenador := services.NewOrdenadorRutas(pool, proveedor)
+	asignacionService := services.NewAsignacionService(rutaRepo, envioRepo).ConAvisos(avisos).ConOrden(ordenador)
 	repartidorService := services.NewRepartidorService(envioRepo)
-	estadoService := services.NewEstadoService(pool, envioRepo, eventoRepo, confirmacionRepo).ConAvisos(notificador)
+	estadoService := services.NewEstadoService(pool, envioRepo, eventoRepo, confirmacionRepo).ConAvisos(avisos).ConOrden(ordenador)
 	trackingService := services.NewTrackingService(repository.NewTrackingRepo(pool))
 	operacionesService := services.NewOperacionesService(operacionesRepo).ConMapa(flotaRepo, router)
 	reportesService := services.NewReportesService(repository.NewReportesRepo(pool))
@@ -105,18 +116,12 @@ func main() {
 	otpService := services.NewOTPService(whatsappRepo, usuarioRepo, authService, wa, cfg.JWTSecret)
 	otpService.TTL = time.Duration(cfg.OTPTTLMin) * time.Minute
 	otpService.MaxIntentos = cfg.OTPMaxIntentos
-	// Mail del código para quien no tiene celular (T1): Resend o, sin clave, solo log.
-	if cfg.ResendAPIKey != "" && cfg.MailFrom != "" {
-		otpService.ConMail(mail.NewResend(cfg.ResendAPIKey, cfg.MailFrom))
-	} else {
-		log.Printf("mail: sin RESEND_API_KEY/MAIL_FROM, los códigos por mail se escriben en el log")
-	}
+	otpService.ConMail(mailSender)
 	// Login con Google (T2): sin GOOGLE_* el botón se oculta (GET /auth/config).
 	var googleCliente *google.Cliente
 	if cfg.GoogleHabilitado() {
 		googleCliente = google.New(cfg.GoogleClientID, cfg.GoogleClientSecret, cfg.GoogleCallbackURL)
 	}
-	hub := services.NewFlotaHub()
 
 	if cfg.Geocodificar {
 		go func() {
@@ -129,9 +134,21 @@ func main() {
 			}
 		}()
 	}
+	var sim *services.SimuladorGPS
 	if cfg.SimuladorGPS {
-		sim := services.NewSimuladorGPS(flotaRepo, router, hub)
+		sim = services.NewSimuladorGPS(flotaRepo, router, hub)
 		sim.Factor = cfg.SimuladorFactor
+		sim.Parada = time.Duration(cfg.SimuladorParadaSeg) * time.Second
+		// Estos camiones no entregan solos: esperan en la puerta a que se entregue desde la app.
+		sim.EntregaManual = map[string]bool{}
+		for _, p := range cfg.SimuladorEntregaManual {
+			sim.EntregaManual[p] = true
+		}
+		sim.VelocidadManualKmh = cfg.SimuladorVelocidadManual
+		if cfg.SimuladorEntregas {
+			// Los envíos de demostración se entregan solos; los reales, desde la app del repartidor.
+			sim.ConEntregas(estadoService)
+		}
 		go sim.Correr(ctx)
 		log.Printf("simulador GPS activo (x%.1f)", cfg.SimuladorFactor)
 	}
@@ -154,8 +171,9 @@ func main() {
 		OperacionesHandler: handlers.NewOperacionesHandler(operacionesService),
 		ReportesHandler:    handlers.NewReportesHandler(reportesService),
 		FlotaHandler:       handlers.NewFlotaHandler(flotaService, hub),
-		WhatsappHandler:    handlers.NewWhatsappHandler(wa, usuarioRepo, whatsappRepo),
+		WhatsappHandler:    handlers.NewWhatsappHandler(wa, usuarioRepo, whatsappRepo).ConMail(estadoMail),
 		EliminarHandler:    handlers.NewEliminarHandler(pool),
+		DemoHandler:        demoHandler(cfg, pool, estadoService, rutaService, flotaRepo, ordenador, sim),
 		GoogleHandler:      handlers.NewGoogleHandler(googleCliente, authService, otpService, cfg.JWTSecret, cfg.PublicWebURL, cfg.Env != "production"),
 	})
 
@@ -176,4 +194,65 @@ func main() {
 	if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		log.Fatalf("server: %v", err)
 	}
+}
+
+// elegirMail decide por dónde salen los mails: Gmail (u otro SMTP) si están
+// SMTP_USER y SMTP_PASSWORD; si no, Resend si están RESEND_API_KEY y
+// MAIL_FROM; si no, se escriben en el log.
+func elegirMail(cfg config.Config) (mail.Sender, handlers.EstadoMail) {
+	switch {
+	case cfg.SMTPUser != "" && cfg.SMTPPassword != "":
+		s := mail.NewSMTP(cfg.SMTPHost, cfg.SMTPPort, cfg.SMTPUser, cfg.SMTPPassword, "Movii <"+cfg.SMTPUser+">")
+		proveedor := "smtp"
+		if s.Host == mail.GmailHost {
+			proveedor = "gmail"
+		}
+		return s, handlers.EstadoMail{Configurado: true, Proveedor: proveedor, Remitente: cfg.SMTPUser,
+			Descripcion: "avisos y códigos por " + proveedor + " (" + s.Host + ") desde " + cfg.SMTPUser}
+	case cfg.ResendAPIKey != "" && cfg.MailFrom != "":
+		return mail.NewResend(cfg.ResendAPIKey, cfg.MailFrom), handlers.EstadoMail{Configurado: true, Proveedor: "resend", Remitente: cfg.MailFrom,
+			Descripcion: "avisos y códigos por Resend desde " + cfg.MailFrom}
+	}
+	return mail.SoloLog{}, handlers.EstadoMail{Proveedor: "log", Descripcion: "sin SMTP_USER/SMTP_PASSWORD ni RESEND_API_KEY: los mails se escriben en el log"}
+}
+
+// demoHandler arma el botón ▶ (estado inicial del día de demostración).
+// DEMO_REINICIO=false lo apaga. Usa un EnvioService sin geocodificación (las
+// coordenadas salen del catálogo) y el EstadoService de la API (con avisos).
+func demoHandler(cfg config.Config, pool *pgxpool.Pool, estados *services.EstadoService,
+	rutas *services.RutaService, flota *repository.FlotaRepo, ordenador *services.OrdenadorRutas, sim *services.SimuladorGPS) *handlers.DemoHandler {
+	if !cfg.DemoReinicio {
+		return nil
+	}
+	svc := demo.Servicios{
+		Pool:   pool,
+		Envios: services.NewEnvioService(pool, repository.NewEnvioRepo(pool), repository.NewEventoRepo(pool), repository.NewConfirmacionRepo(pool)),
+		// Sin avisos de ruta: irían por WhatsApp a los repartidores reales en cada reinicio.
+		Asignacion: services.NewAsignacionService(repository.NewRutaRepo(pool), repository.NewEnvioRepo(pool)).ConOrden(ordenador),
+		Estados:    estados,
+		Rutas:      rutas,
+		Flota:      flota,
+		Geo:        repository.NewGeoRepo(pool),
+	}
+	if sim == nil {
+		return handlers.NewDemoHandler(svc, nil)
+	}
+	return handlers.NewDemoHandler(svc, sim)
+}
+
+// avisosCombinados reparte cada cambio de estado o de asignación entre los
+// avisos al destinatario/repartidor y la web en vivo (SSE "cambio").
+type avisosCombinados struct {
+	notificador *services.Notificador
+	hub         *services.FlotaHub
+}
+
+func (a avisosCombinados) CambioDeEstado(envioID string) {
+	a.notificador.CambioDeEstado(envioID)
+	a.hub.CambioDeEstado(envioID)
+}
+
+func (a avisosCombinados) RutaAsignada(rutaID string) {
+	a.notificador.RutaAsignada(rutaID)
+	a.hub.RutaAsignada(rutaID)
 }

@@ -130,7 +130,7 @@ func (r *OperacionesRepo) ParadasDeRuta(ctx context.Context, rutaID string) ([]d
 		       trim(d.calle || ' ' || d.numero), d.localidad, d.latitud::float8, d.longitud::float8
 		FROM envios e JOIN destinatarios d ON d.id = e.destinatario_id
 		WHERE e.ruta_id = $1
-		ORDER BY e.created_at, e.id
+		ORDER BY COALESCE(e.orden_ruta, 2147483647), e.created_at, e.id
 	`, rutaID)
 	if err != nil {
 		return nil, err

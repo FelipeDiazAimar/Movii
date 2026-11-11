@@ -43,13 +43,16 @@ func (r *RutaRepo) Create(ctx context.Context, ruta domain.Ruta) (domain.Ruta, e
 // cantidad de envíos asignados a cada una.
 func (r *RutaRepo) List(ctx context.Context, fecha string) ([]domain.RutaConConteo, error) {
 	rows, err := r.pool.Query(ctx, `
-		SELECT r.id, r.nombre, r.zona, to_char(r.fecha, 'YYYY-MM-DD'), r.estado, r.repartidor_id, u.nombre, COUNT(e.id)
+		SELECT r.id, r.nombre, r.zona, to_char(r.fecha, 'YYYY-MM-DD'), r.estado, r.repartidor_id, u.nombre, COUNT(e.id),
+		       COUNT(e.id) FILTER (WHERE e.estado = 'entregado'), COUNT(e.id) FILTER (WHERE e.estado = 'no_entregado'),
+		       COALESCE(SUM(e.peso), 0)::float8, COALESCE(v.patente, ''), COALESCE(v.tipo, '')
 		FROM rutas r
 		JOIN usuarios u ON u.id = r.repartidor_id
+		LEFT JOIN vehiculos v ON v.id = r.vehiculo_id
 		LEFT JOIN envios e ON e.ruta_id = r.id
 		WHERE ($1 = '' OR r.fecha = $1::date)
-		GROUP BY r.id, u.nombre
-		ORDER BY r.fecha
+		GROUP BY r.id, u.nombre, v.patente, v.tipo
+		ORDER BY r.fecha, r.nombre
 	`, fecha)
 	if err != nil {
 		return nil, err
@@ -61,7 +64,8 @@ func (r *RutaRepo) List(ctx context.Context, fecha string) ([]domain.RutaConCont
 	lista := make([]domain.RutaConConteo, 0)
 	for rows.Next() {
 		var rc domain.RutaConConteo
-		if err := rows.Scan(&rc.ID, &rc.Nombre, &rc.Zona, &rc.Fecha, &rc.Estado, &rc.RepartidorID, &rc.RepartidorNombre, &rc.CantidadEnvios); err != nil {
+		if err := rows.Scan(&rc.ID, &rc.Nombre, &rc.Zona, &rc.Fecha, &rc.Estado, &rc.RepartidorID, &rc.RepartidorNombre, &rc.CantidadEnvios,
+			&rc.Entregados, &rc.NoEntregados, &rc.PesoTotal, &rc.VehiculoPatente, &rc.VehiculoTipo); err != nil {
 			return nil, err
 		}
 		lista = append(lista, rc)
@@ -120,6 +124,7 @@ func (r *RutaRepo) EnviosDeRuta(ctx context.Context, rutaID string) ([]domain.En
 	rows, err := r.pool.Query(ctx, `
 		SELECT id, codigo_guia, estado, peso, tamano, tipo_contenido, fragil, urgente, remitente_id, destinatario_id, to_char(fecha_entrega, 'YYYY-MM-DD')
 		FROM envios WHERE ruta_id = $1
+		ORDER BY COALESCE(orden_ruta, 2147483647), created_at, id
 	`, rutaID)
 	if err != nil {
 		return nil, err

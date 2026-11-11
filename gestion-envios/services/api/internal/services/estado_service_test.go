@@ -2,6 +2,7 @@ package services
 
 import (
 	"testing"
+	"time"
 
 	"movii/api/internal/domain"
 )
@@ -43,5 +44,21 @@ func TestTransicionValida(t *testing.T) {
 				t.Errorf("transicionValida(%q, %q) = %v, quiere %v", tc.origen, tc.destino, got, tc.valida)
 			}
 		})
+	}
+}
+
+// H26: el comentario del evento de reprogramación es legible (fecha
+// dd/mm/aaaa y franja con tilde).
+func TestComentarioReprogramacion(t *testing.T) {
+	fecha := time.Date(2026, 11, 12, 0, 0, 0, 0, time.UTC)
+	casos := map[string]string{
+		domain.FranjaManana: "Reprogramado para el 12/11/2026 (mañana)",
+		domain.FranjaTarde:  "Reprogramado para el 12/11/2026 (tarde)",
+		domain.FranjaNoche:  "Reprogramado para el 12/11/2026 (noche)",
+	}
+	for franja, esperado := range casos {
+		if got := comentarioReprogramacion(fecha, franja); got != esperado {
+			t.Errorf("franja %q: got %q, want %q", franja, got, esperado)
+		}
 	}
 }

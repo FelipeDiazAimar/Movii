@@ -73,7 +73,9 @@ func TestEstadoService_ReprogramarFeliz(t *testing.T) {
 	require.Equal(t, domain.EstadoEnvioNoEntregado, *ultimo.EstadoAnterior)
 	require.Nil(t, ultimo.Motivo)
 	require.NotNil(t, ultimo.Comentario)
-	require.Equal(t, "reprogramado para "+nuevaFecha+" ("+domain.FranjaTarde+")", *ultimo.Comentario)
+	fechaEsperada, err := time.Parse("2006-01-02", nuevaFecha)
+	require.NoError(t, err)
+	require.Equal(t, "Reprogramado para el "+fechaEsperada.Format("02/01/2006")+" (tarde)", *ultimo.Comentario)
 }
 
 func TestEstadoService_ReprogramarOperadorSobreEnvioAjenoOK(t *testing.T) {

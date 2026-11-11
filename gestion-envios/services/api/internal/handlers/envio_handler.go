@@ -38,6 +38,7 @@ type crearEnvioRequest struct {
 		PisoDepto    string `json:"piso_depto"`
 		Localidad    string `json:"localidad"`
 		CodigoPostal string `json:"codigo_postal"`
+		Email        string `json:"email"`
 	} `json:"destinatario"`
 	Paquete struct {
 		Peso          float64 `json:"peso"`
@@ -63,6 +64,7 @@ func (h *EnvioHandler) Create(w http.ResponseWriter, r *http.Request) {
 		RemitenteDireccion:   req.Remitente.Direccion,
 		DestinatarioNombre:   req.Destinatario.Nombre,
 		DestinatarioTelefono: req.Destinatario.Telefono,
+		DestinatarioEmail:    strings.TrimSpace(req.Destinatario.Email),
 		Calle:                req.Destinatario.Calle,
 		Numero:               req.Destinatario.Numero,
 		PisoDepto:            req.Destinatario.PisoDepto,
@@ -83,6 +85,10 @@ func (h *EnvioHandler) Create(w http.ResponseWriter, r *http.Request) {
 		})
 	case errors.Is(err, services.ErrCamposObligatorios):
 		httpx.WriteError(w, http.StatusBadRequest, "campos_obligatorios", "faltan datos obligatorios del envío")
+	case errors.Is(err, services.ErrTamanoInvalido):
+		httpx.WriteError(w, http.StatusBadRequest, "tamano_invalido", "el tamaño del paquete debe ser chico, mediano o grande")
+	case errors.Is(err, services.ErrEmailDestinatarioInvalido):
+		httpx.WriteError(w, http.StatusBadRequest, "email_invalido", "el mail del destinatario no es válido")
 	case errors.Is(err, services.ErrFechaInvalida):
 		httpx.WriteError(w, http.StatusBadRequest, "fecha_invalida", "la fecha de entrega debe tener formato YYYY-MM-DD y ser hoy o futura")
 	default:

@@ -219,6 +219,8 @@ func (h *RutaHandler) AsignarEnvios(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteError(w, http.StatusNotFound, "no_encontrado", "la ruta no existe")
 	case errors.Is(err, repository.ErrEnvioNoDisponible):
 		httpx.WriteError(w, http.StatusConflict, "envio_no_disponible", "uno o más envíos no están pendientes")
+	case errors.Is(err, repository.ErrRutaNoEditable):
+		httpx.WriteError(w, http.StatusConflict, "ruta_iniciada", "la ruta ya salió del depósito: asigná el envío a otra ruta o a la de mañana")
 	default:
 		httpx.WriteError(w, http.StatusInternalServerError, "error_interno", "no se pudo asignar los envíos")
 	}

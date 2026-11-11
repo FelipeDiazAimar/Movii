@@ -156,6 +156,8 @@ func (h *FlotaHandler) Stream(w http.ResponseWriter, r *http.Request) {
 
 	posiciones, desuscribir := h.hub.Suscribir()
 	defer desuscribir()
+	cambios, desuscribirCambios := h.hub.SuscribirCambios()
+	defer desuscribirCambios()
 	latido := time.NewTicker(20 * time.Second)
 	defer latido.Stop()
 
@@ -165,6 +167,13 @@ func (h *FlotaHandler) Stream(w http.ResponseWriter, r *http.Request) {
 			return
 		case <-latido.C:
 			_, _ = fmt.Fprint(w, ": latido\n\n")
+			flusher.Flush()
+		case id, ok := <-cambios:
+			if !ok {
+				return
+			}
+			b, _ := json.Marshal(map[string]string{"id": id})
+			_, _ = fmt.Fprintf(w, "event: cambio\ndata: %s\n\n", b)
 			flusher.Flush()
 		case p, ok := <-posiciones:
 			if !ok {

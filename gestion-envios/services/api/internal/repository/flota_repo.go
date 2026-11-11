@@ -93,7 +93,7 @@ func (r *FlotaRepo) Paquetes(ctx context.Context, rutaID string) ([]domain.Paque
 		       d.latitud::float8, d.longitud::float8
 		FROM envios e JOIN destinatarios d ON d.id = e.destinatario_id
 		WHERE e.ruta_id = $1
-		ORDER BY e.created_at, e.id
+		ORDER BY COALESCE(e.orden_ruta, 2147483647), e.created_at, e.id
 	`, rutaID)
 	if err != nil {
 		return nil, err
@@ -168,6 +168,18 @@ func (r *FlotaRepo) AsignarARuta(ctx context.Context, rutaID string, vehiculoID 
 	return nil
 }
 
+// ActualizarEstado cambia el estado de un vehículo. ErrNoEncontrado si no existe.
+func (r *FlotaRepo) ActualizarEstado(ctx context.Context, id, estado string) error {
+	tag, err := r.pool.Exec(ctx, `UPDATE vehiculos SET estado = $2 WHERE id::text = $1`, id, estado)
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() == 0 {
+		return ErrNoEncontrado
+	}
+	return nil
+}
+
 // ActualizarPosicion guarda la telemetría del vehículo.
 func (r *FlotaRepo) ActualizarPosicion(ctx context.Context, p domain.PosicionVehiculo) error {
 	_, err := r.pool.Exec(ctx, `
@@ -199,27 +211,34 @@ type ParadaSimulada struct {
 	EnvioID string
 	Lat     float64
 	Lng     float64
+	// Estado: asignado o en_camino.
+	Estado string
+	// Demo: destinatario ficticio (cmd/demo); el simulador puede resolver la entrega solo.
+	Demo         bool
+	Destinatario string
 }
 
 // VehiculoEnRuta es un vehículo activo con ruta en la fecha y sus paradas pendientes.
 type VehiculoEnRuta struct {
-	Posicion domain.PosicionVehiculo
-	Paradas  []ParadaSimulada
+	Posicion     domain.PosicionVehiculo
+	RepartidorID string
+	Paradas      []ParadaSimulada
 }
 
-// EnRuta devuelve los vehículos activos con ruta en la fecha y, para cada uno,
+// EnRuta devuelve los vehículos activos con ruta iniciada (en curso) en la fecha y, para cada uno,
 // sus paradas todavía no resueltas (asignadas o en camino) con coordenadas,
 // en orden de reparto.
 func (r *FlotaRepo) EnRuta(ctx context.Context, fecha string) ([]VehiculoEnRuta, error) {
 	rows, err := r.pool.Query(ctx, `
 		SELECT v.id, v.patente, r.id::text, v.latitud::float8, v.longitud::float8, v.rumbo::float8, v.posicion_at,
-		       e.id, d.latitud::float8, d.longitud::float8
+		       e.id, d.latitud::float8, d.longitud::float8, e.estado::text, d.demo, d.nombre, r.repartidor_id::text
 		FROM vehiculos v
-		JOIN rutas r ON r.vehiculo_id = v.id AND r.fecha = $1::date
+		-- Solo rutas iniciadas: una ruta planificada espera en el depósito.
+		JOIN rutas r ON r.vehiculo_id = v.id AND r.fecha = $1::date AND r.estado = 'en_curso'
 		JOIN envios e ON e.ruta_id = r.id AND e.estado IN ('asignado', 'en_camino')
 		JOIN destinatarios d ON d.id = e.destinatario_id AND d.latitud IS NOT NULL
 		WHERE v.estado = 'activo'
-		ORDER BY v.patente, e.created_at, e.id
+		ORDER BY v.patente, COALESCE(e.orden_ruta, 2147483647), e.created_at, e.id
 	`, fecha)
 	if err != nil {
 		return nil, err
@@ -230,12 +249,14 @@ func (r *FlotaRepo) EnRuta(ctx context.Context, fecha string) ([]VehiculoEnRuta,
 		var p domain.PosicionVehiculo
 		var rutaID string
 		var s ParadaSimulada
-		if err := rows.Scan(&p.VehiculoID, &p.Patente, &rutaID, &p.Lat, &p.Lng, &p.Rumbo, &p.En, &s.EnvioID, &s.Lat, &s.Lng); err != nil {
+		var repartidorID string
+		if err := rows.Scan(&p.VehiculoID, &p.Patente, &rutaID, &p.Lat, &p.Lng, &p.Rumbo, &p.En, &s.EnvioID, &s.Lat, &s.Lng,
+			&s.Estado, &s.Demo, &s.Destinatario, &repartidorID); err != nil {
 			return nil, err
 		}
 		if n := len(out); n == 0 || out[n-1].Posicion.VehiculoID != p.VehiculoID {
 			p.RutaID = &rutaID
-			out = append(out, VehiculoEnRuta{Posicion: p})
+			out = append(out, VehiculoEnRuta{Posicion: p, RepartidorID: repartidorID})
 		}
 		out[len(out)-1].Paradas = append(out[len(out)-1].Paradas, s)
 	}
@@ -273,7 +294,7 @@ func (r *FlotaRepo) ParadasPendientesAntes(ctx context.Context, rutaID, envioID 
 	err := r.pool.QueryRow(ctx, `
 		SELECT count(*) FROM envios e, envios obj
 		WHERE obj.id::text = $2 AND e.ruta_id::text = $1 AND e.estado IN ('asignado', 'en_camino')
-		  AND (e.created_at, e.id) < (obj.created_at, obj.id)
+		  AND (COALESCE(e.orden_ruta, 2147483647), e.created_at, e.id) < (COALESCE(obj.orden_ruta, 2147483647), obj.created_at, obj.id)
 	`, rutaID, envioID).Scan(&n)
 	return n, err
 }

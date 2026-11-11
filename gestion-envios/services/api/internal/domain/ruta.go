@@ -16,6 +16,12 @@ type Ruta struct {
 type RutaConConteo struct {
 	Ruta
 	CantidadEnvios int `json:"cantidad_envios"`
+	// Avance y carga para las tarjetas del listado.
+	Entregados      int     `json:"entregados"`
+	NoEntregados    int     `json:"no_entregados"`
+	PesoTotal       float64 `json:"peso_total"`
+	VehiculoPatente string  `json:"vehiculo_patente"`
+	VehiculoTipo    string  `json:"vehiculo_tipo"`
 }
 
 const (

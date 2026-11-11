@@ -175,7 +175,7 @@ func (s *TrackingService) enVivo(ctx context.Context, envioID string) (*domain.T
 		vivo.Destino = &domain.Coordenadas{Lat: redondear3(t.Destino.Lat), Lng: redondear3(t.Destino.Lng)}
 		vivo.Recorrido = RecortarRecorrido(t.Recorrido, *t.Destino, radioPrivadoM)
 	}
-	if t.Recorrido != nil {
+	if t.Recorrido != nil && PosicionVigente(s.ahora(), t.Vehiculo.En) {
 		desde, hasta, minutos := VentanaLlegada(s.ahora(), t.Recorrido.DuracionS, t.ParadasAntes)
 		vivo.EtaDesde, vivo.EtaHasta, vivo.EtaMinutos = desde.UTC().Format(time.RFC3339), hasta.UTC().Format(time.RFC3339), minutos
 	}
@@ -197,7 +197,27 @@ func VentanaLlegada(ahora time.Time, duracionS float64, paradasAntes int) (time.
 	if desde.Before(ahora) {
 		desde = ahora
 	}
-	return desde.Truncate(time.Minute), centro.Add(margen / 2).Truncate(time.Minute), minutos
+	// Truncar al minuto puede dejar el inicio hasta 59 s antes de ahora (H27):
+	// en ese caso se redondea al minuto siguiente.
+	desde = desde.Truncate(time.Minute)
+	if desde.Before(ahora) {
+		desde = desde.Add(time.Minute)
+	}
+	return desde, centro.Add(margen / 2).Truncate(time.Minute), minutos
+}
+
+// maxAntiguedadPosicion es cuánto puede tener la última posición del vehículo
+// para seguir estimando la llegada.
+const maxAntiguedadPosicion = 15 * time.Minute
+
+// PosicionVigente indica si la última posición del vehículo es lo bastante
+// reciente para calcular una ETA (H37): con una posición vieja no se promete
+// un horario de llegada.
+func PosicionVigente(ahora, posicionEn time.Time) bool {
+	if posicionEn.IsZero() {
+		return false
+	}
+	return ahora.Sub(posicionEn) <= maxAntiguedadPosicion
 }
 
 // PatenteParcial deja ver el principio y el final de la patente: AB•••CD.

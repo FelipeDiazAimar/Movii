@@ -81,6 +81,8 @@ type DatosAvisoEnvio struct {
 	UltimoEventoID   string
 	Destinatario     string
 	Telefono         string
+	Email            string
+	Demo             bool // destinatario ficticio (cmd/demo): el aviso no se manda
 	Direccion        string
 	Remitente        string
 	Motivo           *string
@@ -97,7 +99,7 @@ type DatosAvisoEnvio struct {
 func (r *WhatsappRepo) DatosAvisoEnvio(ctx context.Context, envioID string) (DatosAvisoEnvio, error) {
 	var d DatosAvisoEnvio
 	err := r.pool.QueryRow(ctx, `
-		SELECT e.id, e.codigo_guia, e.estado::text, COALESCE(ev.id::text, ''), dst.nombre, COALESCE(dst.telefono, ''),
+		SELECT e.id, e.codigo_guia, e.estado::text, COALESCE(ev.id::text, ''), dst.nombre, COALESCE(dst.telefono, ''), COALESCE(dst.email, ''), dst.demo,
 		       trim(dst.calle || ' ' || dst.numero) || ', ' || dst.localidad, COALESCE(rem.nombre, ''),
 		       ev.motivo::text, to_char(e.reprogramado_para, 'YYYY-MM-DD'), e.franja::text,
 		       u.nombre, v.patente, c.receptor_nombre, c.receptor_relacion::text,
@@ -113,7 +115,7 @@ func (r *WhatsappRepo) DatosAvisoEnvio(ctx context.Context, envioID string) (Dat
 			SELECT id, motivo FROM eventos_envio WHERE envio_id = e.id ORDER BY created_at DESC, id DESC LIMIT 1
 		) ev ON true
 		WHERE e.id::text = $1
-	`, envioID).Scan(&d.EnvioID, &d.CodigoGuia, &d.Estado, &d.UltimoEventoID, &d.Destinatario, &d.Telefono,
+	`, envioID).Scan(&d.EnvioID, &d.CodigoGuia, &d.Estado, &d.UltimoEventoID, &d.Destinatario, &d.Telefono, &d.Email, &d.Demo,
 		&d.Direccion, &d.Remitente, &d.Motivo, &d.ReprogramadoPara, &d.Franja,
 		&d.Repartidor, &d.Patente, &d.Receptor, &d.RelacionReceptor, &d.HoraEntrega)
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -130,6 +132,7 @@ type DatosAvisoRuta struct {
 	Fecha      string // YYYY-MM-DD
 	Repartidor string
 	Telefono   string
+	Email      string
 	Envios     int
 	Patente    string
 }
@@ -138,13 +141,13 @@ type DatosAvisoRuta struct {
 func (r *WhatsappRepo) DatosAvisoRuta(ctx context.Context, rutaID string) (DatosAvisoRuta, error) {
 	var d DatosAvisoRuta
 	err := r.pool.QueryRow(ctx, `
-		SELECT r.id, r.nombre, r.zona, to_char(r.fecha, 'YYYY-MM-DD'), u.nombre, COALESCE(u.telefono, ''),
+		SELECT r.id, r.nombre, r.zona, to_char(r.fecha, 'YYYY-MM-DD'), u.nombre, COALESCE(u.telefono, ''), u.email,
 		       (SELECT count(*) FROM envios WHERE ruta_id = r.id), COALESCE(v.patente, '')
 		FROM rutas r
 		JOIN usuarios u ON u.id = r.repartidor_id
 		LEFT JOIN vehiculos v ON v.id = r.vehiculo_id
 		WHERE r.id::text = $1
-	`, rutaID).Scan(&d.RutaID, &d.Nombre, &d.Zona, &d.Fecha, &d.Repartidor, &d.Telefono, &d.Envios, &d.Patente)
+	`, rutaID).Scan(&d.RutaID, &d.Nombre, &d.Zona, &d.Fecha, &d.Repartidor, &d.Telefono, &d.Email, &d.Envios, &d.Patente)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return DatosAvisoRuta{}, ErrNoEncontrado
 	}
@@ -154,7 +157,8 @@ func (r *WhatsappRepo) DatosAvisoRuta(ctx context.Context, rutaID string) (Datos
 // Notificacion es un aviso a registrar.
 type Notificacion struct {
 	Clave    string
-	Telefono string
+	Canal    string // "whatsapp" (por defecto) o "mail"
+	Telefono string // destino: celular o mail según el canal
 	Tipo     string
 	EnvioID  *string
 	RutaID   *string
@@ -169,13 +173,16 @@ func (r *WhatsappRepo) RegistrarNotificacion(ctx context.Context, n Notificacion
 	if n.Estado == "" {
 		n.Estado = "pendiente"
 	}
+	if n.Canal == "" {
+		n.Canal = "whatsapp"
+	}
 	var id string
 	err := r.pool.QueryRow(ctx, `
-		INSERT INTO notificaciones_whatsapp (clave, telefono, tipo, envio_id, ruta_id, mensaje, estado, error)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, NULLIF($8, ''))
+		INSERT INTO notificaciones_whatsapp (clave, telefono, tipo, envio_id, ruta_id, mensaje, estado, error, canal)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, NULLIF($8, ''), $9)
 		ON CONFLICT (clave) DO NOTHING
 		RETURNING id
-	`, n.Clave, n.Telefono, n.Tipo, n.EnvioID, n.RutaID, n.Mensaje, n.Estado, n.Error).Scan(&id)
+	`, n.Clave, n.Telefono, n.Tipo, n.EnvioID, n.RutaID, n.Mensaje, n.Estado, n.Error, n.Canal).Scan(&id)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return "", false, nil
 	}
@@ -185,19 +192,21 @@ func (r *WhatsappRepo) RegistrarNotificacion(ctx context.Context, n Notificacion
 	return id, true, nil
 }
 
-// ResultadoNotificacion marca el aviso como enviado o fallido.
-func (r *WhatsappRepo) ResultadoNotificacion(ctx context.Context, id string, envioErr error) error {
+// ResultadoNotificacion marca el aviso como enviado o fallido, con el canal y
+// el destino por el que finalmente salió (puede pasar de WhatsApp a mail).
+func (r *WhatsappRepo) ResultadoNotificacion(ctx context.Context, id, canal, destino string, envioErr error) error {
 	if envioErr == nil {
-		_, err := r.pool.Exec(ctx, `UPDATE notificaciones_whatsapp SET estado = 'enviado', enviado_at = now() WHERE id = $1`, id)
+		_, err := r.pool.Exec(ctx, `UPDATE notificaciones_whatsapp SET estado = 'enviado', enviado_at = now(), canal = $2, telefono = $3 WHERE id = $1`, id, canal, destino)
 		return err
 	}
-	_, err := r.pool.Exec(ctx, `UPDATE notificaciones_whatsapp SET estado = 'fallido', error = $2 WHERE id = $1`, id, envioErr.Error())
+	_, err := r.pool.Exec(ctx, `UPDATE notificaciones_whatsapp SET estado = 'fallido', error = $2, canal = $3, telefono = $4 WHERE id = $1`, id, envioErr.Error(), canal, destino)
 	return err
 }
 
 // NotificacionEnvio es un aviso ya registrado, para mostrar en el detalle del envío.
 type NotificacionEnvio struct {
 	Tipo      string    `json:"tipo"`
+	Canal     string    `json:"canal"`
 	Estado    string    `json:"estado"`
 	Mensaje   string    `json:"mensaje"`
 	Error     *string   `json:"error"`
@@ -207,7 +216,7 @@ type NotificacionEnvio struct {
 // NotificacionesDeEnvio lista los avisos de un envío, más nuevos primero. Nunca nil.
 func (r *WhatsappRepo) NotificacionesDeEnvio(ctx context.Context, envioID string) ([]NotificacionEnvio, error) {
 	rows, err := r.pool.Query(ctx, `
-		SELECT tipo, estado, mensaje, error, created_at FROM notificaciones_whatsapp
+		SELECT tipo, canal, estado, mensaje, error, created_at FROM notificaciones_whatsapp
 		WHERE envio_id::text = $1 ORDER BY created_at DESC
 	`, envioID)
 	if err != nil {
@@ -217,7 +226,7 @@ func (r *WhatsappRepo) NotificacionesDeEnvio(ctx context.Context, envioID string
 	out := make([]NotificacionEnvio, 0)
 	for rows.Next() {
 		var n NotificacionEnvio
-		if err := rows.Scan(&n.Tipo, &n.Estado, &n.Mensaje, &n.Error, &n.CreatedAt); err != nil {
+		if err := rows.Scan(&n.Tipo, &n.Canal, &n.Estado, &n.Mensaje, &n.Error, &n.CreatedAt); err != nil {
 			return nil, err
 		}
 		out = append(out, n)

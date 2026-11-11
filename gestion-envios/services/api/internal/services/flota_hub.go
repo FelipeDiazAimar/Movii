@@ -14,11 +14,14 @@ type FlotaHub struct {
 	subs map[chan domain.PosicionVehiculo]struct{}
 	// ultima guarda la última posición de cada vehículo para quien se suscribe tarde.
 	ultima map[string]domain.PosicionVehiculo
+	// cambios: suscriptos al aviso "cambió el estado de algo" (envío entregado,
+	// ruta iniciada...). Así la web recarga al instante en vez de esperar su refresco.
+	cambios map[chan string]struct{}
 }
 
 // NewFlotaHub crea un hub vacío.
 func NewFlotaHub() *FlotaHub {
-	return &FlotaHub{subs: map[chan domain.PosicionVehiculo]struct{}{}, ultima: map[string]domain.PosicionVehiculo{}}
+	return &FlotaHub{subs: map[chan domain.PosicionVehiculo]struct{}{}, ultima: map[string]domain.PosicionVehiculo{}, cambios: map[chan string]struct{}{}}
 }
 
 // Suscribir devuelve un canal con las posiciones (empieza con la última conocida
@@ -59,6 +62,40 @@ func (h *FlotaHub) Publicar(p domain.PosicionVehiculo) {
 		}
 	}
 }
+
+// SuscribirCambios devuelve un canal que recibe el id de lo que cambió (envío o ruta).
+func (h *FlotaHub) SuscribirCambios() (<-chan string, func()) {
+	ch := make(chan string, 16)
+	h.mu.Lock()
+	h.cambios[ch] = struct{}{}
+	h.mu.Unlock()
+	var once sync.Once
+	return ch, func() {
+		once.Do(func() {
+			h.mu.Lock()
+			delete(h.cambios, ch)
+			h.mu.Unlock()
+			close(ch)
+		})
+	}
+}
+
+func (h *FlotaHub) avisarCambio(id string) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	for ch := range h.cambios {
+		select {
+		case ch <- id:
+		default: // el cliente ya tiene un aviso pendiente: con uno alcanza para recargar
+		}
+	}
+}
+
+// CambioDeEstado implementa AvisosEnvio: avisa a la web que cambió un envío.
+func (h *FlotaHub) CambioDeEstado(envioID string) { h.avisarCambio(envioID) }
+
+// RutaAsignada implementa AvisosRuta: avisa a la web que cambió una ruta.
+func (h *FlotaHub) RutaAsignada(rutaID string) { h.avisarCambio(rutaID) }
 
 // Suscriptos devuelve la cantidad de clientes conectados.
 func (h *FlotaHub) Suscriptos() int {
