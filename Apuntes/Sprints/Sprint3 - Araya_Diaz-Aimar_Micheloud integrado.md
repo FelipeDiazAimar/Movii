@@ -12,7 +12,7 @@
 
 **Grupo N° 7:** Araya, Ulises · Díaz Aimar, Felipe · Micheloud, Jeremías
 
-**Estado del código descripto:** rama `main`, commit `e9fc789` (07/11/2026, 19:15).
+**Estado del código descripto:** rama `main`, commit `e9fc789` (07/11/2026, 19:15), más las mejoras posteriores al cierre del 10 y 11/11/2026 (Sprint 3, sección 6.12).
 
 ---
 
@@ -976,7 +976,7 @@ Cerrar el producto: dar al administrador y al operador la visión de la operaci�
 | HU-18 | Gestión de flota de vehículos (nueva) | Media | 3 | 5 | Sprint 3 (Completada) |
 | HU-19 | App del repartidor instalable, APK y PWA (nueva) | Alta | 5 | 3 | Sprint 3 (Completada) |
 
-Las fichas completas de cada Historia de Usuario se encuentran en el documento **Sprint Backlog 3**. La optimización automática de rutas sigue fuera de alcance: el orden de las paradas lo define el operador y el mapa solo traza el camino por las calles.
+Las fichas completas de cada Historia de Usuario se encuentran en el documento **Sprint Backlog 3**. Desde el 11/11 las paradas de cada ruta se ordenan solas por el recorrido más corto (antes las definía el operador por orden de alta); repartir los envíos entre vehículos con franjas y capacidad sigue fuera de alcance (sección 10).
 
 ### 2.1 Modificaciones al Product Backlog durante el Sprint 3
 
@@ -991,6 +991,12 @@ Las fichas completas de cada Historia de Usuario se encuentran en el documento *
 | 07/11 | Alta de HU-19 (APK + PWA). | HU-19 | La app solo se probaba en Expo Go; hacía falta poder instalarla. |
 | 07/11 | Mejoras agregadas en la última semana (T1 a T6): primer acceso con código, login con Google, rol admin y borrado, recomendación por distancia, vista 3D y navegación con Google Maps, filtros y buscadores. | HU-01, HU-04, HU-12, HU-18 | Pulido final pedido por el Product Owner para la demo. No suman SP: se documentan en 6.9. |
 | 07/11 (tarde) | Mejoras de cierre (T7): tracking público en vivo con mapa y hora estimada, perfil del repartidor, 3D en operaciones y cambio de contraseña. | HU-10, HU-12, HU-01 | Pulido final de la demo. No suman SP: se documentan en 6.9. |
+| 10/11 | Prueba manual completa de la web (37 hallazgos) y corrección de los graves. | Todas | Verificar los criterios de aceptación en el sistema corriendo antes de la presentación. |
+| 11/11 | Recorrido más corto: las paradas se ordenan solas (reemplaza "el orden lo define el operador"). | HU-12 | El recorrido en orden de alta iba y volvía por la ciudad (14,5 km contra 8,6 km). Decisión en `docs/decisions/orden-de-rutas.md`. No suma SP. |
+| 11/11 | "Iniciar ruta" reemplaza "Marcar en camino" envío por envío; una ruta iniciada no admite envíos nuevos; el estado de la ruta se deriva de sus envíos. | HU-06, HU-03 | El camión sale del depósito con todos los paquetes y las rutas quedaban siempre "planificadas". El endpoint de HU-06 se mantiene. No suma SP. |
+| 11/11 | Avisos formales sin emojis y respaldo por mail. | HU-17 | Pedido del Product Owner. No suma SP. |
+| 11/11 | Simulación de un día de trabajo: entregas simuladas, botón ▶ de estado inicial y seguimiento en vivo integrado. | HU-11, HU-12 | Mostrar la operación completa en la presentación sin preparar datos a mano. No suma SP. |
+| 11/11 | Rutas y repartidores sugeridos al asignar, vehículos camioneta y auto, "Mis pedidos" en la app y ficha completa del envío. | HU-04, HU-05, HU-18 | Pulido del equipo para la presentación. No suma SP. |
 
 ## 3. Estimaciones de Valor y Esfuerzo
 
@@ -1120,6 +1126,23 @@ Vista consolidada al cierre del sprint. Las horas reales son una reconstrucción
 
 > Las horas de T7 (8 est. / 10 reales) son una **estimación reconstruida** a partir del alcance del trabajo (7 commits, 54 archivos modificados), igual que el resto de las horas "reales" (ver nota metodológica).
 
+### Mejoras posteriores al cierre (10/11 y 11/11)
+
+Trabajo hecho después del cierre del 07/11 para la presentación. No suma SP ni entra en el resumen de horas del sprint: las horas se cargan cuando cada integrante las registre.
+
+| # | Mejora | HU relacionada | Responsable | Estado |
+| --- | --- | --- | --- | --- |
+| T8 | Prueba manual completa de la web (plan, 37 hallazgos con capturas) y correcciones | Todas | Araya | Completada |
+| T9 | Máscaras y límites en todos los formularios | HU-02 / HU-03 / HU-18 | Araya | Completada |
+| T10 | Rutas y Vehículos rediseñadas; panel lateral que se expande al pasar el cursor | HU-03 / HU-18 | Araya | Completada |
+| T11 | Avisos formales y respaldo por mail (Gmail por SMTP o Resend), migración 0016 | HU-17 | Araya | Completada |
+| T12 | Estado de la ruta derivado de sus envíos (migraciones 0014 y 0017) e "Iniciar ruta" en web y app | HU-06 | Micheloud / Araya | Completada |
+| T13 | Recorrido más corto (`OrdenadorRutas`, migración 0018) | HU-12 | Araya | Completada |
+| T14 | Simulador con entregas, regreso al depósito y camiones de entrega manual | HU-12 | Araya | Completada |
+| T15 | Botón ▶ y `cmd/demo`: estado inicial de un día de trabajo | HU-11 | Araya | Completada |
+| T16 | Seguimiento en vivo integrado (mapa 2D animado, paradas en orden, caja del camión, evento SSE `cambio`) | HU-11 / HU-12 | Araya | Completada |
+| T17 | Rutas y repartidores sugeridos, vehículos camioneta y auto (migración 0015), "Mis pedidos" y ficha completa del envío | HU-04 / HU-05 / HU-18 | Micheloud / Díaz Aimar | Completada |
+
 ### Resumen de horas por grupo de tareas
 
 | Grupo | Est. (hs) | Real (hs) | Diferencia |
@@ -1138,7 +1161,7 @@ El desvío total fue de 27 horas (**+15,4 %**). Se explica casi por completo por
 
 ## 5. Modelo de Datos
 
-El modelo del Sprint 3 agrega la flota de vehículos, la geolocalización de los destinatarios, la autenticación en dos pasos y el registro de avisos por WhatsApp. Las mejoras de la última semana suman cuatro migraciones chicas. Todas las migraciones tienen su `down` y se aplican solas al arrancar la API. La secuencia completa del proyecto es 0001 a 0013; el Sprint 2 aportó 0003, 0004, 0005 y 0009 (ver Sprint 2, 6.10).
+El modelo del Sprint 3 agrega la flota de vehículos, la geolocalización de los destinatarios, la autenticación en dos pasos y el registro de avisos por WhatsApp. Las mejoras de la última semana suman cuatro migraciones chicas y las posteriores al cierre (10 y 11/11), cinco más. Todas las migraciones tienen su `down` y se aplican solas al arrancar la API. La secuencia completa del proyecto es 0001 a 0018; el Sprint 2 aportó 0003, 0004, 0005 y 0009 (ver Sprint 2, 6.10).
 
 | Migración | Cambios |
 | --- | --- |
@@ -1149,6 +1172,11 @@ El modelo del Sprint 3 agrega la flota de vehículos, la geolocalización de los
 | `0011_primer_acceso` | `usuarios.must_change_password`; `codigos_otp.telefono` pasa a guardar el destino del código (celular o email). |
 | `0012_login_google` | `usuarios.google_id` (único) y `usuarios.auth_provider` (password / google). |
 | `0013_vehiculo_color` | `vehiculos.color` (#RRGGBB; vacío = color automático). |
+| `0014_estado_ruta_derivado` | Recalcula el estado de las rutas existentes a partir de sus envíos; desde entonces se actualiza al cambiar cada envío. |
+| `0015_vehiculo_tipos` | Tipos de vehículo `camioneta` y `auto`. |
+| `0016_avisos_mail_y_demo` | `destinatarios.email` y `destinatarios.demo`; canal del aviso (`whatsapp` / `mail`) y estado `simulado`. |
+| `0017_estado_ruta_automatico` | Trigger que recalcula el estado de la ruta también al asignar, quitar o borrar envíos. |
+| `0018_orden_ruta` | `envios.orden_ruta`: orden de visita calculado por el recorrido más corto. |
 
 Además, la librería `whatsmeow` crea sus tablas `whatsmeow_*` (sesión del dispositivo vinculado) en la misma base, así la sesión sobrevive a los redeploys.
 
@@ -1176,8 +1204,8 @@ Las funcionalidades del Sprint 3 están implementadas y verificadas de punta a p
 
 - **Capa 1 — Clientes:** panel web (React 19 + Vite) desplegado en Vercel, con mapas Leaflet + OpenStreetMap y vista 3D con MapLibre. App del repartidor en Expo / React Native, instalable como APK (EAS Build) y servida como PWA en `/app/` para iPhone.
 - **Capa 2 — API REST en Go (1.27), desplegada en Railway,** organizada en `handlers → services → repository`. Suma un stream SSE (`/operaciones/flota/stream`), el simulador GPS y el notificador de WhatsApp como procesos en segundo plano. Los servicios externos quedan detrás de interfaces (`Geocoder`, `Router`, `Sender`) para poder testear sin red y cambiar de proveedor.
-- **Capa 3 — Base de datos:** PostgreSQL 17 en Supabase, con migraciones 0001 a 0013 aplicadas al arrancar la API.
-- **Servicios externos:** Nominatim (geocodificación), OSRM (recorridos por calles), WhatsApp (`whatsmeow`, cuenta de la empresa vinculada por QR), Resend (mails del primer acceso) y Google OAuth2.
+- **Capa 3 — Base de datos:** PostgreSQL 17 en Supabase, con migraciones 0001 a 0018 aplicadas al arrancar la API.
+- **Servicios externos:** Nominatim (geocodificación), OSRM (recorridos por calles), WhatsApp (`whatsmeow`, cuenta de la empresa vinculada por QR), Gmail por SMTP o Resend (mails del primer acceso y respaldo de los avisos) y Google OAuth2.
 
 **Decisión sobre WhatsApp:** se eligió `whatsmeow` frente a la API oficial de Meta porque esta exige una cuenta Business verificada y plantillas aprobadas, inviables en el plazo del sprint. La interfaz `Sender` permite migrar a la API oficial sin tocar los servicios.
 
@@ -1220,7 +1248,8 @@ $ curl localhost:8080/rutas/<ruta-ajena>/mapa -H "Authorization: Bearer <token-r
 
 **Reglas:**
 - La geocodificación corre al dar de alta el envío (en segundo plano) y hay un backfill al arrancar. Respeta la política de Nominatim: 1 consulta por segundo, User-Agent propio y caché. Si la dirección exacta no aparece se usa la calle y, si tampoco, la localidad, marcada como aproximada.
-- El simulador GPS avanza cada 2 s cada camión activo por su polilínea OSRM, guarda la telemetría y la publica por SSE. Si el repartidor resuelve una parada, recalcula desde donde está.
+- El simulador GPS avanza cada 2 s cada camión con la ruta **en curso** por su polilínea OSRM, guarda la telemetría y la publica por SSE. Si el repartidor resuelve una parada, recalcula desde donde está. Desde el 11/11 frena en cada domicilio, entrega solo los envíos de demostración, espera en la puerta en los reales y vuelve al depósito (ver 6.12).
+- Desde el 11/11 las paradas se ordenan solas por el recorrido más corto por calles (ver 6.12).
 - Si OSRM no responde, el mapa igual se dibuja con línea recta entre puntos.
 - Un repartidor no puede ver rutas ajenas: recibe 404, igual que en HU-06.
 
@@ -1265,7 +1294,7 @@ El destinatario recibe un aviso cuando su envío sale a reparto, se entrega, no 
 
 Endpoints: `GET /envios/{id}/avisos`, `GET /admin/whatsapp/estado` y `POST /admin/whatsapp/desvincular`.
 
-**Reglas:** los avisos van por una cola asíncrona: un fallo de WhatsApp nunca bloquea ni revierte la operación. Cada aviso queda registrado (enviado, fallido u omitido por falta de teléfono) con una clave de idempotencia, así no se manda dos veces el mismo. La página WhatsApp muestra el QR para vincular la cuenta de la empresa y el detalle del envío muestra la tarjeta "Avisos por WhatsApp".
+**Reglas:** los avisos van por una cola asíncrona: un fallo de WhatsApp nunca bloquea ni revierte la operación. Desde el 11/11 los textos son formales y sin emojis y, si WhatsApp no está vinculado o falla, el aviso se manda por mail cuando el destinatario lo tiene (Gmail por SMTP o Resend); el registro indica el canal y los avisos de los datos de demostración quedan "simulado". Cada aviso queda registrado (enviado, fallido u omitido por falta de teléfono) con una clave de idempotencia, así no se manda dos veces el mismo. La página WhatsApp muestra el QR para vincular la cuenta de la empresa y el detalle del envío muestra la tarjeta "Avisos por WhatsApp".
 
 ### 6.7 HU-18 — Gestión de flota de vehículos
 
@@ -1316,7 +1345,9 @@ La estrategia siguió el Plan de Pruebas del Sprint 3 (IEEE 829 / ISTQB): prueba
 
 Cifras de la API medidas el 10/11/2026 sobre `main` más los tests agregados en el cierre (las de web y móvil, sobre el commit `e9fc789`).
 
-**Cobertura de la API** (`go test ./... -coverpkg=./...`, que suma la cobertura que aportan las pruebas de flujo del paquete `tests`): **71,4 % de las sentencias**, por encima del umbral del 70 % de la DoD. Por paquete: `httprouter` 97,9 %, `middleware` 88,2 %, `google` 84,2 %, `repository` 82,9 %, `services` 82,4 %, `config` 77,5 %, `mail` 72,7 %, `handlers` 72,5 %, `geo` 70,1 % y `platform/db` 17,9 %. `platform/whatsapp` (cliente real de `whatsmeow`, que requiere una cuenta vinculada) y los ejecutables `cmd/*` (arranque, migración y datos de demo) no se prueban de forma automática (0 %); sin contar `cmd/*`, la cobertura es del 76,4 %. Durante el cierre se agregaron tests para los borrados (`eliminar_handler`), los repositorios de geo, perfil y WhatsApp, el handler de rutas (listado, edición y recomendación por distancia) y los handlers de WhatsApp y del perfil del repartidor, lo que llevó la cobertura del 65,0 % al 71,4 %.
+**Corrida del 11/11/2026**, con las mejoras posteriores al cierre (6.12) integradas con las del equipo: API **297** funciones de test, web **210** y móvil **65** (+1 salteado), todo en verde (la API, contra una base PostgreSQL descartable).
+
+**Cobertura de la API** (`go test ./... -coverpkg=./...`, que suma la cobertura que aportan las pruebas de flujo del paquete `tests`): **71,4 % de las sentencias**, por encima del umbral del 70 % de la DoD. Por paquete: `httprouter` 97,9 %, `middleware` 88,2 %, `google` 84,2 %, `repository` 82,9 %, `services` 82,4 %, `config` 77,5 %, `mail` 72,7 %, `handlers` 72,5 %, `geo` 70,1 % y `platform/db` 17,9 %. `platform/whatsapp` (cliente real de `whatsmeow`, que requiere una cuenta vinculada) y los ejecutables `cmd/*` (arranque, migración y datos de demo) no se prueban de forma automática (0 %); sin contar `cmd/*`, la cobertura es del 76,4 %. Durante el cierre se agregaron tests para los borrados (`eliminar_handler`), los repositorios de geo, perfil y WhatsApp, el handler de rutas (listado, edición y recomendación por distancia) y los handlers de WhatsApp y del perfil del repartidor, lo que llevó la cobertura del 65,0 % al 71,4 %. **Al 11/11 la cobertura es 66,3 % (70,5 % sin `cmd/*`)**: los servicios nuevos tienen tests (orden de rutas, simulador, notificador, estado inicial), pero los handlers nuevos (iniciar ruta, demo, pedidos y sugerencias) todavía no tienen test propio y `handlers` bajó al 63,2 %.
 
 **Defectos detectados y corregidos en la reintegración:**
 
@@ -1329,6 +1360,24 @@ Cifras de la API medidas el 10/11/2026 sobre `main` más los tests agregados en 
 | 5 | HU-16 | El segundo paso del login quedaba colgado si WhatsApp tardaba. | El envío del código se hacía en la misma petición del login. | El envío pasa a segundo plano con tiempo límite y la pantalla permite reenviar. |
 | 6 | HU-19 | Botones y tarjetas rotos solo en el APK. | Estilos que dependían del entorno de Expo Go. | Se corrigieron los estilos y se verificó el APK en un Android físico. |
 | 7 | HU-02 | Registrar un envío con un tamaño de paquete fuera del catálogo (por ejemplo `pequeno`) respondía 500 en vez de 400. | El tamaño es un enum en la base y la validación del servicio no lo controlaba; el error de la base subía como falla interna. | `validarCrearEnvioInput` exige `chico`, `mediano` o `grande` y responde 400 `campos_obligatorios`; test `TestValidarCrearEnvioInput_RechazaTamanoFueraDeCatalogo` y verificación en el recorrido contra la API real. |
+| 8 | HU-03 / HU-06 | Las rutas quedaban siempre "planificadas" aunque sus envíos se entregaran. | Nada actualizaba el estado de la ruta. | Estado derivado de los envíos (migraciones 0014 y 0017); test `TestEnvioRepo_EstadoDeRutaSeDerivaDeSusEnvios`. |
+| 9 | HU-02 | Después de borrar un envío, el alta del siguiente del mismo día fallaba. | El número del código de guía se calculaba contando los envíos del día y repetía uno existente. | Se usa el último número del día. |
+| 10 | Varias | Prueba manual del 10/11: credenciales del admin precargadas en el login, "Cerrar sesión" sin salida en "acceso denegado", página 404 ilegible, tablas que desbordaban en el celular, desplegables que llevaban la página al final. | Defectos de interfaz no cubiertos por los tests. | Corregidos y verificados en el navegador; ver `docs/superpowers/plans/2026-11-10-web-prueba-manual-resultados.md`. |
+
+### 6.12 Mejoras posteriores al cierre (10/11 y 11/11)
+
+Mejoras hechas después del 07/11 para la presentación (tareas T8 a T17). No suman SP.
+
+| ID | Mejora | Detalle |
+| --- | --- | --- |
+| T12 | Iniciar ruta | `POST /rutas/{id}/iniciar` (repartidor desde la app u operador desde la web) pasa todos los envíos asignados de la ruta a "en camino", con su evento y su aviso. Reemplaza "Marcar en camino" y "Volver a asignado" envío por envío. Una ruta iniciada no admite envíos nuevos (409 `ruta_iniciada`). |
+| T13 | Recorrido más corto | `OrdenadorRutas` calcula el orden de visita que minimiza la distancia total por calles: sale del depósito (o del camión si la ruta ya salió) y vuelve al depósito; las paradas resueltas conservan su lugar. Es exacto (Held-Karp) hasta 11 paradas; con más, vecino más cercano y 2-opt. Usa la matriz de distancias de OSRM o Google y, si falla, la línea recta. Se recalcula al asignar y al iniciar la ruta. |
+| T14 | Simulador con entregas | Solo mueve rutas en curso. En cada domicilio frena; los envíos de demostración se entregan solos después de la parada (con firma y foto, o con una incidencia según una probabilidad), los reales esperan a que el repartidor los resuelva y al terminar el camión vuelve al depósito. Los camiones de `SIMULADOR_ENTREGA_MANUAL` (TRK-318 por defecto) no entregan solos y van a `SIMULADOR_VELOCIDAD_MANUAL` (45 km/h). |
+| T15 | Estado inicial de demostración | Botón ▶ del admin (`POST /admin/demo/reiniciar`) y `go run ./cmd/demo`: completa el historial de 30 días y rearma la operación de hoy (una ruta por repartidor con las primeras entregas hechas), los pendientes y las rutas de mañana. Solo reescribe datos de demostración (destinatarios marcados `demo` y la flota demo). Deja la ruta del camión naranja en el depósito, asignada a la cuenta de la app, para iniciarla en vivo. |
+| T11 | Avisos | Textos formales sin emojis; respaldo por mail (Gmail por SMTP con contraseña de aplicación, o Resend); estado `simulado` para los datos de demostración. |
+| T16 | Seguimiento en vivo | Mapa, paradas de la ruta en orden y caja del camión en una sola sección: elegir un paquete en cualquiera de los tres lo marca en los otros y traza el camino del camión. La parada a la que va el camión se ve como "Yendo ahora" (con distancia y tiempo) o "Entregando". El mapa 2D muestra el camión animado y la ruta en el color del vehículo, como el 3D. El evento SSE `cambio` actualiza la web al instante. |
+| T8–T10 | Interfaz | Correcciones de la prueba manual, máscaras y límites en todos los formularios, Rutas y Vehículos rediseñadas, panel lateral que se expande al pasar el cursor. |
+| T17 | Mejoras del equipo | Rutas sugeridas por envío y repartidores sugeridos por ruta (`GET /envios/{id}/rutas-sugeridas`, `GET /repartidores/sugeridos`), vehículos camioneta y auto, "Mis pedidos" en la app (`GET /repartidor/pedidos`) y ficha completa del envío. |
 
 ## 7. Cronograma y Burndown Chart
 
@@ -1340,6 +1389,8 @@ Cifras de la API medidas el 10/11/2026 sobre `main` más los tests agregados en 
 | 04/11 | Mejoras de la base en `main` (pestaña Repartidores, asignación envío–ruta–repartidor) · se revierte el trabajo del 22/10 de `main`. |
 | 05/11 – 06/11 | Comparación de las dos implementaciones · Plan de pruebas v1.0. |
 | 07/11 (cierre) | Reintegración · ampliación de alcance (HU-12, HU-16 a HU-19) · deploy · mejoras T1 a T7 · documentación. |
+| 10/11 | Prueba manual completa de la web y correcciones (T8). |
+| 11/11 | Mejoras posteriores al cierre T9 a T17 e integración con las mejoras del equipo. |
 
 **Burndown Chart (Story Points)** — tabla; los valores "reales" son una reconstrucción al cierre (ver nota metodológica).
 
@@ -1357,14 +1408,14 @@ La tabla muestra el problema principal del sprint: el trabajo quedó por encima 
 
 1. **Código en `main` con revisión cruzada:** cumplida para HU-11 a HU-19 y las mejoras T1 a T7 mediante revisión conjunta de los cambios entre integrantes (comparación de las dos implementaciones, merges entre ramas). No se usaron Pull Requests formales en todas las integraciones; es una de las acciones de mejora de la retrospectiva.
 2. **Compilación:** cumplida (`go build`, `tsc`, `vite build`, `expo export`).
-3. **Tests en verde:** cumplida. `go test ./... -p 1` (260 tests de API, todos los paquetes en verde, incluidos los 10 E2E de flujos), 115 tests web y 62 móvil (más 1 salteado de plantilla).
+3. **Tests en verde:** cumplida. `go test ./... -p 1` (260 tests de API, todos los paquetes en verde, incluidos los 10 E2E de flujos), 115 tests web y 62 móvil (más 1 salteado de plantilla). Al 11/11, con las mejoras posteriores al cierre: 297 de API, 210 web y 65 móvil, todos en verde.
 4. **Integración continua:** cumplida. Los workflows `api-ci`, `web-ci` y `mobile-ci` terminaron en verde sobre el último commit de `main` (`e9fc789`, 07/11/2026, 22:18 UTC), según el historial de GitHub Actions.
 5. **Documentación de API:** cumplida; endpoints y esquemas del Sprint 3 en `docs/api/openapi.yaml`.
 6. **Criterios de aceptación verificados:** cumplida en el sistema corriendo (web, PWA y API desplegadas).
-7. **Migraciones con `down`:** cumplida (0006 a 0013 del Sprint 3, más 0003, 0004, 0005 y 0009 del Sprint 2).
+7. **Migraciones con `down`:** cumplida (0006 a 0018 del Sprint 3, más 0003, 0004, 0005 y 0009 del Sprint 2).
 8. **Sin credenciales en el repositorio:** cumplida (`.env` fuera de git; `.env.example` actualizado).
 9. **Prueba en dispositivos físicos (HU-19):** cumplida. APK probado en un Android físico y PWA instalada en un iPhone físico.
-10. **Cobertura mínima del 70 % (DoD del Sprint 0):** cumplida para la API (71,4 % medido con `-coverpkg=./...`, incluyendo las pruebas de flujo). Se midió por primera vez en este sprint: arrancó en 65,0 % y se subió agregando tests de borrados, repositorios y handlers sin cobertura. Quedan fuera de la medición el cliente real de WhatsApp y los ejecutables `cmd/*`. Mejora pendiente: exigir el umbral en el CI (`api-ci` ya reporta `-cover` por paquete).
+10. **Cobertura mínima del 70 % (DoD del Sprint 0):** cumplida para la API (71,4 % medido con `-coverpkg=./...`, incluyendo las pruebas de flujo). Se midió por primera vez en este sprint: arrancó en 65,0 % y se subió agregando tests de borrados, repositorios y handlers sin cobertura. Quedan fuera de la medición el cliente real de WhatsApp y los ejecutables `cmd/*`. Mejora pendiente: exigir el umbral en el CI (`api-ci` ya reporta `-cover` por paquete). **Al 11/11 bajó a 66,3 % (70,5 % sin `cmd/*`)** por los handlers nuevos sin test propio (ver 6.11): pendiente volver a superar el 70 % con los ejecutables incluidos.
 
 ## 9. Retrospectiva — Análisis teórico vs. real
 
@@ -1421,7 +1472,7 @@ Todas las historias del Product Backlog quedaron implementadas. Las siguientes f
 
 | # | Funcionalidad | Decisión | Justificación |
 | --- | --- | --- | --- |
-| 1 | Optimización automática de rutas | Excluida desde el Sprint 0 | El orden de las paradas lo define el operador; el mapa solo traza el camino por las calles (HU-12). |
+| 1 | Optimización de flota (repartir los envíos entre vehículos según franjas horarias y capacidad) | Excluida desde el Sprint 0 | El 11/11 se incorporó el orden por recorrido más corto **dentro** de cada ruta (6.12); qué envíos van en cada ruta lo sigue decidiendo el operador, con sugerencias y recomendación por distancia. |
 | 2 | Ubicación GPS real del celular del repartidor | Reemplazada por el simulador GPS | HU-12 CA-03 define la posición simulada para la demostración; el stream SSE ya admite posiciones reales sin cambios en la web. |
 | 3 | WhatsApp con la API oficial de Meta | Reemplazada por `whatsmeow` | La API oficial exige una cuenta Business verificada y plantillas aprobadas, inviables en el plazo del sprint. La interfaz `Sender` permite migrar sin tocar los servicios. |
 | 4 | Publicación en Google Play y App Store | Excluida por HU-19 | HU-19 define la distribución como APK por link (Android) y PWA (iPhone). |

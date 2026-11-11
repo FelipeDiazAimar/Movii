@@ -5,7 +5,7 @@
 **UTN — Facultad Regional San Francisco** · Ingeniería y Calidad del Software · 2026
 **Docentes:** Gandino, Diego · Saldarini, Javier Daniel
 **Grupo N° 7:** Araya, Ulises · Díaz Aimar, Felipe · Micheloud, Jeremías
-**Versión:** 2.0 · **Fecha:** 07/11/2026
+**Versión:** 2.1 · **Fecha:** 11/11/2026
 
 ### Control de versiones
 
@@ -13,6 +13,7 @@
 | :-: | :-: | --- |
 | 1.0 | 06/11/2026 | Plan inicial con CP-01 a CP-25 sobre la implementación de la rama `Sprint3`. |
 | 2.0 | 07/11/2026 | Reescrito sobre la implementación integrada en `main`: cada caso remite a un test automatizado existente o a una verificación manual en el sistema corriendo. Se agregan HU-16 a HU-19. |
+| 2.1 | 11/11/2026 | Se agregan CP-42 a CP-53 para las mejoras posteriores al cierre (iniciar ruta, estado de ruta derivado, recorrido más corto, simulador con entregas, avisos por mail, estado inicial de demostración) y la prueba manual completa de la web del 10/11. Se actualizan las cifras. |
 
 ---
 
@@ -97,16 +98,30 @@ Prioridad: A = alta, M = media, B = baja. Tipo: Auto = automatizado, Man = manua
 | CP-39 | 19 | iPhone: "Agregar a inicio", pantalla completa sin barras, safe areas | Man | iPhone físico | ⬜ pendiente del equipo |
 | CP-40 | 19 | Android: instalar el APK de EAS e iniciar sesión | Man | Android físico | ⬜ pendiente del equipo |
 | CP-41 | 1–10 | Regresión de los Sprints 1 y 2 (registro, login, envíos, rutas, estados, firma, reprogramación, tracking) | Auto | resto de `go test ./...`, tests web y mobile | ✅ |
+| CP-42 | 6 | "Iniciar ruta" pasa a "en camino" todos los envíos de la ruta y la ruta queda en curso; a una ruta iniciada no se le pueden asignar envíos | Auto | `TestReiniciar_EstadoInicialRepetibleSinTocarDatosAjenos`, `BotonIniciarRuta.test.tsx`, `tests/iniciar-ruta.test.ts` (app) | ✅ |
+| CP-43 | 6 | El estado de la ruta se deriva de sus envíos (planificada → en curso → completada) | Auto | `TestEnvioRepo_EstadoDeRutaSeDerivaDeSusEnvios`, `eliminar_handler_test.go` | ✅ |
+| CP-44 | 12 | Recorrido más corto: el orden exacto es el óptimo, evita el zigzag y con muchas paradas la heurística mejora el orden de alta | Auto | `TestOrdenMasCorto_ExactoEsElMejorPosible`, `TestOrdenMasCorto_EvitaElZigzag`, `TestOrdenMasCorto_HeuristicaConMuchasParadas`, `TestOrdenMasCorto_SinLlegadaTerminaEnLaMasLejana` | ✅ |
+| CP-45 | 12 | Simulador: entrega las paradas de demostración, termina la ruta y vuelve al depósito | Auto | `TestSimulador_EntregaLasParadasDemoYVuelveAlDeposito`, `TestSimulador_TerminaLaRutaYVuelveAlDeposito` | ✅ |
+| CP-46 | 12 | Simulador: un camión de entrega manual espera en la puerta hasta que se resuelve el envío desde la app y va a su velocidad propia | Auto + Man | `TestSimulador_CamionConEntregaManualEsperaEnLaPuertaYVaMasRapido`; verificado en el sistema corriendo (11/11) | ✅ |
+| CP-47 | 17 | WhatsApp sin vincular o con falla → el aviso va por mail; si fallan ambos queda el error; sin teléfono ni mail queda omitido | Auto | `TestNotificador_SinWhatsappVinculadoVaPorMail`, `TestNotificador_SiWhatsappFallaReintentaPorMail`, `TestNotificador_SiFallanAmbosQuedaElError`, `TestNotificador_SinTelefonoNiMailQuedaOmitido` | ✅ |
+| CP-48 | 17 | Los avisos de destinatarios de demostración quedan "simulado"; no se mandan mails a dominios reservados | Auto | `TestNotificador_DestinatarioDemoQuedaSimuladoSinEnviar`, `TestNotificador_NoMandaMailsADominiosReservados` | ✅ |
+| CP-49 | 17 | Mail por SMTP: valores de Gmail y rechazo de inyección de encabezados | Auto | `TestNewSMTP_ValoresDeGmail`, `TestArmarMensaje_RechazaInyeccionDeEncabezados` | ✅ |
+| CP-50 | 11 | Botón ▶: el estado inicial se puede repetir y no toca usuarios, vehículos agregados a mano ni envíos o rutas reales; la ruta del camión naranja queda sin iniciar y es de la cuenta de la app | Auto | `TestReiniciar_EstadoInicialRepetibleSinTocarDatosAjenos`, `TestConCuentaDemoEnVivo_LeDaElCamionNaranjaALaCuentaDeLaApp`, `BotonSimulacion.test.tsx` | ✅ |
+| CP-51 | 2, 3, 18 | Máscaras y límites de los formularios (teléfono, patente, kilos, textos) | Auto | `mascaras.test.ts`, `EnvioForm.test.tsx`, `RutaForm.test.tsx` | ✅ |
+| CP-52 | 11, 12 | Seguimiento en vivo: la parada a la que va el camión se marca "Yendo ahora" y la web se actualiza sola al entregarse un paquete | Man | Sistema corriendo (11/11) | ✅ |
+| CP-53 | todas | Prueba manual completa de la web (37 hallazgos; los graves corregidos y verificados) | Man | `docs/superpowers/plans/2026-11-10-web-prueba-manual-resultados.md` | ✅ |
 
 ## 7. Resultados
 
 | Suite | Tests | Resultado |
 | --- | :-: | --- |
-| Go | 215 funciones | ✅ |
-| Web | 71 | ✅ |
-| Mobile | 51 | ✅ |
+| Go | 297 funciones | ✅ |
+| Web | 210 | ✅ |
+| Mobile | 65 (+1 salteado) | ✅ |
 
-- Casos: 41 · ejecutados: 38 · aprobados: 38 · pendientes de ejecución manual en dispositivos/WhatsApp real: 3 (CP-31, CP-39, CP-40).
+Corrida del 11/11/2026 (al 07/11 eran 215, 71 y 51). Cobertura de la API: 66,3 % de las sentencias (70,5 % sin `cmd/*`).
+
+- Casos: 53 · ejecutados: 50 · aprobados: 50 · pendientes de ejecución manual en dispositivos/WhatsApp real: 3 (CP-31, CP-39, CP-40).
 - Defectos encontrados y corregidos durante el sprint: firma limitada a la mitad del recuadro; firma no exportable en la PWA; rutas de hoy "vencidas" después de las 21 h; 500 en lugar de 404 en flota; coordenadas inventadas en el mapa; dependencia de Leaflet no declarada; manifest servido como `text/plain`; mapa mal encuadrado al cambiar el tamaño del contenedor.
 
 ### Conclusión

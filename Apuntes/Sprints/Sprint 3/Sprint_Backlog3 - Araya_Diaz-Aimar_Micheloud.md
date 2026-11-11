@@ -73,6 +73,12 @@ Al terminar el Sprint 3:
 | 07/11 | **Alta HU-16** (login en dos pasos: código de 6 dígitos por WhatsApp) y **HU-17** (avisos por WhatsApp). | Pedido del Product Owner. HU-17 retoma la notificación al cliente que se había excluido en HU-09 CA-06 (10/09). |
 | 07/11 | **Alta HU-18** (flota). | La vista del camión con su carga (referencia FleetTrack) necesita vehículos con capacidad y asignación a la ruta del día. |
 | 07/11 | **Alta HU-19** (APK + PWA). | La app solo se probaba en Expo Go; hace falta poder instalarla. |
+| 10/11 | Prueba manual completa de la web (37 hallazgos, datos `QA-1110`) y sus correcciones: credenciales precargadas en el login, salida desde "acceso denegado", página 404, tablas que desbordaban en el celular, desplegables que movían la página. | Verificación de los criterios de aceptación en el sistema corriendo antes de la presentación. |
+| 11/11 | **HU-12 — recorrido más corto:** las paradas de cada ruta se ordenan solas para minimizar la distancia por calles (`envios.orden_ruta`). Reemplaza lo anotado el 07/11 ("el orden lo define el operador"). Decisión en `gestion-envios/docs/decisions/orden-de-rutas.md`. | El recorrido en orden de alta iba y volvía por la ciudad (14,5 km contra 8,6 km de la ruta ordenada). Mejora sin SP adicionales. |
+| 11/11 | **HU-06 — "Iniciar ruta":** el repartidor (app) o el operador (web) inicia la ruta y todos sus envíos salen "en camino" a la vez (`POST /rutas/{id}/iniciar`). Se quitan "Marcar en camino" y "Volver a asignado" por envío; una ruta iniciada no admite envíos nuevos (409 `ruta_iniciada`). El estado de la ruta (planificada, en curso, completada) pasa a derivarse de sus envíos. | El camión sale del depósito con todos los paquetes: marcar envío por envío no reflejaba la operación y dejaba las rutas siempre "planificadas". El endpoint de HU-06 se mantiene. |
+| 11/11 | **HU-17 — avisos formales y respaldo por mail:** textos sin emojis; si WhatsApp no está vinculado o falla, el aviso va por mail (Gmail por SMTP o Resend) cuando el destinatario lo tiene cargado. | Pedido del Product Owner. |
+| 11/11 | **HU-11 / HU-12 — simulación de un día de trabajo:** el simulador entrega los envíos de demostración (con firma y foto o incidencia) y vuelve al depósito; en los envíos reales espera a que el repartidor los resuelva. El admin tiene un botón ▶ que deja el estado inicial del día. Seguimiento en vivo integrado (mapa, paradas en orden y caja del camión) con la parada a la que va el camión. | Presentación: mostrar la operación completa sin preparar datos a mano. Mejora sin SP adicionales. |
+| 11/11 | Mejoras del equipo: rutas sugeridas por envío y repartidores sugeridos por ruta al asignar, dos modelos de vehículo más (camioneta y auto), "Mis pedidos" en la app y ficha completa del envío con remitente, tamaño y contactos. | Pulido para la presentación. Mejoras sin SP adicionales. |
 
 ---
 
@@ -104,11 +110,13 @@ Al terminar el Sprint 3:
 | **PARA** | saber cuánto falta para cada entrega y orientarme en la calle |
 | **CA-01** | Las direcciones de los envíos se ubican en el mapa automáticamente al darlos de alta (OpenStreetMap/Nominatim). Si la dirección exacta no aparece se usa la calle; si tampoco, la localidad, y se marca como aproximada. |
 | **CA-02** | El mapa de la ruta muestra las paradas numeradas según el orden de reparto y coloreadas por estado (azul asignado, naranja en camino, verde entregado, rojo no entregado), el depósito y el recorrido por calles (OSRM). |
-| **CA-03** | El camión de la ruta aparece en el mapa y se desplaza en vivo con su rumbo. En la demo la posición la genera un **simulador GPS** que lo mueve por las calles mientras la ruta tenga entregas pendientes. |
+| **CA-03** | El camión de la ruta aparece en el mapa y se desplaza en vivo con su rumbo. En la demo la posición la genera un **simulador GPS** que lo mueve por las calles mientras la ruta esté **en curso**: se detiene en cada domicilio, entrega solo los envíos de demostración y en los reales espera a que el repartidor los resuelva; al terminar vuelve al depósito *(actualizado 11/11)*. |
 | **CA-04** | Al tocar una parada o un paquete se resalta el **camino por las calles desde el camión hasta ese destino**, con distancia, tiempo estimado y cuántas entregas hay antes. |
 | **CA-05** | El detalle del envío (web) incluye una tarjeta de seguimiento en vivo con el destino, el camión y el camino restante. |
 | **CA-06** | En la app, el repartidor ve el mapa real de su ruta y, en cada parada, el camino desde su camión hasta esa dirección. Un repartidor no puede ver rutas ajenas (404). |
 | **CA-07** | Si el servicio de recorridos no responde, el mapa igual se dibuja (línea recta entre puntos). |
+| **CA-08** | Las paradas de la ruta se ordenan solas por el **recorrido más corto** por calles, desde el depósito (o desde el camión si la ruta ya salió) y de vuelta al depósito; se recalcula al asignar envíos y al iniciar la ruta *(agregado 11/11)*. |
+| **CA-09** | En el seguimiento en vivo se distingue la parada a la que está yendo el camión ("Yendo ahora", con distancia y tiempo) y cuándo está en la puerta ("Entregando") *(agregado 11/11)*. |
 | **Prioridad / SP / Valor** | Media / 8 / 3 |
 
 ### HU-13 — Reportes de envíos por período
@@ -171,6 +179,7 @@ Al terminar el Sprint 3:
 | **CA-02** | El repartidor recibe un aviso cuando se le asignan envíos, con la ruta, la fecha, la cantidad de envíos y el vehículo. |
 | **CA-03** | Un fallo de WhatsApp nunca bloquea ni revierte la operación (los avisos van por una cola). |
 | **CA-04** | Cada aviso queda registrado (enviado, fallido u omitido por falta de teléfono) y no se manda dos veces el mismo; el operador los ve en el detalle del envío. |
+| **CA-05** | Los textos son formales y sin emojis. Si la cuenta de WhatsApp no está vinculada o el envío falla, el aviso se manda por mail cuando el destinatario lo tiene; el registro indica el canal. Los avisos de los datos de demostración quedan "simulado" y no se envían *(agregado 11/11)*. |
 | **Prioridad / SP / Valor** | Media / 5 / 5 |
 
 ### HU-18 — Gestión de flota de vehículos (nueva)
@@ -301,6 +310,23 @@ Lo planificado al inicio (HU-11 a HU-15, con HU-12 en 5 SP) sumaba **19 SP**. Co
 | T-00.06 | OpenAPI: endpoints y esquemas del Sprint 3 | Documentación | 2 | | ✅ |
 | T-00.07 | Documentación del sprint y plan de pruebas | Documentación | 4 | | ✅ |
 
+### Mejoras posteriores al cierre (10/11 y 11/11)
+
+No suman SP (ver tabla 2.1). Las horas se cargan cuando cada integrante las registre.
+
+| ID | Tarea | HU | Estado |
+| --- | --- | --- | :-: |
+| T8 | Prueba manual completa de la web (plan, 37 hallazgos con capturas) y correcciones | todas | ✅ |
+| T9 | Máscaras y límites en todos los formularios (teléfono con formato, patente, kilos, textos) | HU-02, HU-03, HU-18 | ✅ |
+| T10 | Rutas y Vehículos rediseñadas (menú de acciones, avance, carga) y panel lateral que se expande al pasar el cursor | HU-03, HU-18 | ✅ |
+| T11 | Avisos formales y respaldo por mail (Gmail por SMTP o Resend); migración 0016 | HU-17 | ✅ |
+| T12 | Estado de la ruta derivado de sus envíos (migraciones 0014 y 0017) e "Iniciar ruta" en web y app | HU-06 | ✅ |
+| T13 | Recorrido más corto: `OrdenadorRutas` (Held-Karp hasta 11 paradas, vecino más cercano + 2-opt con más) y migración 0018 | HU-12 | ✅ |
+| T14 | Simulador con entregas (firma y foto o incidencia), regreso al depósito, espera en envíos reales y camiones de entrega manual | HU-12 | ✅ |
+| T15 | Botón ▶ y `cmd/demo`: estado inicial de un día de trabajo (historial de 30 días, operación de hoy, pendientes y mañana) sin tocar usuarios ni datos reales | HU-11 | ✅ |
+| T16 | Seguimiento en vivo integrado: mapa 2D con el camión animado y la ruta en el color del vehículo, paradas en orden, caja del camión y evento SSE `cambio` | HU-11, HU-12 | ✅ |
+| T17 | Rutas y repartidores sugeridos al asignar, vehículos camioneta y auto (migración 0015), "Mis pedidos" y ficha completa del envío (equipo) | HU-04, HU-05, HU-18 | ✅ |
+
 ---
 
 ## 6. Modelo de datos — Extensión Sprint 3
@@ -310,6 +336,15 @@ Lo planificado al inicio (HU-11 a HU-15, con HU-12 en 5 SP) sumaba **19 SP**. Co
 | `0006_sprint3_analitica_y_mapas` | `destinatarios.latitud`, `destinatarios.longitud`; índices para las agregaciones de reportes. |
 | `0007_flota_y_geo` | Tabla `vehiculos` (patente única, modelo, tipo, capacidades, estado, telemetría: latitud, longitud, velocidad, rumbo, temperatura, `posicion_at`); `rutas.vehiculo_id` con índice único `(vehiculo_id, fecha)`; `destinatarios.geo_fuente` (`nominatim` / `aproximada` / `demo`); 3 vehículos de demo. |
 | `0008_whatsapp` | `usuarios.telefono` (único); `codigos_otp` (hash, intentos, vencimiento, usado); `notificaciones_whatsapp` (clave única de idempotencia, tipo, estado, error). |
+| `0010_rol_admin` | El rol `supervisor` pasa a llamarse `admin` (único que puede borrar). |
+| `0011_primer_acceso` | `usuarios.must_change_password`; el código del primer acceso puede ir al celular o al mail. |
+| `0012_login_google` | `usuarios.google_id` (único) y `usuarios.auth_provider`. |
+| `0013_vehiculo_color` | `vehiculos.color` (vacío = color automático). |
+| `0014_estado_ruta_derivado` | Recalcula el estado de las rutas existentes a partir de sus envíos (desde entonces se actualiza al cambiar cada envío). |
+| `0015_vehiculo_tipos` | Tipos de vehículo `camioneta` y `auto`. |
+| `0016_avisos_mail_y_demo` | `destinatarios.email` y `destinatarios.demo`; canal del aviso (`whatsapp` / `mail`) y estado `simulado`. |
+| `0017_estado_ruta_automatico` | Trigger que recalcula el estado de la ruta también al asignar, quitar o borrar envíos. |
+| `0018_orden_ruta` | `envios.orden_ruta`: orden de visita calculado por el recorrido más corto. |
 
 Además, whatsmeow crea sus tablas `whatsmeow_*` (sesión del dispositivo vinculado) en la misma base.
 

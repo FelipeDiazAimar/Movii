@@ -1,46 +1,47 @@
-# Movii — Prototipo móvil
+# Movii — App del repartidor
 
-Movii es un prototipo móvil navegable para la gestión de entregas de última milla. Está pensado para el repartidor que opera su ruta diaria y, en paralelo, ofrece un recorrido público para que un cliente consulte el estado de un envío por código de guía. La implementación emplea Expo Router, React Native, TypeScript y datos mock locales; no necesita backend, credenciales ni llamadas de red.
+App del repartidor (Expo SDK 57 + React Native + Expo Router + TypeScript). Consume la API en Go de
+`services/api` con el JWT del repartidor: el repartidor siempre sale del token, nunca de un parámetro.
+Se distribuye como **APK** (EAS Build, perfil `preview` en `eas.json`) y como **PWA** servida por la
+API en `/app/` (iPhone: "Agregar a inicio").
 
 ## Ejecución local
 
-Desde la carpeta del proyecto, instalá las dependencias y luego iniciá Expo. El comando abre la aplicación en modo web y permite acceder a la versión nativa mediante el código QR de Expo.
-
 ```bash
-pnpm install
-npx expo start
+npm install
+cp .env.example .env   # EXPO_PUBLIC_API_URL = IP de la PC en la red (el celular no ve "localhost")
+npx expo start         # QR para Expo Go; "w" abre la versión web
+npm test               # Vitest
+npx tsc --noEmit
 ```
 
-Para comprobar los tipos TypeScript antes de una entrega, ejecutá el siguiente comando.
+Desde `gestion-envios/`, `npm run dev` levanta API, web y app juntas, y `npm run serve` sirve todo
+desde Go (la app queda en `http://localhost:8080/app/`).
 
-```bash
-pnpm check
-```
+## Qué hace
 
-## Recorridos incluidos
-
-| Perfil o acceso | Punto de entrada | Recorrido principal |
+| Pantalla | HU | Qué hace |
 |---|---|---|
-| Repartidor | Inicio de sesión | Ruta del día → Detalle de parada → En camino / Entregado / No entregado / Reprogramar |
-| Cliente final | «Seguir mi envío» | Código de guía → Estado del envío → Timeline y destino |
-| Referencia de UI | Tab «Sistema» | Paleta → Tipografía → Botones y badges |
+| `login`, `forgot-password`, `oauth/` | HU-01, HU-16 | Login en dos pasos (código por WhatsApp), login con Google y recuperación. |
+| `(tabs)/index` | HU-05 | Envíos del día agrupados por ruta. Si una ruta todavía está en el depósito aparece la tarjeta **"Iniciar ruta"**: todos sus envíos salen "en camino" a la vez. |
+| `stop/[id]` | HU-06, HU-12 | Detalle de la parada, camino desde el camión y "Abrir en Google Maps". Con la ruta iniciada: **Entregado** o **No entregado**; antes de iniciarla, la parada indica que el envío sigue en el depósito. |
+| `delivery/[id]` | HU-08 | Confirmación con firma (todo el ancho del recuadro) y foto. |
+| `failure/[id]` | HU-07 | Incidencia con motivo, comentario (con límite) y foto opcional. |
+| `reschedule/[id]` | HU-09 | Nueva fecha y franja. |
+| `route-map` | HU-12 | Mapa real de la ruta con el recorrido por calles y el camión. |
+| `(tabs)/orders`, `pedido/` | — | "Mis pedidos": envíos viejos, de hoy y próximos, con búsqueda y ficha completa. |
+| `(tabs)/history`, `(tabs)/profile` | — | Historial y perfil (vehículo de hoy, estadísticas, cambio de contraseña). |
 
-Para recorrer el flujo de tracking con datos completos, utilizá el código **`MOV-2026-000777`**. El flujo de login es demostrativo y permite seleccionar Operador o Repartidor; ambos accesos abren el flujo móvil del repartidor, ya que el panel de operación web no forma parte de este proyecto móvil.
+El "en camino" ya no se marca envío por envío: lo pone **Iniciar ruta** (`POST /rutas/{id}/iniciar`).
 
-## Datos del prototipo
+## Presentación
 
-Los modelos y los datos de ejemplo están en `types/logistics.ts` y `mock/shipments.ts`. El proyecto incluye ocho repartidores, rutas por Zona Norte, Centro, Zona Sur y Oeste, más de setenta envíos mock y el conjunto de estados `pendiente`, `en_camino`, `entregado` y `no_entregado`. Durante una sesión, las entregas, incidencias y reprogramaciones actualizan el estado local mediante `lib/movii-context.tsx`.
+Con el botón ▶ del centro de operaciones (web, admin), la ruta del camión naranja (TRK-318) queda
+en el depósito y es de la cuenta `repartidor@movii.demo`: se inicia en vivo desde esta app. Ese
+camión no entrega solo: espera en cada puerta a que se confirme la entrega desde la app (ver
+`SIMULADOR_ENTREGA_MANUAL` en `docs/deploy.md`).
 
-## Estructura relevante
+## Más documentación
 
-| Ruta | Responsabilidad |
-|---|---|
-| `app/(tabs)` | Ruta diaria, historial, perfil y sistema de diseño |
-| `app/stop/[id].tsx` | Detalle operativo de una parada |
-| `app/delivery/[id].tsx` | Confirmación con firma y evidencia simulada |
-| `app/failure/[id].tsx` | Registro de incidencia |
-| `app/reschedule/[id].tsx` | Nueva fecha y franja de visita |
-| `app/tracking` | Tracking público del cliente |
-| `components` | Fondos aurora, timeline, cabecera, firma y primitivos visuales |
-
-La guía completa de pantallas y navegación está en [PROTOTYPE.md](./PROTOTYPE.md). Las decisiones de diseño orientadas a móvil están en [design.md](./design.md).
+- Guía de pantallas y navegación del prototipo original: [PROTOTYPE.md](./PROTOTYPE.md).
+- Decisiones de diseño orientadas a móvil: [design.md](./design.md).

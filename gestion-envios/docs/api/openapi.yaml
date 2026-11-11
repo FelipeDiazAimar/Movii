@@ -2251,6 +2251,150 @@ paths:
         "403": { $ref: "#/components/responses/RolNoAutorizado" }
         "409": { description: "Ya hay un reinicio en curso (reinicio_en_curso) o no hay repartidores activos (sin_repartidores)." }
 
+  /envios/{id}/rutas-sugeridas:
+    get:
+      tags: [rutas]
+      summary: Rutas sugeridas para un envío pendiente
+      description: |
+        Ranking de rutas a las que conviene sumar el envío: misma fecha de entrega, distancia del
+        destino al centro de las paradas de cada ruta y si el paquete entra en el vehículo. La primera
+        recomendada viene marcada con `recomendada` y un `motivo` legible.
+      operationId: rutasSugeridasParaEnvio
+      x-required-role: [operador, admin]
+      security:
+        - bearerAuth: []
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200":
+          description: Rutas ordenadas de mejor a peor (lista vacía si no hay rutas posibles).
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    ruta_id: { type: string, format: uuid }
+                    nombre: { type: string }
+                    zona: { type: string }
+                    fecha: { type: string, format: date }
+                    repartidor_nombre: { type: string }
+                    vehiculo: { type: string, description: "Patente; vacío = sin vehículo." }
+                    capacidad_peso: { type: number }
+                    peso_actual: { type: number }
+                    paradas: { type: integer }
+                    distancia_km: { type: number, nullable: true, description: "null si faltan coordenadas." }
+                    misma_fecha: { type: boolean }
+                    cabe: { type: boolean, description: "El envío entra en el vehículo (true si no hay vehículo)." }
+                    recomendada: { type: boolean }
+                    motivo: { type: string }
+        "401": { $ref: "#/components/responses/NoAutenticado" }
+        "403": { $ref: "#/components/responses/RolNoAutorizado" }
+        "404": { description: El envío no existe (no_encontrado). }
+
+  /repartidores/sugeridos:
+    get:
+      tags: [rutas]
+      summary: Repartidores sugeridos para una ruta
+      description: |
+        Ranking de repartidores activos para la ruta en la fecha dada: rutas, envíos y kilos que ya
+        tienen ese día, si ya salieron a repartir y la distancia a la zona de la ruta.
+      operationId: repartidoresSugeridos
+      x-required-role: [operador, admin]
+      security:
+        - bearerAuth: []
+      parameters:
+        - { name: ruta_id, in: query, required: false, schema: { type: string, format: uuid }, description: "Vacío al crear una ruta nueva." }
+        - { name: fecha, in: query, required: false, schema: { type: string, format: date }, description: "YYYY-MM-DD; vacío = hoy (día argentino)." }
+      responses:
+        "200":
+          description: Repartidores ordenados de mejor a peor.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id: { type: string, format: uuid }
+                    nombre: { type: string }
+                    rutas: { type: integer }
+                    envios: { type: integer }
+                    peso_kg: { type: number }
+                    en_curso: { type: boolean, description: "Ya salió a repartir ese día." }
+                    distancia_km: { type: number, nullable: true }
+                    actual: { type: boolean, description: "Es el repartidor actual de la ruta." }
+                    recomendado: { type: boolean }
+                    motivo: { type: string }
+        "400": { description: "Fecha con formato inválido (fecha_invalida)." }
+        "401": { $ref: "#/components/responses/NoAutenticado" }
+        "403": { $ref: "#/components/responses/RolNoAutorizado" }
+        "404": { description: La ruta no existe (no_encontrado). }
+
+  /repartidor/pedidos:
+    get:
+      tags: [repartidor]
+      summary: '"Mis pedidos" del repartidor'
+      description: |
+        Todos los envíos de las rutas del repartidor autenticado (siempre sale del JWT), separados en
+        viejos, de hoy y próximos según la fecha de entrega, con búsqueda por texto.
+      operationId: misPedidos
+      x-required-role: [repartidor]
+      security:
+        - bearerAuth: []
+      parameters:
+        - { name: periodo, in: query, required: false, schema: { type: string, enum: [viejos, hoy, proximos] }, description: "Vacío = todos." }
+        - { name: q, in: query, required: false, schema: { type: string }, description: "Código de guía, destinatario o dirección." }
+      responses:
+        "200":
+          description: Pedidos del período con el conteo de cada período.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  hoy: { type: string, format: date }
+                  periodo: { type: string }
+                  conteo:
+                    type: object
+                    properties:
+                      viejos: { type: integer }
+                      hoy: { type: integer }
+                      proximos: { type: integer }
+                  pedidos:
+                    type: array
+                    items: { $ref: "#/components/schemas/EnvioDelDia" }
+        "400": { description: "periodo distinto de viejos, hoy o proximos (periodo_invalido)." }
+        "401": { $ref: "#/components/responses/NoAutenticado" }
+        "403": { $ref: "#/components/responses/RolNoAutorizado" }
+
+  /repartidor/pedidos/{codigo}:
+    get:
+      tags: [repartidor]
+      summary: Detalle completo de un pedido por código de guía
+      description: Solo si el envío es de una ruta del repartidor autenticado; si no, 404.
+      operationId: miPedidoPorCodigo
+      x-required-role: [repartidor]
+      security:
+        - bearerAuth: []
+      parameters:
+        - { name: codigo, in: path, required: true, schema: { type: string }, example: MOV-20261111-0001 }
+      responses:
+        "200":
+          description: Detalle del envío con su remitente.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/EnvioDetalle"
+                  - type: object
+                    properties:
+                      remitente: { $ref: "#/components/schemas/Remitente" }
+        "401": { $ref: "#/components/responses/NoAutenticado" }
+        "403": { $ref: "#/components/responses/RolNoAutorizado" }
+        "404": { description: "No tenés ningún pedido con ese código (no_encontrado)." }
+
 components:
   securitySchemes:
     bearerAuth:
