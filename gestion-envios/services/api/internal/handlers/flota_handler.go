@@ -39,6 +39,10 @@ func escribirErrorFlota(w http.ResponseWriter, err error, fallback string) {
 		httpx.WriteError(w, http.StatusConflict, "patente_en_uso", "ya existe un vehículo con esa patente")
 	case errors.Is(err, services.ErrVehiculoNoDisponible):
 		httpx.WriteError(w, http.StatusConflict, "vehiculo_no_disponible", "el vehículo está en mantenimiento")
+	case errors.Is(err, services.ErrCapacidadExcedida):
+		httpx.WriteError(w, http.StatusConflict, "capacidad_excedida", "los envíos de la ruta pesan más que la capacidad del vehículo")
+	case errors.Is(err, repository.ErrRutaNoEditable):
+		httpx.WriteError(w, http.StatusConflict, "ruta_no_editable", "la ruta ya se completó: no se le puede cambiar el vehículo")
 	case errors.Is(err, repository.ErrVehiculoOcupado):
 		httpx.WriteError(w, http.StatusConflict, "vehiculo_ocupado", "el vehículo ya tiene otra ruta ese día")
 	default:

@@ -168,6 +168,22 @@ func (r *FlotaRepo) AsignarARuta(ctx context.Context, rutaID string, vehiculoID 
 	return nil
 }
 
+// EstadoYPesoRuta devuelve el estado de la ruta y el peso total de sus envíos.
+// ErrNoEncontrado si la ruta no existe.
+func (r *FlotaRepo) EstadoYPesoRuta(ctx context.Context, rutaID string) (string, float64, error) {
+	var estado string
+	var peso float64
+	err := r.pool.QueryRow(ctx, `
+		SELECT r.estado::text, COALESCE(sum(e.peso), 0)::float8
+		FROM rutas r LEFT JOIN envios e ON e.ruta_id = r.id
+		WHERE r.id::text = $1 GROUP BY r.id
+	`, rutaID).Scan(&estado, &peso)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return "", 0, ErrNoEncontrado
+	}
+	return estado, peso, err
+}
+
 // ActualizarPosicion guarda la telemetría del vehículo.
 func (r *FlotaRepo) ActualizarPosicion(ctx context.Context, p domain.PosicionVehiculo) error {
 	_, err := r.pool.Exec(ctx, `

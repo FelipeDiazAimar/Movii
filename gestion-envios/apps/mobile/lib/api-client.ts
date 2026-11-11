@@ -1,4 +1,4 @@
-import axios from "axios";
+import { create } from "axios";
 import * as SecureStore from "expo-secure-store";
 import { Platform } from "react-native";
 
@@ -14,7 +14,7 @@ const API_URL = /-8081\./.test(hostTunel)
 
 const TOKEN_KEY = "movii_jwt_token";
 
-export const api = axios.create({ baseURL: API_URL, timeout: 10000 });
+export const api = create({ baseURL: API_URL, timeout: 10000 });
 
 api.interceptors.request.use(async (config) => {
   const token = await getToken();
@@ -409,4 +409,49 @@ export async function obtenerPerfil(): Promise<PerfilRepartidorAPI> {
 /** POST /auth/cambiar-password: cambia la propia contraseña (pide la actual). */
 export async function cambiarPassword(actual: string, nueva: string): Promise<void> {
   await api.post("/auth/cambiar-password", { actual, nueva });
+}
+
+// ---------- Mis pedidos (viejos, de hoy y próximos) ----------
+
+export type PeriodoPedidos = "viejos" | "hoy" | "proximos";
+
+export type PedidoAPI = EnvioDelDiaAPI & { fecha_entrega: string };
+
+export type PedidosAPI = {
+  hoy: string;
+  periodo: string;
+  conteo: { viejos: number; hoy: number; proximos: number };
+  pedidos: PedidoAPI[];
+};
+
+/** GET /repartidor/pedidos?periodo=&q=: los envíos del repartidor logueado, con búsqueda opcional. */
+export async function obtenerPedidos(periodo: PeriodoPedidos, q = ""): Promise<PedidosAPI> {
+  const { data } = await api.get<PedidosAPI>("/repartidor/pedidos", { params: { periodo, q: q.trim() || undefined } });
+  return { ...data, pedidos: data.pedidos ?? [] };
+}
+
+export type EventoPedidoAPI = {
+  id: string;
+  fecha: string;
+  actor_nombre: string | null;
+  estado_anterior: string | null;
+  estado_nuevo: EstadoEnvioAPI;
+  motivo: string | null;
+  comentario: string | null;
+};
+
+export type PedidoDetalleAPI = PedidoAPI & {
+  fecha_creacion: string;
+  repartidor_nombre: string;
+  remitente: { nombre: string; telefono: string; direccion: string };
+  historial: EventoPedidoAPI[];
+  reprogramado_para: string | null;
+  franja: string | null;
+  confirmacion: { receptor_nombre: string; receptor_relacion: string; confirmada_at: string } | null;
+};
+
+/** GET /repartidor/pedidos/{codigo}: todos los datos de un pedido propio (404 si no es suyo). */
+export async function obtenerPedido(codigo: string): Promise<PedidoDetalleAPI> {
+  const { data } = await api.get<PedidoDetalleAPI>(`/repartidor/pedidos/${encodeURIComponent(codigo.trim())}`);
+  return { ...data, historial: data.historial ?? [] };
 }

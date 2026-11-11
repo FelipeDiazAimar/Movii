@@ -13,6 +13,13 @@ export function formatearDia(fecha: string): string {
   return d.toLocaleDateString("es-UY", { dateStyle: "medium" });
 }
 
+/** Mañana en hora local (YYYY-MM-DD). */
+export function mananaISO(): string {
+  const d = new Date();
+  d.setDate(d.getDate() + 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
 /** Solo la hora (HH:MM) de un ISO 8601; "—" si no parsea. */
 export function formatearHora(fecha: string | undefined | null): string {
   if (!fecha) return "—";

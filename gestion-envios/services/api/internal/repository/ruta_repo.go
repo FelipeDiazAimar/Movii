@@ -24,6 +24,24 @@ func NewRutaRepo(pool *pgxpool.Pool) *RutaRepo {
 	return &RutaRepo{pool: pool}
 }
 
+// RepartidorValido indica si el usuario existe, está activo y es repartidor.
+func (r *RutaRepo) RepartidorValido(ctx context.Context, id string) (bool, error) {
+	var ok bool
+	err := r.pool.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM usuarios WHERE id::text = $1 AND rol = 'repartidor' AND activo)`, id).Scan(&ok)
+	return ok, err
+}
+
+// CargaConEnvios devuelve la capacidad del vehículo de la ruta (0 = sin
+// vehículo), el peso que ya lleva y el peso de los envíos que se quieren sumar.
+func (r *RutaRepo) CargaConEnvios(ctx context.Context, rutaID string, envioIDs []string) (capacidad, actual, nuevo float64, err error) {
+	err = r.pool.QueryRow(ctx, `
+		SELECT COALESCE((SELECT v.capacidad_peso FROM rutas r JOIN vehiculos v ON v.id = r.vehiculo_id WHERE r.id::text = $1), 0)::float8,
+		       COALESCE((SELECT sum(peso) FROM envios WHERE ruta_id::text = $1), 0)::float8,
+		       COALESCE((SELECT sum(peso) FROM envios WHERE id::text = ANY($2) AND (ruta_id IS NULL OR ruta_id::text <> $1)), 0)::float8
+	`, rutaID, envioIDs).Scan(&capacidad, &actual, &nuevo)
+	return
+}
+
 // Create inserta una ruta nueva en estado "planificada".
 func (r *RutaRepo) Create(ctx context.Context, ruta domain.Ruta) (domain.Ruta, error) {
 	row := r.pool.QueryRow(ctx, `
@@ -43,12 +61,14 @@ func (r *RutaRepo) Create(ctx context.Context, ruta domain.Ruta) (domain.Ruta, e
 // cantidad de envíos asignados a cada una.
 func (r *RutaRepo) List(ctx context.Context, fecha string) ([]domain.RutaConConteo, error) {
 	rows, err := r.pool.Query(ctx, `
-		SELECT r.id, r.nombre, r.zona, to_char(r.fecha, 'YYYY-MM-DD'), r.estado, r.repartidor_id, u.nombre, COUNT(e.id)
+		SELECT r.id, r.nombre, r.zona, to_char(r.fecha, 'YYYY-MM-DD'), r.estado, r.repartidor_id, u.nombre, COUNT(e.id),
+		       COALESCE(SUM(e.peso), 0)::float8, COALESCE(v.id::text, ''), COALESCE(v.patente, '')
 		FROM rutas r
 		JOIN usuarios u ON u.id = r.repartidor_id
+		LEFT JOIN vehiculos v ON v.id = r.vehiculo_id
 		LEFT JOIN envios e ON e.ruta_id = r.id
 		WHERE ($1 = '' OR r.fecha = $1::date)
-		GROUP BY r.id, u.nombre
+		GROUP BY r.id, u.nombre, v.id, v.patente
 		ORDER BY r.fecha
 	`, fecha)
 	if err != nil {
@@ -61,7 +81,7 @@ func (r *RutaRepo) List(ctx context.Context, fecha string) ([]domain.RutaConCont
 	lista := make([]domain.RutaConConteo, 0)
 	for rows.Next() {
 		var rc domain.RutaConConteo
-		if err := rows.Scan(&rc.ID, &rc.Nombre, &rc.Zona, &rc.Fecha, &rc.Estado, &rc.RepartidorID, &rc.RepartidorNombre, &rc.CantidadEnvios); err != nil {
+		if err := rows.Scan(&rc.ID, &rc.Nombre, &rc.Zona, &rc.Fecha, &rc.Estado, &rc.RepartidorID, &rc.RepartidorNombre, &rc.CantidadEnvios, &rc.PesoTotal, &rc.VehiculoID, &rc.VehiculoPatente); err != nil {
 			return nil, err
 		}
 		lista = append(lista, rc)

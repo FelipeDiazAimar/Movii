@@ -12,17 +12,39 @@ export function filtrarUsuarios(usuarios: Usuario[], f: { busqueda: string; rol:
   );
 }
 
+/** Situación del repartidor el día `hoy`: libre, con una ruta planificada o ya en ruta. */
+export function estadoHoy(suyas: RutaListItem[], hoy: string): "libre" | "planificada" | "en_ruta" {
+  const deHoy = suyas.filter((x) => x.fecha === hoy);
+  if (deHoy.some((x) => x.estado === "en_curso")) return "en_ruta";
+  return deHoy.some((x) => x.estado === "planificada") ? "planificada" : "libre";
+}
+
+export interface FiltrosRepartidor {
+  busqueda: string;
+  conRuta: string;
+  /** Zona exacta de alguna de sus rutas; vacío = todas. */
+  zona?: string;
+  /** "con" | "sin": tiene o no vehículo asignado en alguna de sus rutas. */
+  vehiculo?: string;
+  /** "libre" | "planificada" | "en_ruta" según `hoy`. */
+  hoyEstado?: string;
+  hoy?: string;
+}
+
 /** `conRuta`: "con" | "sin" | "" (cuántas rutas tiene según `rutas`). */
 export function filtrarRepartidores(
   repartidores: RepartidorOpcion[],
   rutas: RutaListItem[],
-  f: { busqueda: string; conRuta: string },
+  f: FiltrosRepartidor,
 ): RepartidorOpcion[] {
   return repartidores.filter((r) => {
     const suyas = rutas.filter((x) => x.repartidor_id === r.id);
     return (
-      coincide(f.busqueda, r.nombre, ...suyas.map((x) => x.nombre)) &&
-      (!f.conRuta || (f.conRuta === "con") === suyas.length > 0)
+      coincide(f.busqueda, r.nombre, ...suyas.map((x) => x.nombre), ...suyas.map((x) => x.zona), ...suyas.map((x) => x.vehiculo_patente)) &&
+      (!f.conRuta || (f.conRuta === "con") === suyas.length > 0) &&
+      (!f.zona || suyas.some((x) => x.zona === f.zona)) &&
+      (!f.vehiculo || (f.vehiculo === "con") === suyas.some((x) => Boolean(x.vehiculo_id))) &&
+      (!f.hoyEstado || estadoHoy(suyas, f.hoy ?? "") === f.hoyEstado)
     );
   });
 }

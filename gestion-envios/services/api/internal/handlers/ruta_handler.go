@@ -56,6 +56,10 @@ func (h *RutaHandler) Create(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteJSON(w, http.StatusCreated, ruta)
 	case errors.Is(err, services.ErrRutaCamposObligatorios):
 		httpx.WriteError(w, http.StatusBadRequest, "campos_obligatorios", "falta el repartidor de la ruta")
+	case errors.Is(err, services.ErrRepartidorInvalido):
+		httpx.WriteError(w, http.StatusUnprocessableEntity, "repartidor_invalido", "el repartidor no existe, está inactivo o no tiene rol repartidor")
+	case errors.Is(err, services.ErrFechaRutaInvalida):
+		httpx.WriteError(w, http.StatusBadRequest, "fecha_invalida", "la fecha debe tener formato YYYY-MM-DD")
 	default:
 		httpx.WriteError(w, http.StatusInternalServerError, "error_interno", "no se pudo crear la ruta")
 	}
@@ -123,6 +127,10 @@ func (h *RutaHandler) Update(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteJSON(w, http.StatusOK, ruta)
 	case errors.Is(err, services.ErrRutaCamposObligatorios):
 		httpx.WriteError(w, http.StatusBadRequest, "campos_obligatorios", "falta el repartidor de la ruta")
+	case errors.Is(err, services.ErrRepartidorInvalido):
+		httpx.WriteError(w, http.StatusUnprocessableEntity, "repartidor_invalido", "el repartidor no existe, está inactivo o no tiene rol repartidor")
+	case errors.Is(err, services.ErrFechaRutaInvalida):
+		httpx.WriteError(w, http.StatusBadRequest, "fecha_invalida", "la fecha debe tener formato YYYY-MM-DD")
 	case errors.Is(err, repository.ErrNoEncontrado):
 		httpx.WriteError(w, http.StatusNotFound, "no_encontrado", "la ruta no existe")
 	case errors.Is(err, repository.ErrRutaNoEditable):
@@ -207,6 +215,10 @@ func (h *RutaHandler) AsignarEnvios(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if exc, detalle, err := h.asigSvc.ExcedeVehiculo(r.Context(), rutaID, req.EnvioIDs); err == nil && exc && !req.Forzar {
+		httpx.WriteError(w, http.StatusConflict, "capacidad_excedida", "se pasa de la capacidad: "+detalle+" (reenviar con forzar=true)")
+		return
+	}
 	if !h.validarAsignacion(w, r, rutaID, req) {
 		return
 	}
@@ -217,6 +229,8 @@ func (h *RutaHandler) AsignarEnvios(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteJSON(w, http.StatusOK, map[string]any{"asignados": asignados})
 	case errors.Is(err, repository.ErrNoEncontrado):
 		httpx.WriteError(w, http.StatusNotFound, "no_encontrado", "la ruta no existe")
+	case errors.Is(err, repository.ErrRutaNoEditable):
+		httpx.WriteError(w, http.StatusConflict, "ruta_no_editable", "la ruta ya salió o se completó: no se le pueden sumar envíos")
 	case errors.Is(err, repository.ErrEnvioNoDisponible):
 		httpx.WriteError(w, http.StatusConflict, "envio_no_disponible", "uno o más envíos no están pendientes")
 	default:

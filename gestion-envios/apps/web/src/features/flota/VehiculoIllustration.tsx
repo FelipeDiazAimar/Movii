@@ -21,6 +21,8 @@ export const REGION_CARGA: Record<TipoVehiculo, { left: string; top: string; wid
   furgon: { left: "8.5%", top: "23%", width: "60%", height: "46%" },
   utilitario: { left: "19.5%", top: "33%", width: "41%", height: "36%" },
   moto: { left: "9.5%", top: "18%", width: "26%", height: "28%" },
+  camioneta: { left: "9%", top: "29%", width: "39%", height: "39%" },
+  auto: { left: "19%", top: "47%", width: "21%", height: "19%" },
 };
 
 const FUENTE = { fontFamily: "Archivo, system-ui, sans-serif", fontVariationSettings: '"wdth" 125' } as const;
@@ -226,6 +228,98 @@ function Utilitario({ codigo, color }: { codigo: string; color: string }) {
   );
 }
 
+/** Camioneta (pickup) con caja cerrada por tapa rígida del color elegido y cabina de cuatro puertas. */
+function Camioneta({ codigo, color }: { codigo: string; color: string }) {
+  const id = useId().replace(/:/g, "");
+  const c = paletaCarroceria(color);
+  const cabina = "M404 244 L404 124 Q404 92 436 90 L528 90 Q546 90 558 104 L604 150 L730 158 Q760 162 764 186 L768 236 Q768 244 760 244 Z";
+  return (
+    <svg viewBox="0 0 820 330" className="h-auto w-full" role="img" aria-label={`Camioneta ${codigo}`}>
+      <DefsBase id={id} c={c} />
+      <Piso id={id} cx={414} rx={350} />
+      {/* Caja de carga y tapa rígida */}
+      <path d="M62 244 L62 140 Q62 132 70 132 L404 132 L404 244 Z" fill={`url(#${id}-caja)`} />
+      <rect x="62" y="226" width="342" height="18" fill="#000" opacity="0.28" />
+      <path d="M74 132 L74 104 Q74 92 88 92 L384 92 Q398 92 398 104 L398 132 Z" fill={`url(#${id}-caja)`} />
+      <path d="M74 132 L74 104 Q74 92 88 92 L384 92 Q398 92 398 104 L398 132 Z" fill={`url(#${id}-brillo-caja)`} />
+      <rect x="78" y="94" width="316" height="10" rx="4" fill="#fff" opacity="0.2" />
+      <rect x="62" y="130" width="342" height="7" fill="#000" opacity="0.35" />
+      <Marca x={112} y={100} ancho={190} codigo={codigo} />
+      <rect x="62" y="156" width="9" height="40" rx="1" fill="#c81e1e" />
+      <rect x="62" y="190" width="9" height="9" fill="#ffb300" />
+      <rect x="56" y="228" width="50" height="18" rx="2" fill="#2a2f34" />
+      {/* Cabina */}
+      <path d={cabina} fill={`url(#${id}-caja)`} />
+      <path d={cabina} fill={`url(#${id}-brillo-caja)`} />
+      <rect x="404" y="226" width="364" height="18" fill="#000" opacity="0.28" />
+      <path d="M416 108 Q416 98 432 98 L528 98 Q540 98 548 108 L590 150 L416 150 Z" fill="#11161b" />
+      <path d="M422 112 Q422 104 434 104 L526 104 Q534 104 540 112 L576 146 L422 146 Z" fill={`url(#${id}-vidrio)`} />
+      <path d="M404 98 L404 226 M492 104 L492 226 M584 152 L584 226" stroke="#000" strokeOpacity="0.32" strokeWidth="2" />
+      <path d="M492 104 L492 150" stroke="#11161b" strokeWidth="5" />
+      <path d="M440 112 L470 112 L452 140 L440 140 Z" fill="#fff" opacity="0.2" />
+      <rect x="462" y="168" width="16" height="5" rx="1" fill={`url(#${id}-cromo)`} />
+      <rect x="560" y="172" width="16" height="5" rx="1" fill={`url(#${id}-cromo)`} />
+      <rect x="596" y="130" width="12" height="22" rx="3" fill="#2a2f34" />
+      <path d="M728 166 L760 172 L764 192 L734 192 Z" fill="#fffbe6" stroke="#8a939b" strokeWidth="1.5" />
+      <circle cx="758" cy="182" r="26" fill={`url(#${id}-faro)`} opacity="0.6" />
+      <rect x="738" y="198" width="26" height="18" rx="2" fill="#1d2125" />
+      {[203, 208, 213].map((y) => (
+        <rect key={y} x="741" y={y} width="20" height="2" fill="#4a5158" />
+      ))}
+      <path d="M716 226 L768 226 L772 244 L712 248 Z" fill="#2a2f34" />
+      <Pasarrueda x={170} r={48} />
+      <Pasarrueda x={640} r={48} />
+      <Rueda x={170} y={258} r={40} id={id} />
+      <Rueda x={640} y={258} r={40} id={id} />
+    </svg>
+  );
+}
+
+/** Auto de reparto liviano (hatchback) con baúl de techo para paquetes chicos. */
+function Auto({ codigo, color }: { codigo: string; color: string }) {
+  const id = useId().replace(/:/g, "");
+  const c = paletaCarroceria(color);
+  const cuerpo = "M150 244 L150 176 Q150 154 176 150 L262 142 L330 108 Q342 102 356 102 L498 102 Q514 102 526 112 L580 150 L700 162 Q742 168 748 198 L750 236 Q750 244 742 244 Z";
+  return (
+    <svg viewBox="0 0 820 330" className="h-auto w-full" role="img" aria-label={`Auto ${codigo}`}>
+      <DefsBase id={id} c={c} />
+      <Piso id={id} cx={450} rx={320} />
+      {/* Baúl de techo con barras */}
+      <rect x="318" y="86" width="12" height="18" fill="#2a2f34" />
+      <rect x="470" y="86" width="12" height="18" fill="#2a2f34" />
+      <rect x="286" y="52" width="240" height="38" rx="14" fill={`url(#${id}-caja)`} />
+      <rect x="286" y="52" width="240" height="38" rx="14" fill={`url(#${id}-brillo-caja)`} />
+      <rect x="292" y="54" width="228" height="9" rx="4" fill="#fff" opacity="0.22" />
+      <Marca x={332} y={56} ancho={140} codigo={codigo} />
+      <path d={cuerpo} fill={`url(#${id}-caja)`} />
+      <path d={cuerpo} fill={`url(#${id}-brillo-caja)`} />
+      <rect x="150" y="226" width="600" height="18" fill="#000" opacity="0.28" />
+      <path d="M176 150 L262 142 L330 108 Q342 102 356 102 L498 102 Q514 102 526 112 L580 150 Z" fill="#fff" opacity="0.1" />
+      {/* Vidrios */}
+      <path d="M270 148 L334 114 Q344 109 356 109 L420 109 L420 148 Z" fill="#11161b" />
+      <path d="M278 144 L338 118 Q346 114 356 114 L414 114 L414 144 Z" fill={`url(#${id}-vidrio)`} />
+      <path d="M428 109 L496 109 Q508 109 516 117 L558 148 L428 148 Z" fill="#11161b" />
+      <path d="M434 114 L494 114 Q504 114 510 120 L544 144 L434 144 Z" fill={`url(#${id}-vidrio)`} />
+      <path d="M288 140 L316 124 L330 124 L306 140 Z" fill="#fff" opacity="0.22" />
+      <path d="M420 109 L420 226 M262 146 L262 226 M572 152 L572 226" stroke="#000" strokeOpacity="0.32" strokeWidth="2" />
+      <rect x="388" y="166" width="16" height="5" rx="1" fill={`url(#${id}-cromo)`} />
+      <rect x="536" y="170" width="16" height="5" rx="1" fill={`url(#${id}-cromo)`} />
+      <rect x="578" y="136" width="14" height="20" rx="3" fill="#2a2f34" />
+      <rect x="150" y="170" width="9" height="30" rx="1" fill="#c81e1e" />
+      <rect x="150" y="196" width="9" height="9" fill="#ffb300" />
+      <rect x="144" y="228" width="48" height="18" rx="2" fill="#2a2f34" />
+      <path d="M706 170 L742 178 L746 196 L714 196 Z" fill="#fffbe6" stroke="#8a939b" strokeWidth="1.5" />
+      <circle cx="740" cy="186" r="24" fill={`url(#${id}-faro)`} opacity="0.6" />
+      <rect x="722" y="202" width="24" height="16" rx="2" fill="#1d2125" />
+      <path d="M694 226 L748 226 L752 244 L690 248 Z" fill="#2a2f34" />
+      <Pasarrueda x={250} r={46} />
+      <Pasarrueda x={636} r={46} />
+      <Rueda x={250} y={260} r={37} id={id} />
+      <Rueda x={636} y={260} r={37} id={id} />
+    </svg>
+  );
+}
+
 /** Moto de reparto con baúl trasero del color elegido. */
 function Moto({ codigo, color }: { codigo: string; color: string }) {
   const id = useId().replace(/:/g, "");
@@ -282,7 +376,7 @@ function Moto({ codigo, color }: { codigo: string; color: string }) {
 }
 
 /**
- * Ilustración del vehículo según su tipo (camión, furgón, utilitario o moto),
+ * Ilustración del vehículo según su tipo (camión, furgón, utilitario, moto, camioneta o auto),
  * en el color elegido para él. Todas ocupan el mismo cuadro de 820×330.
  */
 export function VehiculoIllustration({ tipo, containerCode = "MOVII", color = "#f4b400", className = "" }: Props) {
@@ -292,6 +386,8 @@ export function VehiculoIllustration({ tipo, containerCode = "MOVII", color = "#
       {tipo === "furgon" && <Furgon codigo={containerCode} color={color} />}
       {tipo === "utilitario" && <Utilitario codigo={containerCode} color={color} />}
       {tipo === "moto" && <Moto codigo={containerCode} color={color} />}
+      {tipo === "camioneta" && <Camioneta codigo={containerCode} color={color} />}
+      {tipo === "auto" && <Auto codigo={containerCode} color={color} />}
     </div>
   );
 }

@@ -1,5 +1,5 @@
 import { apiClient } from "@/services/api-client";
-import type { Recomendacion, RutaDetalle, RutaInput, RutaListItem, RutasFiltro } from "./types";
+import type { Recomendacion, RutaDetalle, RutaSugerida, RutaInput, RutaListItem, RutasFiltro } from "./types";
 
 export async function listarRutas(filtro: RutasFiltro = {}): Promise<RutaListItem[]> {
   const { data } = await apiClient.get<RutaListItem[]>("/rutas", {
@@ -31,6 +31,12 @@ export async function asignarEnvios(rutaId: string, envioIds: string[], forzar =
 /** T4: valida la dirección del envío y estima el desvío que causa en la ruta. */
 export async function recomendarEnvio(rutaId: string, envioId: string): Promise<Recomendacion> {
   const { data } = await apiClient.post<Recomendacion>(`/rutas/${rutaId}/recomendar`, { envio_id: envioId });
+  return data;
+}
+
+/** Rutas planificadas ordenadas para un envío: misma fecha, que entre en el vehículo y más cercanas. */
+export async function rutasSugeridas(envioId: string): Promise<RutaSugerida[]> {
+  const { data } = await apiClient.get<RutaSugerida[]>(`/envios/${envioId}/rutas-sugeridas`);
   return data;
 }
 

@@ -91,7 +91,6 @@ export function MoviiProvider({ children }: { children: ReactNode }) {
         setSesionLista(true);
       }
     })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const abrirSesion = async (claims: { rol: string; nombre?: string }, nombrePorDefecto: string) => {
@@ -155,8 +154,7 @@ export function MoviiProvider({ children }: { children: ReactNode }) {
   // que necesitan buscar un envío por id (detalle de parada).
   const enviosDelDia = useMemo(() => rutasDelDia.flatMap((ruta) => ruta.envios), [rutasDelDia]);
 
-  const value = useMemo<MoviiContextValue>(
-    () => ({
+  const value: MoviiContextValue = {
       sesionLista,
       role,
       driverName,
@@ -179,9 +177,7 @@ export function MoviiProvider({ children }: { children: ReactNode }) {
         enviosDelDia.find((shipment) => shipment.id === idOrCode || shipment.code.toLowerCase() === idOrCode.toLowerCase()),
       updateShipment,
       setShipmentStatus,
-    }),
-    [sesionLista, role, driverName, shipments, enviosDelDia, rutasDelDia, resumenDelDia, filtroEstado, cargandoEnviosDelDia, errorEnviosDelDia],
-  );
+  };
 
   return <MoviiContext.Provider value={value}>{children}</MoviiContext.Provider>;
 }

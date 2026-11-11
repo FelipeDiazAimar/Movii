@@ -32,6 +32,8 @@ type Deps struct {
 	WhatsappHandler    *handlers.WhatsappHandler
 	EliminarHandler    *handlers.EliminarHandler // T3: borrados físicos, solo admin
 	GoogleHandler      *handlers.GoogleHandler   // T2: login con Google y GET /auth/config
+	PedidosHandler     *handlers.PedidosHandler // "Mis pedidos" del repartidor
+	SugerenciaHandler  *handlers.SugerenciaHandler // rankings de rutas por envío y repartidores por ruta
 }
 
 // New arma el router HTTP completo de la API.
@@ -127,6 +129,10 @@ func New(deps Deps) http.Handler {
 		protected.Group(func(operativo chi.Router) {
 			operativo.Use(middleware.RequireRole(domain.RolOperador, domain.RolAdmin))
 			operativo.Get("/repartidores", deps.UsuariosHandler.Repartidores)
+			if deps.SugerenciaHandler != nil {
+				operativo.Get("/repartidores/sugeridos", deps.SugerenciaHandler.Repartidores)
+				operativo.Get("/envios/{id}/rutas-sugeridas", deps.SugerenciaHandler.RutasParaEnvio)
+			}
 			operativo.Post("/envios", deps.EnvioHandler.Create)
 			operativo.Post("/rutas", deps.RutaHandler.Create)
 			operativo.Put("/rutas/{id}", deps.RutaHandler.Update)
@@ -158,6 +164,10 @@ func New(deps Deps) http.Handler {
 			repartidorOnly.Use(middleware.RequireRole(domain.RolRepartidor))
 			repartidorOnly.Get("/repartidor/envios-del-dia", deps.RepartidorHandler.EnviosDelDia)
 			repartidorOnly.Get("/repartidor/perfil", deps.RepartidorHandler.Perfil)
+			if deps.PedidosHandler != nil {
+				repartidorOnly.Get("/repartidor/pedidos", deps.PedidosHandler.Listar)
+				repartidorOnly.Get("/repartidor/pedidos/{codigo}", deps.PedidosHandler.PorCodigo)
+			}
 		})
 	})
 

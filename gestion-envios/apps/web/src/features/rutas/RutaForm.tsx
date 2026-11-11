@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react";
-import { InputField } from "@/components/ui/Field";
+import { DateField, InputField } from "@/components/ui/Field";
 import { Button } from "@/components/ui/Button";
 import { Alert } from "@/components/ui/Alert";
 import { RepartidorSelect } from "./RepartidorSelect";
@@ -12,18 +12,21 @@ interface Props {
   enviando: boolean;
   errorServidor: string | null;
   textoBoton?: string;
+  /** Ruta que se edita (para medir la cercanía de cada repartidor a sus paradas). */
+  rutaId?: string;
 }
 
-export function RutaForm({ valoresIniciales, onSubmit, enviando, errorServidor, textoBoton = "Crear ruta" }: Props) {
+export function RutaForm({ valoresIniciales, onSubmit, enviando, errorServidor, textoBoton = "Crear ruta", rutaId }: Props) {
   const [nombre, setNombre] = useState(valoresIniciales?.nombre ?? "");
   const [zona, setZona] = useState(valoresIniciales?.zona ?? "");
+  const [fecha, setFecha] = useState(valoresIniciales?.fecha ?? "");
   const [repartidorId, setRepartidorId] = useState(valoresIniciales?.repartidor_id ?? "");
   const [errores, setErrores] = useState<Record<string, string>>({});
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
 
-    const resultado = rutaFormSchema.safeParse({ nombre, zona, repartidor_id: repartidorId });
+    const resultado = rutaFormSchema.safeParse({ nombre, zona, repartidor_id: repartidorId, fecha });
     if (!resultado.success) {
       const nuevosErrores: Record<string, string> = {};
       for (const issue of resultado.error.issues) {
@@ -42,7 +45,8 @@ export function RutaForm({ valoresIniciales, onSubmit, enviando, errorServidor, 
 
       <InputField label="Nombre" value={nombre} onChange={(e) => setNombre(e.target.value)} error={errores.nombre} />
       <InputField label="Zona" value={zona} onChange={(e) => setZona(e.target.value)} error={errores.zona} />
-      <RepartidorSelect value={repartidorId} onChange={setRepartidorId} error={errores.repartidor_id} />
+      <DateField label="Fecha" value={fecha} onChange={setFecha} hint="Vacía = hoy. Los repartidores se ordenan según esta fecha." limpiable />
+      <RepartidorSelect value={repartidorId} onChange={setRepartidorId} error={errores.repartidor_id} rutaId={rutaId} fecha={fecha} />
 
       <div>
         <Button type="submit" loading={enviando}>

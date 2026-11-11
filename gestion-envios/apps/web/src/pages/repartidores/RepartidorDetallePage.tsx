@@ -12,6 +12,7 @@ import { Dato } from "@/components/ui/Dato";
 import { SelectField } from "@/components/ui/Field";
 import { PageHeader, PAGE_WIDE } from "@/components/ui/PageHeader";
 import { SkeletonPagina } from "@/components/ui/Skeleton";
+import { formatearDia } from "@/utils/fechas";
 
 import { Plus } from "lucide-react";
 export function RepartidorDetallePage() {
@@ -70,6 +71,9 @@ Nueva ruta</Button>
             <thead className="bg-hormigon-50 text-left text-xs font-semibold text-gray-500">
               <tr>
                 <th className="px-4 py-2">Ruta</th>
+                <th className="px-4 py-2">Fecha</th>
+                <th className="px-4 py-2">Zona</th>
+                <th className="px-4 py-2">Vehículo</th>
                 <th className="px-4 py-2">Envíos</th>
                 <th className="px-4 py-2">Estado</th>
               </tr>
@@ -82,7 +86,10 @@ Nueva ruta</Button>
                       {r.nombre || "(sin nombre)"}
                     </Link>
                   </td>
-                  <td className="px-4 py-2 text-gray-700">{r.cantidad_envios}</td>
+                  <td className="px-4 py-2 text-gray-700">{formatearDia(r.fecha)}</td>
+                  <td className="px-4 py-2 text-gray-700">{r.zona || "—"}</td>
+                  <td className="px-4 py-2 text-gray-700">{r.vehiculo_patente || "—"}</td>
+                  <td className="px-4 py-2 text-gray-700">{r.cantidad_envios} · {r.peso_total} kg</td>
                   <td className="px-4 py-2">
                     <EstadoRutaBadge estado={r.estado} />
                   </td>
@@ -117,7 +124,7 @@ Nueva ruta</Button>
                 <option value="">Seleccionar…</option>
                 {asignables.map((r) => (
                   <option key={r.id} value={r.id}>
-                    {r.nombre} · {r.repartidor_nombre ?? "sin repartidor"}
+                    {r.nombre} · {formatearDia(r.fecha)} · {r.cantidad_envios} envío(s), {r.peso_total} kg · hoy de {r.repartidor_nombre ?? "nadie"}{r.vehiculo_patente ? ` · ${r.vehiculo_patente}` : ""}
                   </option>
                 ))}
               </SelectField>

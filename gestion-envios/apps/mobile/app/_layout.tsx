@@ -14,6 +14,7 @@ export default function RootLayout() {
           <Stack.Screen name="forgot-password" options={{ animation: "slide_from_right" }} />
           <Stack.Screen name="(tabs)" />
           <Stack.Screen name="stop/[id]" options={{ animation: "slide_from_right" }} />
+          <Stack.Screen name="pedido/[codigo]" options={{ animation: "slide_from_right" }} />
           <Stack.Screen name="route-map" options={{ animation: "slide_from_right" }} />
           <Stack.Screen name="delivery/[id]" options={{ presentation: "modal" }} />
           <Stack.Screen name="failure/[id]" options={{ presentation: "modal" }} />

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { VehiculoRutaCard } from "@/features/flota/VehiculoRutaCard";
+import { listarFlota } from "@/features/flota/api";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { obtenerRuta, editarRuta, desasignarEnvio, eliminarRuta } from "@/features/rutas/api";
@@ -15,6 +16,8 @@ import { Button } from "@/components/ui/Button";
 import { getApiErrorMessage } from "@/services/api-client";
 import { PageHeader, PAGE_WIDE } from "@/components/ui/PageHeader";
 import { Dato } from "@/components/ui/Dato";
+import { formatearDia, mananaISO } from "@/utils/fechas";
+import { reprogramarEnvio } from "@/features/envios/api";
 
 import { Route } from "lucide-react";
 import { BotonAbrirMaps } from "@/features/mapas/BotonAbrirMaps";
@@ -59,6 +62,21 @@ export function RutaDetallePage() {
     },
   });
 
+  const flota = useQuery({
+    queryKey: ["operaciones", "flota", "fecha", ruta?.fecha],
+    queryFn: () => listarFlota(ruta?.fecha),
+    enabled: Boolean(ruta?.fecha),
+  });
+  const vehiculoDeRuta = flota.data?.find((v) => v.ruta_id === rutaId);
+
+  const reprogramarMutation = useMutation({
+    mutationFn: (envioId: string) => reprogramarEnvio(envioId, { nueva_fecha: mananaISO(), franja: "manana" }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["rutas"] });
+      queryClient.invalidateQueries({ queryKey: ["envios"] });
+    },
+  });
+
   if (isLoading) return <SkeletonPagina label="Cargando ruta…" />;
   if (isError) return <Alert variant="error">{getApiErrorMessage(error, "No se pudo cargar la ruta")}</Alert>;
   if (!ruta) return null;
@@ -66,10 +84,19 @@ export function RutaDetallePage() {
   const esPlanificada = ruta.estado === "planificada";
   // Con envíos ya en reparto (o entregados) la API no deja cambiar repartidor ni quitar esos envíos.
   const enReparto = ruta.envios.some((e) => e.estado !== "asignado");
+  const entregados = ruta.envios.filter((e) => e.estado === "entregado").length;
+  const fallidos = ruta.envios.filter((e) => e.estado === "no_entregado").length;
 
   return (
     <div className={PAGE_WIDE}>
       <PageHeader back={{ to: "/rutas", label: "Volver a rutas" }} title={ruta.nombre || "(sin nombre)"} icon={Route} badge={<EstadoRutaBadge estado={ruta.estado} />} action={<BotonEliminar nombre={ruta.nombre || "(sin nombre)"} eliminar={() => eliminarRuta(rutaId)} invalidar={[["rutas"], ["envios"]]} onEliminado={() => navigate("/rutas")} />} />
+
+      {ruta.estado === "completada" && (
+        <Alert variant={fallidos > 0 ? "info" : "success"}>
+          Ruta completada: {entregados} entregado(s)
+          {fallidos > 0 ? ` y ${fallidos} sin entregar. Podés reprogramar los fallidos para mañana con un clic desde la tabla.` : "."}
+        </Alert>
+      )}
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex gap-2 text-sm font-semibold">
@@ -87,7 +114,9 @@ export function RutaDetallePage() {
               nombre: ruta.nombre,
               zona: ruta.zona,
               repartidor_id: ruta.repartidor_id,
+              fecha: ruta.fecha,
             }}
+            rutaId={ruta.id}
             onSubmit={async (input) => {
               await editarMutation.mutateAsync(input);
             }}
@@ -99,6 +128,7 @@ export function RutaDetallePage() {
           <div className="flex items-center justify-between">
             <dl className="grid grid-cols-3 gap-4">
               <Dato label="Zona" value={ruta.zona || "—"} />
+              <Dato label="Fecha" value={formatearDia(ruta.fecha)} />
               <Dato label="Repartidor" value={ruta.repartidor_nombre ?? ruta.repartidor_id} />
             </dl>
             {esPlanificada && !enReparto && (
@@ -130,10 +160,10 @@ export function RutaDetallePage() {
           <p className="text-2xl font-semibold text-gray-900">{ruta.peso_total} kg</p>
         </Card>
       </div>
-      <VehiculoRutaCard rutaId={ruta.id} fecha={ruta.fecha} />
+      <VehiculoRutaCard rutaId={ruta.id} fecha={ruta.fecha} pesoRuta={ruta.peso_total} />
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-3">
+      <div className={asignando && esPlanificada ? "grid gap-4 lg:grid-cols-5" : "grid gap-4 lg:grid-cols-3"}>
 
       <Card className={asignando && esPlanificada ? "lg:col-span-2" : "lg:col-span-3"}>
         <div className="mb-3 flex items-center justify-between">
@@ -154,7 +184,7 @@ export function RutaDetallePage() {
                 <th className="px-3 py-2">Código de guía</th>
                 <th className="px-3 py-2">Estado</th>
                 <th className="px-3 py-2">Peso</th>
-                {esPlanificada && <th className="px-3 py-2" />}
+                <th className="px-3 py-2" />
               </tr>
             </thead>
             <tbody className="divide-y divide-hormigon-100">
@@ -169,8 +199,19 @@ export function RutaDetallePage() {
                     <EstadoEnvioBadge estado={envio.estado} />
                   </td>
                   <td className="px-3 py-2 text-gray-700">{envio.peso} kg</td>
-                  {esPlanificada && (
-                    <td className="px-3 py-2 text-right">
+                  <td className="px-3 py-2 text-right">
+                    {envio.estado === "no_entregado" && (
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        loading={reprogramarMutation.isPending && reprogramarMutation.variables === envio.id}
+                        onClick={() => reprogramarMutation.mutate(envio.id)}
+                      >
+                        Reprogramar para mañana
+                      </Button>
+                    )}
+                    {esPlanificada && (
+                      <>
                       {envio.estado === "asignado" && (
                       <Button
                         type="button"
@@ -181,14 +222,20 @@ export function RutaDetallePage() {
                         Desasignar
                       </Button>
                       )}
-                    </td>
-                  )}
+                      </>
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
         )}
 
+        {reprogramarMutation.isError && (
+          <div className="mt-3">
+            <Alert variant="error">{getApiErrorMessage(reprogramarMutation.error, "No se pudo reprogramar el envío")}</Alert>
+          </div>
+        )}
         {desasignarMutation.isError && (
           <div className="mt-3">
             <Alert variant="error">{getApiErrorMessage(desasignarMutation.error, "No se pudo desasignar el envío")}</Alert>
@@ -197,9 +244,9 @@ export function RutaDetallePage() {
       </Card>
 
       {asignando && esPlanificada && (
-        <Card>
+        <Card className="lg:col-span-3">
           <h2 className="mb-3 text-sm font-semibold text-gray-900">Envíos pendientes</h2>
-          <AsignarEnviosPanel rutaId={rutaId} onAsignado={() => setAsignando(false)} />
+          <AsignarEnviosPanel rutaId={rutaId} onAsignado={() => setAsignando(false)} fechaRuta={ruta.fecha} pesoActual={ruta.peso_total} capacidad={vehiculoDeRuta?.capacidad_peso ?? 0} />
         </Card>
       )}
       </div>

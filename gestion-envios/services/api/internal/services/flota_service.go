@@ -19,6 +19,8 @@ var (
 	ErrVehiculoInvalido = errors.New("vehiculo invalido")
 	// ErrVehiculoNoDisponible: el vehículo está en mantenimiento y no puede salir a ruta.
 	ErrVehiculoNoDisponible = errors.New("vehiculo en mantenimiento")
+	// ErrCapacidadExcedida: los envíos de la ruta pesan más que la capacidad del vehículo.
+	ErrCapacidadExcedida = errors.New("la carga de la ruta supera la capacidad del vehículo")
 	// ErrPatenteEnUso: ya hay un vehículo con esa patente.
 	ErrPatenteEnUso = errors.New("patente en uso")
 )
@@ -175,6 +177,16 @@ func (s *FlotaService) AsignarARuta(ctx context.Context, rutaID, vehiculoID stri
 	}
 	if v.Estado == domain.EstadoVehiculoMantenimiento {
 		return ErrVehiculoNoDisponible
+	}
+	estado, peso, err := s.repo.EstadoYPesoRuta(ctx, rutaID)
+	if err != nil {
+		return err
+	}
+	if estado == domain.EstadoRutaCompletada {
+		return repository.ErrRutaNoEditable
+	}
+	if v.CapacidadPeso > 0 && peso > v.CapacidadPeso {
+		return ErrCapacidadExcedida
 	}
 	return s.repo.AsignarARuta(ctx, rutaID, &vehiculoID)
 }

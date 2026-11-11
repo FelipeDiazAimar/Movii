@@ -239,6 +239,17 @@ func (r *EnvioRepo) DesasignarEnvio(ctx context.Context, envioID, rutaID string)
 	return tx.Commit(ctx)
 }
 
+// sqlEstadoRuta deriva el estado de la ruta de sus envíos: completada si todos
+// terminaron (entregados o no entregados), en curso si alguno ya salió, y
+// planificada si todos siguen asignados.
+const sqlEstadoRuta = `
+	UPDATE rutas r SET estado = (CASE
+		WHEN EXISTS (SELECT 1 FROM envios e WHERE e.ruta_id = r.id)
+		 AND NOT EXISTS (SELECT 1 FROM envios e WHERE e.ruta_id = r.id AND e.estado IN ('pendiente', 'asignado', 'en_camino')) THEN 'completada'
+		WHEN EXISTS (SELECT 1 FROM envios e WHERE e.ruta_id = r.id AND e.estado <> 'asignado') THEN 'en_curso'
+		ELSE 'planificada' END)::estado_ruta
+`
+
 // ActualizarEstado cambia el estado de un envío. q suele ser la transacción
 // de la operación de HU-06/HU-07 (el UPDATE corre junto al INSERT del evento
 // en eventos_envio). Devuelve ErrNoEncontrado si el envío no existe.
@@ -250,7 +261,9 @@ func (r *EnvioRepo) ActualizarEstado(ctx context.Context, q Querier, envioID, nu
 	if tag.RowsAffected() == 0 {
 		return ErrNoEncontrado
 	}
-	return nil
+	// La ruta pasa a en curso / completada según lo que pasó con sus envíos.
+	_, err = q.Exec(ctx, sqlEstadoRuta+` WHERE r.id = (SELECT ruta_id FROM envios WHERE id = $1)`, envioID)
+	return err
 }
 
 // Reprogramar vuelve un envío a "pendiente" para una fecha + franja (HU-09):
@@ -260,6 +273,8 @@ func (r *EnvioRepo) ActualizarEstado(ctx context.Context, q Querier, envioID, nu
 // valores del enum franja_horaria (0004). Devuelve ErrNoEncontrado si el
 // envío no existe.
 func (r *EnvioRepo) Reprogramar(ctx context.Context, q Querier, envioID, fechaYYYYMMDD, franja string) error {
+	var rutaAnterior *string // el UPDATE le saca la ruta: hay que recalcular su estado después
+	_ = q.QueryRow(ctx, `SELECT ruta_id::text FROM envios WHERE id = $1::uuid`, envioID).Scan(&rutaAnterior)
 	tag, err := q.Exec(ctx, `
 		UPDATE envios
 		SET estado = 'pendiente', fecha_entrega = $2::date, reprogramado_para = $2::date, franja = $3::franja_horaria, ruta_id = NULL
@@ -271,7 +286,10 @@ func (r *EnvioRepo) Reprogramar(ctx context.Context, q Querier, envioID, fechaYY
 	if tag.RowsAffected() == 0 {
 		return ErrNoEncontrado
 	}
-	return nil
+	if rutaAnterior != nil {
+		_, err = q.Exec(ctx, sqlEstadoRuta+` WHERE r.id::text = $1`, *rutaAnterior)
+	}
+	return err
 }
 
 // ReprogramacionDe devuelve la fecha ("YYYY-MM-DD") y franja de

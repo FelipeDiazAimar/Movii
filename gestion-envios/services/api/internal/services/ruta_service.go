@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"errors"
+	"time"
 
 	"movii/api/internal/domain"
 	"movii/api/internal/repository"
@@ -12,10 +13,38 @@ import (
 // crear/editar una ruta (CA-05 de HU-03).
 var ErrRutaCamposObligatorios = errors.New("faltan campos obligatorios de la ruta")
 
-// validarRuta chequea los campos obligatorios de una ruta.
+// ErrRepartidorInvalido indica que el repartidor no existe, está inactivo o no tiene rol repartidor.
+var ErrRepartidorInvalido = errors.New("el repartidor no es válido")
+
+// ErrFechaRutaInvalida indica una fecha de ruta que no es YYYY-MM-DD.
+var ErrFechaRutaInvalida = errors.New("la fecha de la ruta no es válida")
+
+// validarRuta chequea los campos obligatorios de una ruta y su fecha.
 func validarRuta(ruta domain.Ruta) error {
 	if ruta.RepartidorID == "" {
 		return ErrRutaCamposObligatorios
+	}
+	if ruta.Fecha != "" {
+		if f, err := time.Parse("2006-01-02", ruta.Fecha); err != nil || f.Format("2006-01-02") != ruta.Fecha {
+			return ErrFechaRutaInvalida
+		}
+	}
+	return nil
+}
+
+// validarRutaConRepartidor suma a validarRuta que el repartidor exista, esté
+// activo y tenga rol repartidor (sin esto la base aceptaba a un operador como
+// chofer o fallaba con 500).
+func (s *RutaService) validarRutaConRepartidor(ctx context.Context, ruta domain.Ruta) error {
+	if err := validarRuta(ruta); err != nil {
+		return err
+	}
+	ok, err := s.repo.RepartidorValido(ctx, ruta.RepartidorID)
+	if err != nil {
+		return err
+	}
+	if !ok {
+		return ErrRepartidorInvalido
 	}
 	return nil
 }
@@ -41,7 +70,7 @@ func NewRutaService(repo *repository.RutaRepo) *RutaService {
 
 // Create valida y crea una ruta nueva.
 func (s *RutaService) Create(ctx context.Context, ruta domain.Ruta) (domain.Ruta, error) {
-	if err := validarRuta(ruta); err != nil {
+	if err := s.validarRutaConRepartidor(ctx, ruta); err != nil {
 		return domain.Ruta{}, err
 	}
 	return s.repo.Create(ctx, ruta)
@@ -71,7 +100,7 @@ func (s *RutaService) Detalle(ctx context.Context, id string) (DetalleRuta, erro
 
 // Update valida y edita una ruta, solo si está planificada (CA-03).
 func (s *RutaService) Update(ctx context.Context, id string, ruta domain.Ruta) (domain.Ruta, error) {
-	if err := validarRuta(ruta); err != nil {
+	if err := s.validarRutaConRepartidor(ctx, ruta); err != nil {
 		return domain.Ruta{}, err
 	}
 	return s.repo.Update(ctx, id, ruta)

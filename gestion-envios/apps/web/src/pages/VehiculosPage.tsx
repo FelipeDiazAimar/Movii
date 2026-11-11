@@ -19,7 +19,9 @@ import { Card, EmptyState } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Alert } from "@/components/ui/Alert";
 import { Spinner } from "@/components/ui/Spinner";
-import { InputField, SelectField } from "@/components/ui/Field";
+import { DateField, InputField, SelectField } from "@/components/ui/Field";
+import { AsignarRutaAVehiculo } from "@/features/flota/AsignarRutaAVehiculo";
+import { hoyISO } from "@/features/analitica/fechas";
 import { PageHeader, PAGE_WIDE } from "@/components/ui/PageHeader";
 import { getApiErrorMessage } from "@/services/api-client";
 
@@ -130,7 +132,8 @@ export function VehiculosPage() {
   const [busqueda, setBusqueda] = useState("");
   const [estado, setEstado] = useState("");
   const [tipo, setTipo] = useState("");
-  const { data, isLoading, isError, error } = useQuery({ queryKey: ["operaciones", "flota"], queryFn: () => listarFlota() });
+  const [fecha, setFecha] = useState(hoyISO());
+  const { data, isLoading, isError, error } = useQuery({ queryKey: ["operaciones", "flota", "fecha", fecha], queryFn: () => listarFlota(fecha) });
   const colores = useMemo(() => colorDeFlota(data ?? []), [data]);
   const colorNuevo = useMemo(() => colorDeFlota([...(data ?? []), { id: "nuevo" }]).nuevo, [data]);
   const visibles = data ? filtrarVehiculos(data, { busqueda, estado, tipo }) : [];
@@ -145,7 +148,7 @@ export function VehiculosPage() {
     <div className={PAGE_WIDE}>
       <PageHeader
         title="Vehículos" icon={Truck}
-        description="La flota: capacidad, estado y la ruta que tiene asignada hoy."
+        description="La flota: capacidad, estado y la ruta que tiene asignada el día elegido."
         action={
           !nuevo && (
             <Button type="button" onClick={() => setNuevo(true)}>
@@ -173,6 +176,7 @@ export function VehiculosPage() {
           onLimpiar={limpiar}
           resumen={`${visibles.length} de ${data.length}`}
         >
+          <DateField label="Fecha" value={fecha} onChange={(v) => setFecha(v || hoyISO())} />
           <SelectField label="Estado" value={estado} onChange={(e) => setEstado(e.target.value)}>
             <option value="">Todos</option>
             {Object.entries(ETIQUETA_ESTADO_VEHICULO).map(([k, label]) => (
@@ -261,9 +265,10 @@ export function VehiculosPage() {
                           <span className="text-gray-500"> con {v.repartidor_nombre}</span>
                         </p>
                       ) : (
-                        <p className="flex-1 text-gray-400">Sin ruta asignada hoy</p>
+                        <p className="flex-1 text-gray-400">Sin ruta asignada {fecha === hoyISO() ? "hoy" : "ese día"}</p>
                       )}
                     </div>
+                    {!v.ruta_id && <AsignarRutaAVehiculo vehiculo={v} fecha={fecha} />}
                     <div className="mt-auto flex justify-end gap-2">
                       <BotonEliminar nombre={v.patente} eliminar={() => eliminarVehiculo(v.id)} invalidar={[["operaciones", "flota"]]} />
                       <Button type="button" variant="secondary" onClick={() => setEditando(v.id)}>

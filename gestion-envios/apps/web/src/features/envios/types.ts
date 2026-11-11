@@ -150,7 +150,7 @@ export interface TrackingResponse {
 
 export interface TrackingEnVivo {
   vehiculo: {
-    tipo: "camion" | "furgon" | "utilitario" | "moto";
+    tipo: "camion" | "furgon" | "utilitario" | "moto" | "camioneta" | "auto";
     modelo: string;
     color: string;
     /** Parcial: AB•••CD */

@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useState } from "react";
 import { Animated, Easing, StyleSheet, View, useWindowDimensions, type ViewProps } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import Svg, { Circle, Defs, Line, Pattern, RadialGradient, Rect, Stop } from "react-native-svg";
@@ -33,8 +33,8 @@ function Halo({ id, color, tam, opacidad }: { id: string; color: string; tam: nu
  */
 export function AuroraBackground({ children, style, variante = "claro", barra, ...props }: Props) {
   const { width, height } = useWindowDimensions();
-  const a = useRef(new Animated.Value(0)).current;
-  const b = useRef(new Animated.Value(0)).current;
+  const [a] = useState(() => new Animated.Value(0));
+  const [b] = useState(() => new Animated.Value(0));
   useEffect(() => {
     const loop = (v: Animated.Value, ms: number) =>
       Animated.loop(

@@ -15,7 +15,10 @@ type Ruta struct {
 // RutaConConteo agrega la cantidad de envíos asignados, usada en el listado.
 type RutaConConteo struct {
 	Ruta
-	CantidadEnvios int `json:"cantidad_envios"`
+	CantidadEnvios  int     `json:"cantidad_envios"`
+	PesoTotal       float64 `json:"peso_total"`
+	VehiculoID      string  `json:"vehiculo_id"`
+	VehiculoPatente string  `json:"vehiculo_patente"`
 }
 
 const (

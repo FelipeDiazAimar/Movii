@@ -23,7 +23,7 @@ const MOTIVOS: Record<string, string> = {
   zona_insegura: "Zona insegura",
   otro: "Otro motivo",
 };
-const TIPOS: Record<string, string> = { camion: "Camión", furgon: "Furgón", utilitario: "Utilitario", moto: "Moto" };
+const TIPOS: Record<string, string> = { camion: "Camión", furgon: "Furgón", utilitario: "Utilitario", moto: "Moto", camioneta: "Camioneta", auto: "Auto" };
 
 function hora(iso?: string) {
   if (!iso) return "–";
@@ -100,7 +100,6 @@ export default function ProfileScreen() {
   const [error, setError] = useState<string | null>(null);
 
   const cargar = useCallback(async () => {
-    setCargando(true);
     try {
       setPerfil(await obtenerPerfil());
       setError(null);
@@ -110,8 +109,9 @@ export default function ProfileScreen() {
       setCargando(false);
     }
   }, []);
+  // La carga inicial arranca en una promesa (no llama setState sincrónico dentro del efecto).
   useEffect(() => {
-    void cargar();
+    void Promise.resolve().then(() => { setCargando(true); return cargar(); });
   }, [cargar]);
 
   const nombre = perfil?.nombre || driverName;
@@ -128,7 +128,7 @@ export default function ProfileScreen() {
   return (
     <View style={styles.page}>
       <AuroraBackground barra="light" style={StyleSheet.absoluteFill} />
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} refreshControl={<RefreshControl refreshing={cargando} onRefresh={cargar} />}>
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} refreshControl={<RefreshControl refreshing={cargando} onRefresh={() => { setCargando(true); void cargar(); }} />}>
         {/* Encabezado */}
         <View style={[styles.hero, { paddingTop: insets.top + 18 }]}>
           <View style={styles.glow} pointerEvents="none" />

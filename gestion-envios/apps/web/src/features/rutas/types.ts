@@ -10,6 +10,10 @@ export interface RutaListItem {
   repartidor_id: string;
   repartidor_nombre?: string;
   cantidad_envios: number;
+  peso_total: number;
+  /** Vacío si la ruta no tiene vehículo. */
+  vehiculo_id: string;
+  vehiculo_patente: string;
 }
 
 /** Envío tal como viene embebido en el detalle de ruta: sin datos del destinatario. */
@@ -44,6 +48,26 @@ export interface RutaInput {
   nombre: string;
   zona: string;
   repartidor_id: string;
+  /** YYYY-MM-DD; vacío = hoy al crear / se mantiene al editar. */
+  fecha?: string;
+}
+
+/** Ruta candidata para un envío, ordenada por la API (GET /envios/{id}/rutas-sugeridas). */
+export interface RutaSugerida {
+  ruta_id: string;
+  nombre: string;
+  zona: string;
+  fecha: string;
+  repartidor_nombre: string;
+  vehiculo: string;
+  capacidad_peso: number;
+  peso_actual: number;
+  paradas: number;
+  distancia_km: number | null;
+  misma_fecha: boolean;
+  cabe: boolean;
+  recomendada: boolean;
+  motivo: string;
 }
 
 export interface RutasFiltro {

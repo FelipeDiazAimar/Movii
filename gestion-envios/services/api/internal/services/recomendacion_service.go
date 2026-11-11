@@ -111,6 +111,16 @@ func (s *RecomendacionService) Recomendar(ctx context.Context, rutaID, envioID s
 	return s.evaluar(m.KM), nil
 }
 
+// ValidarDireccion comprueba que la dirección se pueda ubicar en el mapa antes
+// de crear el envío. Si el proveedor de mapas falla por red no bloquea (nil).
+func (s *RecomendacionService) ValidarDireccion(ctx context.Context, calle, numero, localidad, cp string) error {
+	_, conf, err := s.provider.Geocodificar(ctx, ExpandirCalle(calle), numero, localidad, cp)
+	if errors.Is(err, geo.ErrSinResultados) || (err == nil && conf < geo.ConfianzaMinima) {
+		return ErrDireccionInvalida
+	}
+	return nil
+}
+
 func sinRecomendacion(motivo string) Recomendacion {
 	return Recomendacion{Recomendacion: RecomSinRecomienda, Motivo: motivo + ": se puede asignar igual"}
 }

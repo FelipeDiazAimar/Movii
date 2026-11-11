@@ -9,6 +9,7 @@ import { Alert } from "@/components/ui/Alert";
 import { Spinner } from "@/components/ui/Spinner";
 import { EmptyState } from "@/components/ui/Card";
 import { getApiErrorMessage } from "@/services/api-client";
+import { formatearDia } from "@/utils/fechas";
 
 /** Estado de la validación de dirección / distancia (T4) de un envío seleccionado. */
 export type EstadoReco = { tipo: "cargando" } | { tipo: "ok"; rec: Recomendacion } | { tipo: "invalida" };
@@ -50,7 +51,21 @@ const SIN_RECOMENDACION: EstadoReco = {
 };
 
 /** Panel para elegir envíos pendientes y asignarlos a la ruta (HU-04, CA-01/02; T4). */
-export function AsignarEnviosPanel({ rutaId, onAsignado }: { rutaId: string; onAsignado: () => void }) {
+export function AsignarEnviosPanel({
+  rutaId,
+  onAsignado,
+  fechaRuta,
+  pesoActual = 0,
+  capacidad = 0,
+}: {
+  rutaId: string;
+  onAsignado: () => void;
+  /** Fecha de la ruta: los envíos de otra fecha se marcan y van al final. */
+  fechaRuta?: string;
+  /** Peso que ya lleva la ruta y capacidad de su vehículo (0 = sin vehículo). */
+  pesoActual?: number;
+  capacidad?: number;
+}) {
   const queryClient = useQueryClient();
   const [seleccionados, setSeleccionados] = useState<Set<string>>(new Set());
   const [recos, setRecos] = useState<Record<string, EstadoReco>>({});
@@ -97,10 +112,14 @@ export function AsignarEnviosPanel({ rutaId, onAsignado }: { rutaId: string; onA
     });
   }
 
+  const lista = [...(pendientes ?? [])].sort((a, b) => Number(a.fecha_entrega !== fechaRuta) - Number(b.fecha_entrega !== fechaRuta));
+  const pesoSel = lista.filter((e) => seleccionados.has(e.id)).reduce((n, e) => n + e.peso, 0);
+  const excede = capacidad > 0 && pesoActual + pesoSel > capacidad;
+  const conflicto = mutation.isError && axios.isAxiosError(mutation.error) && mutation.error.response?.status === 409;
   const estados = Array.from(seleccionados).map((id) => recos[id]);
   const hayInvalida = estados.some((e) => e?.tipo === "invalida");
   const validando = estados.some((e) => !e || e.tipo === "cargando");
-  const hayRoja = estados.some((e) => e?.tipo === "ok" && e.rec.recomendacion === "no_conviene");
+  const hayRoja = estados.some((e) => e?.tipo === "ok" && e.rec.recomendacion === "no_conviene") || excede || conflicto;
 
   if (isLoading) return <Spinner label="Cargando envíos pendientes…" />;
 
@@ -113,7 +132,7 @@ export function AsignarEnviosPanel({ rutaId, onAsignado }: { rutaId: string; onA
       {mutation.isError && <Alert variant="error">{getApiErrorMessage(mutation.error, "No se pudo asignar los envíos")}</Alert>}
 
       <ul className="divide-y divide-gray-100 rounded-md border border-gray-200">
-        {pendientes.map((envio) => (
+        {lista.map((envio) => (
           <li key={envio.id} className="flex items-center gap-3 px-3 py-2 text-sm">
             <input
               type="checkbox"
@@ -122,12 +141,25 @@ export function AsignarEnviosPanel({ rutaId, onAsignado }: { rutaId: string; onA
               onChange={() => toggle(envio.id)}
             />
             <span className="font-medium text-gray-900">{envio.codigo_guia}</span>
-            <span className="text-gray-500">{envio.destinatario}</span>
+            <span className="min-w-0 flex-1 truncate text-gray-500" title={envio.direccion}>
+              {envio.destinatario}
+              {envio.direccion ? ` · ${envio.direccion}` : ""}
+            </span>
+            {fechaRuta && envio.fecha_entrega !== fechaRuta && (
+              <span className="rounded-full border border-yellow-200 bg-yellow-50 px-2 py-0.5 text-xs text-yellow-800">Entrega {formatearDia(envio.fecha_entrega)}</span>
+            )}
             {seleccionados.has(envio.id) && recos[envio.id] && <RecomendacionBadge estado={recos[envio.id]} />}
-            <span className="ml-auto text-gray-500">{envio.peso} kg</span>
+            <span className="text-gray-500">{envio.peso} kg</span>
           </li>
         ))}
       </ul>
+
+      {capacidad > 0 && (
+        <p className={`text-xs ${excede ? "font-semibold text-red-700" : "text-gray-500"}`}>
+          Carga del vehículo: {Math.round((pesoActual + pesoSel) * 10) / 10} de {capacidad} kg
+          {excede ? " — se pasa de la capacidad" : ""}
+        </p>
+      )}
 
       {hayRoja && !hayInvalida && (
         <label className="flex items-center gap-2 text-sm text-red-700">

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Animated, Easing, Platform, Pressable, RefreshControl, ScrollView, SectionList, StyleSheet, Text, TextInput, View, type LayoutChangeEvent } from "react-native";
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -140,7 +140,7 @@ export default function RouteScreen() {
 
   // El camión recorre la calzada según el avance del día.
   const [pista, setPista] = useState(0);
-  const avance = useRef(new Animated.Value(0)).current;
+  const [avance] = useState(() => new Animated.Value(0));
   useEffect(() => {
     Animated.timing(avance, { toValue: progreso, duration: 1200, easing: Easing.out(Easing.cubic), useNativeDriver: false }).start();
   }, [progreso, avance]);
