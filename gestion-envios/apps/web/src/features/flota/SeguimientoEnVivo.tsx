@@ -6,6 +6,7 @@ import { Spinner } from "@/components/ui/Spinner";
 import { hayWebGL } from "@/features/mapas/webgl";
 import { MapaMovii, type ParadaEnMapa, type RutaEnMapa, type VehiculoEnMapa } from "./MapaMovii";
 import { ParadasRuta } from "./ParadasRuta";
+import { etaParadas, horaCorta } from "./recorrido";
 import { BotonIniciarRuta } from "@/features/rutas/BotonIniciarRuta";
 import type { LatLng, PaqueteVehiculo, PosicionVehiculo, TrayectoEnvio, Vehiculo, VehiculoDetalle } from "./types";
 
@@ -61,6 +62,19 @@ export function SeguimientoEnVivo(p: Props) {
     refetchInterval: 10_000,
   });
 
+  // Hora estimada de llegada a cada parada pendiente (ruta en curso): a la velocidad media del
+  // recorrido por calles, desde donde está el camión ahora.
+  const recorridoSel = p.detalle?.recorrido;
+  const posCamion = p.enMapa.find((v) => v.id === seleccionado.id)?.pos;
+  const etas = useMemo(() => {
+    if (!enRuta || !enCurso || !recorridoSel || !posCamion) return {} as Record<string, string>;
+    const pendientes = paquetes
+      .filter((x) => (x.estado === "asignado" || x.estado === "en_camino") && x.coordenadas)
+      .map((x) => ({ id: x.envio_id, pos: [x.coordenadas!.lat, x.coordenadas!.lng] as LatLng }));
+    const fechas = etaParadas(recorridoSel.geometria, posCamion, pendientes, recorridoSel.distancia_m, recorridoSel.duracion_s, new Date());
+    return Object.fromEntries(Object.entries(fechas).map(([id, d]) => [id, horaCorta(d)]));
+  }, [enRuta, enCurso, recorridoSel, posCamion, paquetes]);
+
   const paradas = useMemo<ParadaEnMapa[]>(
     () =>
       enRuta
@@ -73,15 +87,16 @@ export function SeguimientoEnVivo(p: Props) {
                     estado: x.estado,
                     pos: [x.coordenadas.lat, x.coordenadas.lng] as LatLng,
                     titulo: `${x.orden}. ${x.codigo_guia}`,
-                    detalle: `${x.destinatario_nombre} · ${x.direccion}`,
+                    detalle: `${x.destinatario_nombre} · ${x.direccion}${etas[x.envio_id] ? ` · llega ${etas[x.envio_id]}` : ""}`,
                     destacada: x.envio_id === envioElegido,
                     proxima: enCurso && x.envio_id === proxima,
+                    eta: etas[x.envio_id],
                   },
                 ]
               : [],
           )
         : [],
-    [enRuta, paquetes, envioElegido, proxima, enCurso],
+    [enRuta, paquetes, envioElegido, proxima, enCurso, etas],
   );
 
   const rutasVisibles = enRuta

@@ -21,7 +21,7 @@ type Config struct {
 	PublicWebURL             string   // PUBLIC_WEB_URL: URL pública de la web (links de tracking en los avisos)
 	PublicAppURL             string   // PUBLIC_APP_URL: URL del panel del repartidor (aviso de ruta asignada)
 	SimuladorGPS             bool     // SIMULADOR_GPS=true mueve los vehículos por sus rutas
-	SimuladorFactor          float64  // SIMULADOR_FACTOR: cuántas veces más rápido que la realidad (default 3)
+	SimuladorFactor          float64  // SIMULADOR_FACTOR: cuántas veces más rápido que la realidad (default 1: el vehículo llega a la hora estimada)
 	SimuladorEntregas        bool     // SIMULADOR_ENTREGAS: el simulador entrega solo los envíos de demostración (default true)
 	SimuladorParadaSeg       int      // SIMULADOR_PARADA_SEG: segundos que se queda en cada domicilio (default 40)
 	SimuladorEntregaManual   []string // SIMULADOR_ENTREGA_MANUAL: patentes que esperan la entrega desde la app (default TRK-318; "-" = ninguna)
@@ -116,7 +116,7 @@ func Load() (Config, error) {
 		origins = strings.Split(raw, ",")
 	}
 
-	factor := 3.0
+	factor := 1.0
 	if raw := os.Getenv("SIMULADOR_FACTOR"); raw != "" {
 		if f, err := strconv.ParseFloat(raw, 64); err == nil && f > 0 {
 			factor = f

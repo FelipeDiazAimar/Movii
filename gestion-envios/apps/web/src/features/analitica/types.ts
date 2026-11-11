@@ -102,11 +102,22 @@ export interface RankingRepartidores {
   ranking: RankingFila[];
 }
 
+export interface CasoIncidencia {
+  codigo_guia: string;
+  destinatario: string;
+  direccion: string;
+  repartidor: string;
+  fecha: string;
+  comentario: string;
+}
+
 export interface DistribucionMotivo {
   motivo: string;
   etiqueta: string;
   cantidad: number;
   porcentaje: number;
+  /** Los envíos detrás de la barra, con el repartidor que registró cada incidencia. */
+  casos: CasoIncidencia[];
 }
 
 export interface ReporteIncidencias {

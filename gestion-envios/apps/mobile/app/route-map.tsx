@@ -11,6 +11,7 @@ import { obtenerMapaRuta, obtenerTrayecto, type MapaRutaAPI, type TrayectoAPI } 
 import type { DatosMapaApp } from "@/lib/mapa-html";
 import { useMovii } from "@/lib/movii-context";
 import { urlGoogleMaps, type ModoMaps } from "@/lib/google-maps";
+import { volverAtras } from "@/lib/navegacion";
 import { haptic } from "@/lib/haptics";
 
 const ESTADO_TEXTO: Record<string, string> = {
@@ -119,7 +120,7 @@ export default function RouteMapScreen() {
           <GlassCard>
             <Text style={styles.empty}>Cuando tengas una ruta asignada para hoy vas a ver acá el recorrido y tus paradas.</Text>
           </GlassCard>
-          <PrimaryButton label="Volver" onPress={() => router.back()} />
+          <PrimaryButton label="Volver" onPress={volverAtras} />
         </View>
       </View>
     );
@@ -204,7 +205,7 @@ export default function RouteMapScreen() {
           })}
           {mapa && paradas.length === 0 ? <Text style={styles.empty}>La ruta no tiene paradas.</Text> : null}
         </GlassCard>
-        <PrimaryButton label="Volver a mi ruta" onPress={() => router.back()} />
+        <PrimaryButton label="Volver a mi ruta" onPress={volverAtras} />
       </ScrollView>
 
       <Modal visible={expanded} animationType="fade" onRequestClose={() => setExpanded(false)}>

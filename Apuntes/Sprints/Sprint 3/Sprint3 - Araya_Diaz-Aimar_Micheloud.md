@@ -86,7 +86,7 @@ Los cambios de alcance (HU-12 ampliada, altas de HU-16 a HU-19) y su justificaci
 ### 5.2 HU-12 — Mapa con calles reales
 - Geocodificación al dar de alta el envío (en segundo plano) y backfill al arrancar. Respeta la política de Nominatim (1 consulta/s, User-Agent propio, caché).
 - `GET /rutas/{id}/mapa`: paradas + recorrido depósito → paradas (OSRM) + vehículo. `GET /envios/{id}/trayecto`: camino desde el camión hasta un envío, distancia, tiempo y paradas previas.
-- **Simulador GPS**: cada 2 s avanza cada camión con la ruta del día **en curso** por su polilínea OSRM (velocidad configurable, ×3 en la demo), guarda la telemetría y la publica por SSE. Si el repartidor resuelve una parada, recalcula desde donde está. Desde el 11/11 frena en cada domicilio, entrega solo los envíos de demostración, espera en la puerta en los reales y vuelve al depósito al terminar (ver 5.8).
+- **Simulador GPS**: cada 2 s avanza cada camión con la ruta del día **en curso** por su polilínea OSRM (velocidad configurable con `SIMULADOR_FACTOR`; desde el 11/11 el valor por defecto es 1, tiempo real, para que coincida con la hora estimada), guarda la telemetría y la publica por SSE. Si el repartidor resuelve una parada, recalcula desde donde está. Desde el 11/11 frena en cada domicilio, entrega solo los envíos de demostración, espera en la puerta en los reales y vuelve al depósito al terminar (ver 5.8).
 - Web: mapa de ruta, mapa en el centro de operaciones y tarjeta de seguimiento en cada envío. App: mapa de ruta y mini mapa en cada parada.
 
 ### 5.3 HU-13/14/15 — Reportes

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Linking, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 
 import { AppHeader } from "@/components/app-header";
@@ -8,11 +8,13 @@ import { ShipmentTimeline } from "@/components/timeline";
 import { GlassCard, PrimaryButton } from "@/components/ui/movii-ui";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { InfoEnvio } from "@/components/info-envio";
-import { obtenerMapaRuta, type MapaRutaAPI } from "@/lib/api-client";
+import { obtenerMapaRuta, obtenerPedido, type MapaRutaAPI } from "@/lib/api-client";
+import { eventosDeHistorial } from "@/lib/pedidos";
+import type { TimelineEvent } from "@/types/logistics";
 import { haptic } from "@/lib/haptics";
 import { useMovii } from "@/lib/movii-context";
 import { TrayectoParada } from "@/components/trayecto-parada";
-import { accionesDisponibles } from "@/lib/seguimiento";
+import { accionesDisponibles, formatearFecha } from "@/lib/seguimiento";
 import { urlGoogleMaps, type ModoMaps } from "@/lib/google-maps";
 
 /** "2026-11-11" → "11/11/2026" (hoy se muestra como "Hoy"). */
@@ -48,6 +50,16 @@ export default function StopDetailScreen() {
     obtenerMapaRuta(rutaId).then((m) => vigente && setMapaRuta(m)).catch(() => undefined);
     return () => { vigente = false; };
   }, [rutaId]);
+  // Historial real del envío (la lista del día no lo trae): se vuelve a pedir cuando cambia el estado.
+  const [historial, setHistorial] = useState<TimelineEvent[] | null>(null);
+  const codigoEnvio = shipment?.code;
+  const estadoEnvio = shipment?.estadoApi;
+  useEffect(() => {
+    if (!codigoEnvio) return;
+    let vigente = true;
+    obtenerPedido(codigoEnvio).then((p) => vigente && setHistorial(eventosDeHistorial(p.historial, formatearFecha))).catch(() => vigente && setHistorial([]));
+    return () => { vigente = false; };
+  }, [codigoEnvio, estadoEnvio]);
   if (!shipment) return null;
   // El repartidor es quien inició sesión: la API solo devuelve los envíos de su ruta.
   const driver = { name: driverName, initials: driverName.split(" ").filter(Boolean).slice(0, 2).map((p) => p[0]?.toUpperCase()).join("") };
@@ -98,7 +110,7 @@ export default function StopDetailScreen() {
         {resolved ? <View style={styles.actions}><GlassCard style={styles.resolved}><Text style={styles.resolvedTitle}>{shipment.status === "entregado" ? "Entrega confirmada" : "Entrega no realizada"}</Text><Text style={styles.resolvedCopy}>{shipment.status === "entregado" ? `Recibió: ${shipment.recipientName ?? shipment.recipient.name}. Evidencia registrada.` : shipment.failureReason ?? "Incidencia registrada."}</Text></GlassCard>{real && acciones.reprogramar ? reprogramarLink : null}</View> : <View style={styles.actions}>{enDeposito ? <><View style={styles.inRouteCard}><View style={styles.inRouteAccent} /><View style={styles.inRouteIcon}><Text style={styles.inRouteArrow}>⌂</Text></View><View style={styles.inRouteCopy}><Text style={styles.inRouteEyebrow}>EN EL DEPÓSITO</Text><Text style={styles.inRouteTitle}>Todavía no saliste</Text><Text style={styles.inRouteDescription}>Iniciá la ruta desde Inicio: todos los envíos salen en camino a la vez.</Text></View></View><PrimaryButton label="Ir a Inicio" tone="secondary" onPress={() => router.replace("/")} icon="‹" /></> : <><View style={styles.inRouteCard}><View style={styles.inRouteAccent} /><View style={styles.inRouteIcon}><Text style={styles.inRouteArrow}>→</Text></View><View style={styles.inRouteCopy}><Text style={styles.inRouteEyebrow}>RUTA ACTIVA</Text><Text style={styles.inRouteTitle}>Ya estás en camino</Text><Text style={styles.inRouteDescription}>Actualizá la entrega cuando llegues al destino.</Text></View><View style={styles.liveDot} /></View><View style={styles.actionPair}><View style={styles.actionHalf}><PrimaryButton label="Entregado" onPress={() => router.push({ pathname: "/delivery/[id]", params: { id: shipment.id } })} icon="✓" /></View><View style={styles.actionHalf}><PrimaryButton label="No entregado" tone="danger" onPress={() => router.push({ pathname: "/failure/[id]", params: { id: shipment.id } })} icon="!" /></View></View></>}{!real ? reprogramarLink : null}</View>}
         <Text style={styles.section}>Información del envío</Text>
         <InfoEnvio envio={shipment} />
-        <Text style={styles.section}>Estado del envío</Text><GlassCard><ShipmentTimeline events={shipment.timeline} /></GlassCard>
+        <Text style={styles.section}>Estado del envío</Text><GlassCard>{historial === null ? <ActivityIndicator color="#806700" /> : historial.length > 0 ? <ShipmentTimeline events={historial} /> : <Text style={styles.resolvedCopy}>Todavía no hay movimientos registrados.</Text>}</GlassCard>
         <GlassCard style={styles.driverCard}><View style={styles.driverAvatar}><Text style={styles.driverInitials}>{driver.initials}</Text></View><View><Text style={styles.driverName}>{driver.name}</Text><Text style={styles.driverDetail}>Repartidor asignado · {shipment.routeName}</Text></View></GlassCard>
       </ScrollView>
     </View>

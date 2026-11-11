@@ -103,7 +103,7 @@ type planSimulado struct {
 func NewSimuladorGPS(repo simuladorRepo, router geo.Router, hub *FlotaHub) *SimuladorGPS {
 	return &SimuladorGPS{
 		repo: repo, router: router, hub: hub,
-		Tick: 2 * time.Second, VelocidadKmh: 32, Factor: 3, Ahora: time.Now,
+		Tick: 2 * time.Second, VelocidadKmh: 32, Factor: 1, Ahora: time.Now,
 		Deposito: geo.CentroSanFrancisco,
 		Parada:   40 * time.Second, ProbFallo: 0.1,
 		rnd:    rand.New(rand.NewPCG(uint64(time.Now().UnixNano()), 7)),

@@ -143,3 +143,37 @@ func (r *ReportesRepo) IncidenciasPorMotivo(ctx context.Context, desde, hasta st
 	}
 	return conteo, rows.Err()
 }
+
+// IncidenciasDetalle lista las incidencias del período (más recientes primero) con el
+// envío, el destinatario y el repartidor que la registró (o, si no consta, el de la ruta).
+func (r *ReportesRepo) IncidenciasDetalle(ctx context.Context, desde, hasta string) ([]domain.CasoIncidencia, error) {
+	rows, err := r.pool.Query(ctx, `
+		SELECT ev.motivo::text, e.codigo_guia, d.nombre, trim(d.calle || ' ' || d.numero) || ', ' || d.localidad,
+		       COALESCE(act.nombre, rep.nombre, 'Sin repartidor'),
+		       to_char(ev.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"'),
+		       COALESCE(ev.comentario, '')
+		FROM eventos_envio ev
+		JOIN envios e ON e.id = ev.envio_id
+		JOIN destinatarios d ON d.id = e.destinatario_id
+		LEFT JOIN usuarios act ON act.id = ev.actor_id
+		LEFT JOIN rutas ru ON ru.id = e.ruta_id
+		LEFT JOIN usuarios rep ON rep.id = ru.repartidor_id
+		WHERE ev.estado_nuevo = 'no_entregado' AND ev.motivo IS NOT NULL
+		  AND (ev.created_at AT TIME ZONE 'UTC')::date BETWEEN $1::date AND $2::date
+		ORDER BY ev.created_at DESC
+	`, desde, hasta)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	casos := make([]domain.CasoIncidencia, 0)
+	for rows.Next() {
+		var c domain.CasoIncidencia
+		if err := rows.Scan(&c.Motivo, &c.CodigoGuia, &c.Destinatario, &c.Direccion, &c.Repartidor, &c.Fecha, &c.Comentario); err != nil {
+			return nil, err
+		}
+		casos = append(casos, c)
+	}
+	return casos, rows.Err()
+}

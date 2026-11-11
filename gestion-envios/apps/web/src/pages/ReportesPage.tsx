@@ -1,4 +1,4 @@
-import { Ban, BarChart3, CalendarRange, CircleHelp, Download, Hash, MapPin, MapPinOff, Medal, Package, ShieldAlert, TriangleAlert, Trophy, UserRound, UserX, type LucideIcon } from "lucide-react";
+import { Ban, BarChart3, CalendarRange, ChevronDown, CircleHelp, Download, Hash, MapPin, MapPinOff, Medal, Package, ShieldAlert, TriangleAlert, Trophy, UserRound, UserX, type LucideIcon } from "lucide-react";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { useState } from "react";
 import { keepPreviousData, useMutation, useQuery } from "@tanstack/react-query";
@@ -16,6 +16,8 @@ import { DateField, SelectField } from "@/components/ui/Field";
 import { SkeletonTabla } from "@/components/ui/Skeleton";
 import { Alert } from "@/components/ui/Alert";
 import { getApiErrorMessage } from "@/services/api-client";
+import { formatearFecha } from "@/utils/fechas";
+import type { DistribucionMotivo } from "@/features/analitica/types";
 
 type Pestana = "envios" | "repartidores" | "incidencias";
 
@@ -202,6 +204,67 @@ const ICONO_MOTIVO: Record<string, LucideIcon> = {
   otro: CircleHelp,
 };
 
+function FilaMotivo({ d }: { d: DistribucionMotivo }) {
+  const [abierto, setAbierto] = useState(false);
+  const Icono = ICONO_MOTIVO[d.motivo] ?? CircleHelp;
+  const casos = d.casos ?? [];
+  return (
+    <li>
+      <button
+        type="button"
+        onClick={() => setAbierto((a) => !a)}
+        disabled={d.cantidad === 0}
+        aria-expanded={abierto}
+        aria-label={`${d.etiqueta}: ${d.cantidad} incidencias. ${abierto ? "Ocultar" : "Ver"} detalle`}
+        className="block w-full rounded-lg text-left enabled:hover:bg-hormigon-50 disabled:cursor-default"
+      >
+        <div className="mb-1 flex justify-between gap-3 text-sm text-gray-700">
+          <span className="inline-flex items-center gap-2">
+            <Icono className="h-4 w-4 text-red-500" aria-hidden />
+            {d.etiqueta}
+          </span>
+          <span className="inline-flex items-center gap-2">
+            {d.cantidad} ({d.porcentaje}%)
+            {d.cantidad > 0 && <ChevronDown className={`h-4 w-4 text-gray-400 transition-transform ${abierto ? "rotate-180" : ""}`} aria-hidden />}
+          </span>
+        </div>
+        <div className="h-3 rounded-full bg-hormigon-100">
+          <div className="h-3 rounded-full bg-gradient-to-r from-red-400 to-red-500" style={{ width: `${d.porcentaje}%` }} />
+        </div>
+      </button>
+      {abierto && casos.length > 0 && (
+        <div className="mt-3 overflow-x-auto rounded-xl border border-gray-200">
+          <table className="w-full text-left text-sm">
+            <thead className="bg-hormigon-50 text-xs uppercase text-gray-500">
+              <tr>
+                <th className="px-3 py-2">Guía</th>
+                <th className="px-3 py-2">Destinatario</th>
+                <th className="px-3 py-2">Repartidor</th>
+                <th className="px-3 py-2">Cuándo</th>
+                <th className="px-3 py-2">Comentario</th>
+              </tr>
+            </thead>
+            <tbody>
+              {casos.map((c) => (
+                <tr key={`${c.codigo_guia}-${c.fecha}`} className="border-t border-gray-100">
+                  <td className="px-3 py-2 font-mono text-xs">{c.codigo_guia}</td>
+                  <td className="px-3 py-2">
+                    <div className="font-medium text-gray-900">{c.destinatario}</div>
+                    <div className="text-xs text-gray-500">{c.direccion}</div>
+                  </td>
+                  <td className="px-3 py-2 font-semibold text-gray-900">{c.repartidor}</td>
+                  <td className="px-3 py-2 text-gray-700">{formatearFecha(c.fecha)}</td>
+                  <td className="px-3 py-2 text-gray-700">{c.comentario || "—"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </li>
+  );
+}
+
 function TabIncidencias({ desde, hasta }: { desde: string; hasta: string }) {
   const q = useQuery({ queryKey: ["reportes", "incidencias", desde, hasta], queryFn: () => reporteIncidencias({ desde, hasta }), placeholderData: keepPreviousData });
 
@@ -218,23 +281,7 @@ function TabIncidencias({ desde, hasta }: { desde: string; hasta: string }) {
             </p>
             <ul className="flex flex-col gap-3">
               {q.data.distribucion.map((d) => (
-                <li key={d.motivo}>
-                  <div className="mb-1 flex justify-between text-sm text-gray-700">
-                    <span className="inline-flex items-center gap-2">
-                      {(() => {
-                        const Icono = ICONO_MOTIVO[d.motivo] ?? CircleHelp;
-                        return <Icono className="h-4 w-4 text-red-500" aria-hidden />;
-                      })()}
-                      {d.etiqueta}
-                    </span>
-                    <span>
-                      {d.cantidad} ({d.porcentaje}%)
-                    </span>
-                  </div>
-                  <div className="h-3 rounded-full bg-hormigon-100">
-                    <div className="h-3 rounded-full bg-gradient-to-r from-red-400 to-red-500" style={{ width: `${d.porcentaje}%` }} />
-                  </div>
-                </li>
+                <FilaMotivo key={d.motivo} d={d} />
               ))}
             </ul>
           </>

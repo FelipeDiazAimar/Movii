@@ -7,6 +7,7 @@ import type { LatLng, TipoVehiculo } from "./types";
 import { MEDIDAS_MODELO, VELOCIDAD_SIMULADA, svgVehiculoArriba } from "./ruta2d";
 import { htmlParada, MarcaParada } from "./paradas";
 import { acumulados, distanciaM, mezclarAngulo, puntoEnDistancia, rumbo as rumboEntre, type LngLat } from "@/features/mapas/geo3d";
+import { partirRecorrido } from "./recorrido";
 
 
 export interface ParadaEnMapa {
@@ -17,6 +18,8 @@ export interface ParadaEnMapa {
   titulo: string;
   detalle?: string;
   destacada?: boolean;
+  /** Hora estimada de llegada ("14:35"): se muestra bajo la parada pendiente. */
+  eta?: string;
   /** La próxima parada del camión: lleva un anillo que late. */
   proxima?: boolean;
 }
@@ -82,6 +85,16 @@ interface MapaMoviiProps {
 function iconoParada(orden: number, estado: string, destacada: boolean, proxima: boolean) {
   const { html, tam } = htmlParada(orden, estado, { destacada, proxima });
   return L.divIcon({ className: "", html, iconSize: [tam, tam], iconAnchor: [tam / 2, tam / 2] });
+}
+
+/** Cartelito con la hora estimada de llegada, justo debajo de la parada. */
+function iconoEta(hora: string) {
+  return L.divIcon({
+    className: "",
+    html: `<div style="transform:translate(-50%,0);margin-top:16px;white-space:nowrap;background:#1a1a1a;color:#f4b400;font:700 11px system-ui;padding:2px 7px;border-radius:999px;border:1.5px solid #f4b400;box-shadow:0 2px 6px rgba(0,0,0,.35)">${hora}</div>`,
+    iconSize: [0, 0],
+    iconAnchor: [0, 0],
+  });
 }
 
 /** Modelo del vehículo visto desde arriba, del color del vehículo; la capa `.mv-rot` se gira según el rumbo. */
@@ -384,6 +397,11 @@ export function MapaMovii({
     return ps;
   }, [enfoque, paradas, vehiculos, deposito, trayecto, recorrido, rutas]);
 
+  // El tramo que ya hizo el camión elegido (GPS en vivo) queda gris; lo que falta, del color del vehículo.
+  const camionDestacado = vehiculos.find((v) => v.destacado && v.enVivo);
+  const recorridoPartido =
+    recorrido && recorrido.length > 1 ? (camionDestacado ? partirRecorrido(recorrido, camionDestacado.pos) : { hecho: [] as LatLng[], resto: recorrido }) : null;
+
   const centro: LatLng = puntos[0] ?? [-31.4279718, -62.0826608];
 
   const [pista, setPista] = useState(false);
@@ -406,9 +424,14 @@ export function MapaMovii({
         <Encuadrar puntos={puntos} clave={encuadre} />
         {rutas
           .filter((r) => r.geometria.length > 1)
-          .map((r) => (
+          .map((r) => {
+            // El tramo ya recorrido queda gris y fijo; lo que falta, de color y en movimiento.
+            const camion = vehiculos.find((v) => v.id === r.id);
+            const { hecho, resto } = camion ? partirRecorrido(r.geometria, camion.pos) : { hecho: [] as LatLng[], resto: r.geometria };
+            return (
             <Fragment key={r.id}>
-              <RutaColoreada geometria={r.geometria} color={r.color} destacada={Boolean(r.destacada)} nombre={r.nombre} />
+              {hecho.length > 1 && <Polyline positions={hecho} pathOptions={{ color: "#9ca3af", weight: r.destacada ? 5 : 4, opacity: 0.8, lineCap: "round" }} />}
+              <RutaColoreada geometria={resto} color={r.color} destacada={Boolean(r.destacada)} nombre={r.nombre} />
               {r.destino && (
               <Marker position={r.destino} icon={iconoDestino(r.color)} zIndexOffset={r.destacada ? 700 : 300}>
                 <Tooltip direction="top" offset={[8, -34]}>
@@ -417,8 +440,12 @@ export function MapaMovii({
               </Marker>
               )}
             </Fragment>
-          ))}
-        {recorrido && recorrido.length > 1 && colorRecorrido && <RutaColoreada geometria={recorrido} color={colorRecorrido} destacada />}
+            );
+          })}
+        {recorridoPartido && recorridoPartido.hecho.length > 1 && (
+          <Polyline positions={recorridoPartido.hecho} pathOptions={{ color: "#9ca3af", weight: 5, opacity: 0.8, lineCap: "round" }} />
+        )}
+        {recorridoPartido && colorRecorrido && <RutaColoreada geometria={recorridoPartido.resto} color={colorRecorrido} destacada />}
         {recorrido && recorrido.length > 1 && !colorRecorrido && (
           <>
             <Polyline positions={recorrido} pathOptions={{ color: "#1a1a1a", weight: 7, opacity: 0.12, lineCap: "round" }} />
@@ -462,6 +489,9 @@ export function MapaMovii({
             )}
           </Marker>
         ))}
+        {paradas.map((p) =>
+          p.eta ? <Marker key={`eta-${p.id}`} position={p.pos} icon={iconoEta(p.eta)} interactive={false} keyboard={false} zIndexOffset={-100} /> : null,
+        )}
         {vehiculos.map((v) => (
           <Camion key={v.id} v={v} onClick={onVehiculoClick} />
         ))}
