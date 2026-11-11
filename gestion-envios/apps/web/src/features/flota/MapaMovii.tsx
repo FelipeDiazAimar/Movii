@@ -18,8 +18,6 @@ export interface ParadaEnMapa {
   titulo: string;
   detalle?: string;
   destacada?: boolean;
-  /** Hora estimada de llegada ("14:35"): se muestra bajo la parada pendiente. */
-  eta?: string;
   /** La próxima parada del camión: lleva un anillo que late. */
   proxima?: boolean;
 }
@@ -85,16 +83,6 @@ interface MapaMoviiProps {
 function iconoParada(orden: number, estado: string, destacada: boolean, proxima: boolean) {
   const { html, tam } = htmlParada(orden, estado, { destacada, proxima });
   return L.divIcon({ className: "", html, iconSize: [tam, tam], iconAnchor: [tam / 2, tam / 2] });
-}
-
-/** Cartelito con la hora estimada de llegada, justo debajo de la parada. */
-function iconoEta(hora: string) {
-  return L.divIcon({
-    className: "",
-    html: `<div style="transform:translate(-50%,0);margin-top:16px;white-space:nowrap;background:#1a1a1a;color:#f4b400;font:700 11px system-ui;padding:2px 7px;border-radius:999px;border:1.5px solid #f4b400;box-shadow:0 2px 6px rgba(0,0,0,.35)">${hora}</div>`,
-    iconSize: [0, 0],
-    iconAnchor: [0, 0],
-  });
 }
 
 /** Modelo del vehículo visto desde arriba, del color del vehículo; la capa `.mv-rot` se gira según el rumbo. */
@@ -489,9 +477,6 @@ export function MapaMovii({
             )}
           </Marker>
         ))}
-        {paradas.map((p) =>
-          p.eta ? <Marker key={`eta-${p.id}`} position={p.pos} icon={iconoEta(p.eta)} interactive={false} keyboard={false} zIndexOffset={-100} /> : null,
-        )}
         {vehiculos.map((v) => (
           <Camion key={v.id} v={v} onClick={onVehiculoClick} />
         ))}
