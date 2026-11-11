@@ -38,6 +38,8 @@ export interface Vehiculo {
   total_paquetes: number;
   paquetes_entregados: number;
   paquetes_fallidos: number;
+  /** Envíos de la ruta que ya salieron a la calle (estado en camino). */
+  paquetes_en_camino: number;
 }
 
 export interface PaqueteVehiculo {

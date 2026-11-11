@@ -79,7 +79,7 @@ export function OperacionesPage() {
   const { posiciones, estado: conexion } = useFlotaEnVivo();
 
   const dashboard = useQuery({ queryKey: ["operaciones", "dashboard"], queryFn: () => obtenerDashboard(), refetchInterval: 30_000 });
-  const flota = useQuery({ queryKey: ["operaciones", "flota"], queryFn: () => listarFlota(), refetchInterval: 30_000 });
+  const flota = useQuery({ queryKey: ["operaciones", "flota"], queryFn: () => listarFlota(), refetchInterval: 8_000 });
 
   const vehiculos = useMemo(() => flota.data ?? [], [flota.data]);
   const seleccionado: Vehiculo | undefined = vehiculos.find((v) => v.id === seleccionadoId) ?? vehiculos.find((v) => v.ruta_id) ?? vehiculos[0];
