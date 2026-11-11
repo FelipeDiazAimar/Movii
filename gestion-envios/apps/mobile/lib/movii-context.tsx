@@ -137,18 +137,22 @@ export function MoviiProvider({ children }: { children: ReactNode }) {
   };
 
   const setShipmentStatus = (id: string, status: ShipmentStatus, extra: Partial<Shipment> = {}) => {
-    setShipments((current) =>
-      current.map((shipment) => {
-        if (shipment.id !== id) return shipment;
-        const completedStages = status === "pendiente" ? 2 : status === "en_camino" ? 3 : 4;
-        const nextTimeline = shipment.timeline.map((entry, index) => ({
-          ...entry,
-          completed: index < completedStages,
-          timestamp: index === completedStages - 1 ? "Hoy · ahora" : entry.timestamp,
-        }));
-        return { ...shipment, ...extra, status, timeline: nextTimeline };
-      }),
-    );
+    const aplicar = (shipment: Shipment): Shipment => {
+      if (shipment.id !== id) return shipment;
+      const completedStages = status === "pendiente" ? 2 : status === "en_camino" ? 3 : 4;
+      const nextTimeline = shipment.timeline.map((entry, index) => ({
+        ...entry,
+        completed: index < completedStages,
+        timestamp: index === completedStages - 1 ? "Hoy · ahora" : entry.timestamp,
+      }));
+      // En modo demo (sin API) los envíos de la lista del día también son
+      // locales: se actualizan acá para que el cambio se vea al instante. Los
+      // envíos reales se recargan igual desde el servidor después de la acción.
+      const estadoApi = shipment.estadoApi === undefined ? undefined : status === "pendiente" ? "asignado" : status;
+      return { ...shipment, ...extra, status, ...(estadoApi === undefined ? null : { estadoApi }), timeline: nextTimeline };
+    };
+    setShipments((current) => current.map(aplicar));
+    setRutasDelDia((current) => current.map((ruta) => ({ ...ruta, envios: ruta.envios.map(aplicar) })));
   };
 
   // Lista plana de todos los envíos del día, sin filtrar. La usan las pantallas

@@ -5,11 +5,15 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { AuroraBackground } from "@/components/aurora-background";
 import { MiniCamion } from "@/components/mini-camion";
+import { GlassCard, PrimaryButton } from "@/components/ui/movii-ui";
 import { Aparecer, Carril, NumeroAnimado, Presionable, PuntoVivo } from "@/components/ui/efectos";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { M, SOMBRA } from "@/constants/movii-design";
+import { useAccionEnvio } from "@/hooks/use-accion-envio";
+import { iniciarRuta } from "@/lib/api-client";
 import { useMovii } from "@/lib/movii-context";
-import { buscarEnRutas, contadoresDelDia, filtrarPorEstado, type EstadoEnvioAPI } from "@/lib/envios-del-dia";
+import { haptic } from "@/lib/haptics";
+import { buscarEnRutas, contadoresDelDia, estadoEfectivo, filtrarPorEstado, rutaSinIniciar, type EstadoEnvioAPI, type RutaDelDia } from "@/lib/envios-del-dia";
 import { type Shipment, type ShipmentStatus } from "@/types/logistics";
 
 /**
@@ -81,6 +85,69 @@ function FiltroEstado({ activo, onChange }: { activo: EstadoEnvioAPI | null; onC
   );
 }
 
+/**
+ * Tarjeta "Iniciar ruta": una por cada ruta del día que todavía no salió del
+ * depósito (ver rutaSinIniciar). El primer toque pide confirmación en la misma
+ * tarjeta; al confirmar, contra la API real llama a POST /rutas/{id}/iniciar y
+ * recarga el día (vía useAccionEnvio, como las otras acciones), y en modo demo
+ * pasa esos envíos a en_camino en el estado local (igual que "Marcar en
+ * camino" en app/stop/[id].tsx). Una vez iniciada, la tarjeta desaparece
+ * porque los envíos ya figuran en camino.
+ */
+function TarjetaIniciarRuta({ ruta }: { ruta: RutaDelDia }) {
+  const { setShipmentStatus } = useMovii();
+  const { ejecutar, enviando, error } = useAccionEnvio();
+  const [confirmando, setConfirmando] = useState(false);
+  const porSalir = ruta.envios.filter((envio) => estadoEfectivo(envio) === "asignado");
+  const real = ruta.envios.some((envio) => Boolean(envio.estadoApi));
+  if (porSalir.length === 0) return null;
+  const cantidad = `${porSalir.length} ${porSalir.length === 1 ? "envío" : "envíos"}`;
+
+  const iniciar = async () => {
+    if (!real) {
+      for (const envio of porSalir) setShipmentStatus(envio.id, "en_camino");
+      haptic.medium();
+      setConfirmando(false);
+      return;
+    }
+    const ok = await ejecutar(async () => {
+      await iniciarRuta(ruta.rutaId);
+    });
+    if (ok) {
+      haptic.success();
+      setConfirmando(false);
+    } else {
+      haptic.error();
+    }
+  };
+
+  return (
+    <GlassCard style={styles.iniciar}>
+      <View style={styles.iniciarCabeza}>
+        <View style={styles.iniciarEyebrowFila}><View style={styles.eyebrowBarra} /><Text style={styles.iniciarEyebrow}>LISTA PARA SALIR</Text></View>
+        <Text style={styles.iniciarTitulo}>{ruta.rutaNombre}</Text>
+        <Text style={styles.iniciarCopete}>Salís del depósito con {cantidad}.</Text>
+      </View>
+      {confirmando ? (
+        <View style={styles.iniciarConfirmar}>
+          <Text style={styles.iniciarPregunta}>¿Salís a repartir con {cantidad}?</Text>
+          <View style={styles.iniciarAcciones}>
+            <View style={styles.iniciarAccionMitad}>
+              <PrimaryButton label={enviando ? "Iniciando…" : "Sí, iniciar"} onPress={iniciar} disabled={enviando} icon="→" />
+            </View>
+            <View style={styles.iniciarAccionMitad}>
+              <PrimaryButton label="Volver" tone="secondary" onPress={() => setConfirmando(false)} disabled={enviando} />
+            </View>
+          </View>
+        </View>
+      ) : (
+        <PrimaryButton label="Iniciar ruta" onPress={() => setConfirmando(true)} icon="→" accessibilityLabel={`Iniciar ruta ${ruta.rutaNombre} con ${cantidad}`} />
+      )}
+      {error ? <Text style={styles.iniciarError} accessibilityRole="alert">{error}</Text> : null}
+    </GlassCard>
+  );
+}
+
 function Dato({ valor, etiqueta, color = "#FFFFFF" }: { valor: number; etiqueta: string; color?: string }) {
   return (
     <View style={styles.dato}>
@@ -119,6 +186,11 @@ export default function RouteScreen() {
       })),
     [rutasDelDia, filtroEstado, busqueda],
   );
+
+  // Rutas que todavía no salieron del depósito: una tarjeta "Iniciar ruta" por
+  // cada una. Se calculan sobre el día completo, no sobre lo filtrado, para que
+  // la tarjeta no aparezca y desaparezca al buscar o filtrar.
+  const rutasPorIniciar = useMemo(() => rutasDelDia.filter(rutaSinIniciar), [rutasDelDia]);
 
   // CA-05: el resumen cuenta el día completo, no lo que quedó a la vista tras
   // aplicar un filtro.
@@ -207,6 +279,11 @@ export default function RouteScreen() {
               </Presionable>
             </View>
 
+            {rutasPorIniciar.length > 0 ? (
+              <View style={styles.iniciarBloque}>
+                {rutasPorIniciar.map((ruta) => <TarjetaIniciarRuta key={ruta.rutaId} ruta={ruta} />)}
+              </View>
+            ) : null}
             <View style={styles.listaCabeza}>
               <View style={styles.eyebrowFila}><View style={styles.eyebrowBarra} /><Text style={styles.eyebrow}>PRÓXIMAS PARADAS</Text></View>
               <Text style={styles.listaTitulo}>Tu recorrido</Text>
@@ -217,6 +294,7 @@ export default function RouteScreen() {
                 value={busqueda}
                 onChangeText={setBusqueda}
                 placeholder="Buscar por nombre, dirección o código"
+                maxLength={100}
                 placeholderTextColor={M.grisClaro}
                 autoCapitalize="none"
                 autoCorrect={false}
@@ -291,6 +369,18 @@ const styles = StyleSheet.create({
   botonMapaIcono: { fontSize: 19, fontWeight: "900", color: M.asfalto },
   botonMapaTexto: { flex: 1, color: M.asfalto, fontSize: 15, fontWeight: "900", letterSpacing: -0.2 },
   botonMapaFlecha: { color: M.asfalto, fontSize: 20, fontWeight: "900" },
+  iniciarBloque: { paddingHorizontal: 16, marginTop: 16, gap: 12 },
+  iniciar: { gap: 12 },
+  iniciarCabeza: { gap: 4 },
+  iniciarEyebrowFila: { flexDirection: "row", alignItems: "center", gap: 7 },
+  iniciarEyebrow: { color: M.gris, fontSize: 11, fontWeight: "900", letterSpacing: 1.1 },
+  iniciarTitulo: { color: M.texto, fontSize: 19, fontWeight: "900", letterSpacing: -0.5 },
+  iniciarCopete: { color: M.gris, fontSize: 13.5, fontWeight: "600" },
+  iniciarConfirmar: { gap: 10 },
+  iniciarPregunta: { color: M.texto, fontSize: 14.5, fontWeight: "800" },
+  iniciarAcciones: { flexDirection: "row", gap: 10 },
+  iniciarAccionMitad: { flex: 1 },
+  iniciarError: { color: "#B42318", fontSize: 13, fontWeight: "700", textAlign: "center" },
   listaCabeza: { paddingHorizontal: 20, paddingTop: 24, paddingBottom: 12 },
   eyebrowFila: { flexDirection: "row", alignItems: "center", gap: 7, marginBottom: 5 },
   eyebrowBarra: { width: 16, height: 4, borderRadius: 2, backgroundColor: M.amarillo },

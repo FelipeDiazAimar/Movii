@@ -263,6 +263,17 @@ export async function actualizarEstadoEnvio(id: string, nuevoEstado: "asignado" 
   await api.put(`/envios/${id}/estado`, { estado: nuevoEstado });
 }
 
+/**
+ * Iniciar ruta: POST /rutas/{id}/iniciar (el camión sale del depósito). Todos
+ * los envíos asignados de la ruta pasan a en_camino; la API responde cuántos
+ * movió (`{envios_en_camino}`). Un repartidor solo puede iniciar sus rutas
+ * (otra responde 404, que el llamador muestra con mensajeDeError).
+ */
+export async function iniciarRuta(rutaId: string): Promise<{ envios_en_camino: number }> {
+  const { data } = await api.post<{ envios_en_camino: number }>(`/rutas/${encodeURIComponent(rutaId)}/iniciar`);
+  return { envios_en_camino: data.envios_en_camino ?? 0 };
+}
+
 /** HU-07: POST /envios/{id}/incidencia → no_entregado. La foto va en base64 JPEG, sin prefijo data:. */
 export async function registrarIncidencia(
   id: string,

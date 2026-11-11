@@ -7,9 +7,7 @@ import { AuroraBackground } from "@/components/aurora-background";
 import { ShipmentTimeline } from "@/components/timeline";
 import { GlassCard, PrimaryButton } from "@/components/ui/movii-ui";
 import { StatusBadge } from "@/components/ui/status-badge";
-import { useAccionEnvio } from "@/hooks/use-accion-envio";
 import { getDriver } from "@/mock/shipments";
-import { actualizarEstadoEnvio } from "@/lib/api-client";
 import { haptic } from "@/lib/haptics";
 import { useMovii } from "@/lib/movii-context";
 import { TrayectoParada } from "@/components/trayecto-parada";
@@ -18,9 +16,8 @@ import { urlGoogleMaps, type ModoMaps } from "@/lib/google-maps";
 
 export default function StopDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { findShipment, setShipmentStatus, rutasDelDia } = useMovii();
+  const { findShipment, rutasDelDia } = useMovii();
   const [modoMaps, setModoMaps] = useState<ModoMaps>("proximo");
-  const { ejecutar, enviando, error } = useAccionEnvio();
   const shipment = findShipment(id);
   // "Ruta completa" (idea de Jere, T5): las paradas que faltan de la ruta de este envío, en orden.
   const paradasRuta = useMemo(() => {
@@ -45,12 +42,9 @@ export default function StopDetailScreen() {
   // Los envíos mock del modo sin backend conservan el comportamiento local del prototipo.
   const real = Boolean(shipment.estadoApi);
   const acciones = accionesDisponibles(shipment.estadoApi);
-  const canMarkEnRoute = real ? acciones.iniciar : shipment.status === "pendiente";
+  // Todavía en el depósito: sale a repartir con "Iniciar ruta" (pantalla de Inicio), no envío por envío.
+  const enDeposito = real ? acciones.iniciar : shipment.status === "pendiente";
   const resolved = shipment.status === "entregado" || shipment.status === "no_entregado";
-  const cambiarEstado = async (estado: "asignado" | "en_camino") => {
-    if (!real) { setShipmentStatus(shipment.id, estado === "en_camino" ? "en_camino" : "pendiente"); haptic.medium(); return; }
-    if (await ejecutar(() => actualizarEstadoEnvio(shipment.id, estado))) haptic.medium(); else haptic.error();
-  };
   const reprogramarLink = <Pressable onPress={() => router.push({ pathname: "/reschedule/[id]", params: { id: shipment.id } })} style={({ pressed }) => [styles.reschedule, pressed && styles.pressed]}><Text style={styles.rescheduleText}>Reprogramar visita</Text><Text style={styles.chevron}>›</Text></Pressable>;
 
   return (
@@ -71,8 +65,7 @@ export default function StopDetailScreen() {
           <PrimaryButton label="Abrir en Maps" icon="⌖" onPress={abrirMaps} />
         </GlassCard>
         <Text style={styles.section}>Acciones rápidas</Text>
-        {resolved ? <View style={styles.actions}><GlassCard style={styles.resolved}><Text style={styles.resolvedTitle}>{shipment.status === "entregado" ? "Entrega confirmada" : "Entrega no realizada"}</Text><Text style={styles.resolvedCopy}>{shipment.status === "entregado" ? `Recibió: ${shipment.recipientName ?? shipment.recipient.name}. Evidencia registrada.` : shipment.failureReason ?? "Incidencia registrada."}</Text></GlassCard>{real && acciones.reprogramar ? reprogramarLink : null}</View> : <View style={styles.actions}>{canMarkEnRoute ? <PrimaryButton label={enviando ? "Actualizando…" : "Marcar en camino"} tone="secondary" onPress={() => cambiarEstado("en_camino")} disabled={enviando} icon="→" /> : <View style={styles.inRouteCard}><View style={styles.inRouteAccent} /><View style={styles.inRouteIcon}><Text style={styles.inRouteArrow}>→</Text></View><View style={styles.inRouteCopy}><Text style={styles.inRouteEyebrow}>RUTA ACTIVA</Text><Text style={styles.inRouteTitle}>Ya estás en camino</Text><Text style={styles.inRouteDescription}>Actualizá la entrega cuando llegues al destino.</Text></View><View style={styles.liveDot} /></View>}{real && acciones.volverAsignado ? <Pressable onPress={() => cambiarEstado("asignado")} disabled={enviando} style={({ pressed }) => [styles.reschedule, pressed && styles.pressed]} accessibilityRole="button"><Text style={styles.rescheduleText}>{enviando ? "Actualizando…" : "Volver a asignado"}</Text><Text style={styles.chevron}>‹</Text></Pressable> : null}<View style={styles.actionPair}><View style={styles.actionHalf}><PrimaryButton label="Entregado" onPress={() => router.push({ pathname: "/delivery/[id]", params: { id: shipment.id } })} icon="✓" /></View><View style={styles.actionHalf}><PrimaryButton label="No entregado" tone="danger" onPress={() => router.push({ pathname: "/failure/[id]", params: { id: shipment.id } })} icon="!" /></View></View>{!real ? reprogramarLink : null}</View>}
-        {error ? <Text style={styles.error} accessibilityRole="alert">{error}</Text> : null}
+        {resolved ? <View style={styles.actions}><GlassCard style={styles.resolved}><Text style={styles.resolvedTitle}>{shipment.status === "entregado" ? "Entrega confirmada" : "Entrega no realizada"}</Text><Text style={styles.resolvedCopy}>{shipment.status === "entregado" ? `Recibió: ${shipment.recipientName ?? shipment.recipient.name}. Evidencia registrada.` : shipment.failureReason ?? "Incidencia registrada."}</Text></GlassCard>{real && acciones.reprogramar ? reprogramarLink : null}</View> : <View style={styles.actions}>{enDeposito ? <><View style={styles.inRouteCard}><View style={styles.inRouteAccent} /><View style={styles.inRouteIcon}><Text style={styles.inRouteArrow}>⌂</Text></View><View style={styles.inRouteCopy}><Text style={styles.inRouteEyebrow}>EN EL DEPÓSITO</Text><Text style={styles.inRouteTitle}>Todavía no saliste</Text><Text style={styles.inRouteDescription}>Iniciá la ruta desde Inicio: todos los envíos salen en camino a la vez.</Text></View></View><PrimaryButton label="Ir a Inicio" tone="secondary" onPress={() => router.replace("/")} icon="‹" /></> : <><View style={styles.inRouteCard}><View style={styles.inRouteAccent} /><View style={styles.inRouteIcon}><Text style={styles.inRouteArrow}>→</Text></View><View style={styles.inRouteCopy}><Text style={styles.inRouteEyebrow}>RUTA ACTIVA</Text><Text style={styles.inRouteTitle}>Ya estás en camino</Text><Text style={styles.inRouteDescription}>Actualizá la entrega cuando llegues al destino.</Text></View><View style={styles.liveDot} /></View><View style={styles.actionPair}><View style={styles.actionHalf}><PrimaryButton label="Entregado" onPress={() => router.push({ pathname: "/delivery/[id]", params: { id: shipment.id } })} icon="✓" /></View><View style={styles.actionHalf}><PrimaryButton label="No entregado" tone="danger" onPress={() => router.push({ pathname: "/failure/[id]", params: { id: shipment.id } })} icon="!" /></View></View></>}{!real ? reprogramarLink : null}</View>}
         <Text style={styles.section}>Información del envío</Text>
         <GlassCard style={styles.infoCard}><View style={styles.infoRow}><Text style={styles.infoLabel}>Remitente</Text><Text style={styles.infoValue}>{shipment.sender}</Text></View><View style={styles.divider} /><View style={styles.infoRow}><Text style={styles.infoLabel}>Paquete</Text><Text style={styles.infoValue}>{shipment.packageDescription}</Text></View><View style={styles.divider} /><View style={styles.infoRow}><Text style={styles.infoLabel}>Peso</Text><Text style={styles.infoValue}>{shipment.weight}{shipment.fragile ? " · Frágil" : ""}</Text></View>{shipment.notes ? <><View style={styles.divider} /><View style={styles.note}><Text style={styles.noteTitle}>Indicaciones</Text><Text style={styles.noteText}>{shipment.notes}</Text></View></> : null}</GlassCard>
         <Text style={styles.section}>Estado del envío</Text><GlassCard><ShipmentTimeline events={shipment.timeline} /></GlassCard>

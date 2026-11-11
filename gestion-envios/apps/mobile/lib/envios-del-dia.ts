@@ -1,5 +1,5 @@
 import { mapEnvioDelDiaToShipment, type EstadoEnvioAPI, type ResumenDelDiaAPI } from "@/lib/api-client";
-import type { Shipment } from "@/types/logistics";
+import type { Shipment, ShipmentStatus } from "@/types/logistics";
 
 export type { EstadoEnvioAPI, ResumenDelDiaAPI };
 
@@ -38,6 +38,31 @@ export function agruparEnviosPorRuta(resumen: ResumenDelDiaAPI | null): RutaDelD
     rutaNombre: ruta.ruta_nombre,
     envios: ruta.envios.map((envio, indice) => mapEnvioDelDiaToShipment(envio, DRIVER_ID_REAL, indice + 1)),
   }));
+}
+
+/**
+ * estadoEfectivo devuelve el estado real del envío para decidir si una ruta ya
+ * salió: los envíos de la API traen `estadoApi`; los del mock (modo sin
+ * backend) no, y ahí el `status` del prototipo vale, donde "pendiente"
+ * equivale a "asignado" (todavía no salió a repartir).
+ */
+export function estadoEfectivo(envio: Shipment): EstadoEnvioAPI {
+  if (envio.estadoApi) return envio.estadoApi;
+  const porDefecto: ShipmentStatus = envio.status ?? "pendiente";
+  return porDefecto === "pendiente" ? "asignado" : porDefecto;
+}
+
+/**
+ * rutaSinIniciar dice si la ruta todavía no salió del depósito: tiene envíos
+ * en `asignado` y ninguno en `en_camino`, `entregado` ni `no_entregado`.
+ */
+export function rutaSinIniciar(ruta: RutaDelDia): boolean {
+  if (ruta.envios.length === 0) return false;
+  const estados = ruta.envios.map(estadoEfectivo);
+  return (
+    estados.some((estado) => estado === "asignado") &&
+    !estados.some((estado) => estado === "en_camino" || estado === "entregado" || estado === "no_entregado")
+  );
 }
 
 /**

@@ -117,9 +117,11 @@ export default function FailureScreen() {
           placeholder={motivo === "otro" ? "Describí el motivo del fallo (obligatorio)…" : "Contanos qué ocurrió…"}
           placeholderTextColor="#AEAEB2"
           multiline
+          maxLength={500}
           style={styles.note}
           accessibilityLabel="Nota adicional"
         />
+        <Text style={styles.contador}>{comentario.length}/500</Text>
 
         <GlassCard style={styles.proof}>
           <View style={{ flex: 1 }}>
@@ -173,6 +175,7 @@ const styles = StyleSheet.create({
   reasonText: { color: "#1C1C1E", fontSize: 14, fontWeight: "600" },
   reasonTextActive: { fontWeight: "800" },
   note: { minHeight: 105, borderRadius: 15, borderWidth: 1, borderColor: "#E5E5EA", backgroundColor: "rgba(255,255,255,0.8)", padding: 13, color: "#1C1C1E", textAlignVertical: "top", fontSize: 14 },
+  contador: { color: "#8E8E93", fontSize: 11, textAlign: "right", marginTop: -6 },
   proof: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12 },
   proofTitle: { color: "#1C1C1E", fontSize: 14, fontWeight: "800" },
   proofCopy: { color: "#6E6E73", fontSize: 12, maxWidth: 190, marginTop: 3 },
