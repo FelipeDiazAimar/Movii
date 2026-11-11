@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 
@@ -9,12 +9,21 @@ import { GlassCard, PrimaryButton } from "@/components/ui/movii-ui";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { useAccionEnvio } from "@/hooks/use-accion-envio";
 import { InfoEnvio } from "@/components/info-envio";
-import { actualizarEstadoEnvio } from "@/lib/api-client";
+import { actualizarEstadoEnvio, obtenerMapaRuta, type MapaRutaAPI } from "@/lib/api-client";
 import { haptic } from "@/lib/haptics";
 import { useMovii } from "@/lib/movii-context";
 import { TrayectoParada } from "@/components/trayecto-parada";
 import { accionesDisponibles } from "@/lib/seguimiento";
 import { urlGoogleMaps, type ModoMaps } from "@/lib/google-maps";
+
+/** "2026-11-11" → "11/11/2026" (hoy se muestra como "Hoy"). */
+function fechaLarga(iso?: string) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso ?? "");
+  if (!m) return iso ?? "";
+  const hoy = new Date();
+  const esHoy = hoy.getFullYear() === Number(m[1]) && hoy.getMonth() + 1 === Number(m[2]) && hoy.getDate() === Number(m[3]);
+  return esHoy ? `Hoy, ${m[3]}/${m[2]}/${m[1]}` : `${m[3]}/${m[2]}/${m[1]}`;
+}
 
 export default function StopDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -31,12 +40,31 @@ export default function StopDetailScreen() {
       .sort((a, b) => a.stopOrder - b.stopOrder)
       .map((e) => `${e.recipient.address}, ${e.recipient.locality}`);
   }, [rutasDelDia, shipment]);
+  // El mapa de la ruta (con coordenadas) se trae de antemano: al tocar "Abrir en Maps" el navegador
+  // bloquea la ventana nueva si el clic espera una respuesta de red antes de abrirla.
+  const rutaId = useMemo(() => rutasDelDia.find((r) => r.envios.some((e) => e.id === id))?.rutaId, [rutasDelDia, id]);
+  const [mapaRuta, setMapaRuta] = useState<MapaRutaAPI | null>(null);
+  useEffect(() => {
+    if (!rutaId) return;
+    let vigente = true;
+    obtenerMapaRuta(rutaId).then((m) => vigente && setMapaRuta(m)).catch(() => undefined);
+    return () => { vigente = false; };
+  }, [rutaId]);
   if (!shipment) return null;
   // El repartidor es quien inició sesión: la API solo devuelve los envíos de su ruta.
   const driver = { name: driverName, initials: driverName.split(" ").filter(Boolean).slice(0, 2).map((p) => p[0]?.toUpperCase()).join("") };
   const abrirMaps = () => {
-    const paradas = modoMaps === "completo" && paradasRuta.length > 0 ? paradasRuta : [`${shipment.recipient.address}, ${shipment.recipient.locality}`];
-    const url = urlGoogleMaps({ paradas, modo: modoMaps });
+    // Con coordenadas Google no confunde la ciudad (hay un "San Francisco" en California); sin ellas, se manda el texto con el país.
+    const paradasMapa = [...(mapaRuta?.paradas ?? [])].sort((a, b) => a.orden - b.orden);
+    const texto = (e: { address: string; locality: string }) => `${e.address}, ${e.locality}, Argentina`;
+    const punto = (envioId: string, alternativa: string) => paradasMapa.find((p) => p.envio_id === envioId)?.coordenadas ?? alternativa;
+    const pendientes = paradasMapa.filter((p) => p.estado !== "entregado" && p.estado !== "no_entregado");
+    const paradas =
+      modoMaps === "completo" && pendientes.length > 0
+        ? pendientes.map((p) => p.coordenadas ?? `${p.direccion}, ${p.localidad}, Argentina`)
+        : [punto(shipment.id, texto({ address: shipment.recipient.address, locality: shipment.recipient.locality }))];
+    const origen = mapaRuta?.vehiculo ? { lat: mapaRuta.vehiculo.lat, lng: mapaRuta.vehiculo.lng } : mapaRuta?.deposito;
+    const url = urlGoogleMaps({ origen, paradas, modo: modoMaps });
     if (url) {
       haptic.medium();
       void Linking.openURL(url);
@@ -59,7 +87,7 @@ export default function StopDetailScreen() {
       <AuroraBackground barra="light" style={StyleSheet.absoluteFill} />
       <AppHeader title="Detalle de parada" subtitle={`Parada ${shipment.stopOrder} · ${shipment.routeName}`} />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <GlassCard oscura style={styles.hero}><View style={styles.heroTop}><View><Text style={styles.code}>{shipment.code}</Text><Text style={styles.recipient}>{shipment.recipient.name}</Text></View><StatusBadge status={shipment.status} /></View><View style={styles.addressRow}><Text style={styles.addressIcon}>⌖</Text><View style={styles.addressCopy}><Text style={styles.address}>{shipment.recipient.address}</Text><Text style={styles.locality}>{shipment.recipient.locality} · CP {shipment.recipient.postalCode}</Text></View></View><View style={styles.window}><Text style={styles.windowIcon}>◷</Text><Text style={styles.windowText}>Ventana de entrega: <Text style={styles.windowStrong}>{shipment.timeWindow}</Text></Text></View></GlassCard>
+        <GlassCard oscura style={styles.hero}><View style={styles.heroTop}><View><Text style={styles.code}>{shipment.code}</Text><Text style={styles.recipient}>{shipment.recipient.name}</Text></View><StatusBadge status={shipment.status} /></View><View style={styles.addressRow}><Text style={styles.addressIcon}>⌖</Text><View style={styles.addressCopy}><Text style={styles.address}>{shipment.recipient.address}</Text><Text style={styles.locality}>{shipment.recipient.locality} · CP {shipment.recipient.postalCode}</Text></View></View>{shipment.timeWindow || shipment.deliveryDate ? <View style={styles.window}><Text style={styles.windowIcon}>◷</Text><Text style={styles.windowText}>{shipment.timeWindow ? "Ventana de entrega: " : "Entrega prevista: "}<Text style={styles.windowStrong}>{shipment.timeWindow || fechaLarga(shipment.deliveryDate)}</Text></Text></View> : null}</GlassCard>
         <TrayectoParada envioId={shipment.id} />
         <GlassCard oscura style={styles.mapsCard}>
           <View style={styles.segmento}>

@@ -9,11 +9,13 @@ import { M, SOMBRA } from "@/constants/movii-design";
 export function AppHeader({ title, subtitle }: { title: string; subtitle?: string }) {
   // El header arranca debajo del notch / barra de estado (también en la PWA de iPhone).
   const insets = useSafeAreaInsets();
+  // Si la pantalla se abrió directo (recarga o enlace) no hay historial al que volver: se va al inicio.
+  const volver = () => (router.canGoBack() ? router.back() : router.replace("/(tabs)"));
   return (
     <View style={[styles.root, { paddingTop: insets.top + 12 }]}>
       <View style={styles.glow} pointerEvents="none" />
       <View style={styles.fila}>
-        <Pressable onPress={() => router.back()} accessibilityRole="button" accessibilityLabel="Volver" style={({ pressed }) => [styles.back, pressed && styles.pressed]}>
+        <Pressable onPress={volver} accessibilityRole="button" accessibilityLabel="Volver" style={({ pressed }) => [styles.back, pressed && styles.pressed]}>
           <Text style={styles.backText}>‹</Text>
         </Pressable>
         <View style={styles.copy}>
