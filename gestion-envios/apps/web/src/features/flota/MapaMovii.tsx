@@ -4,6 +4,7 @@ import "leaflet/dist/leaflet.css";
 import { CircleMarker, MapContainer, Marker, Polyline, Popup, TileLayer, Tooltip, useMap } from "react-leaflet";
 import type { LatLng } from "./types";
 import { COLOR_ESTADO } from "./colores";
+import { partirRecorrido } from "./recorrido";
 
 
 export interface ParadaEnMapa {
@@ -14,6 +15,10 @@ export interface ParadaEnMapa {
   titulo: string;
   detalle?: string;
   destacada?: boolean;
+  /** Hora estimada de llegada ("14:35"): se muestra bajo la parada pendiente. */
+  eta?: string;
+  /** La próxima entrega del camión: late para que se distinga. */
+  proxima?: boolean;
 }
 
 export interface VehiculoEnMapa {
@@ -59,14 +64,28 @@ interface MapaMoviiProps {
 
 // divIcon: Vite no resuelve los íconos por defecto de Leaflet y además así
 // cada parada lleva su número y el color de su estado.
-function iconoParada(orden: number, estado: string, destacada: boolean) {
+function iconoParada(orden: number, estado: string, destacada: boolean, proxima = false) {
   const color = COLOR_ESTADO[estado] ?? COLOR_ESTADO.pendiente;
   const tam = destacada ? 34 : 26;
+  // Las ya resueltas muestran ✓ / ✕ en vez del número y se ven más tenues.
+  const marca = estado === "entregado" ? "✓" : estado === "no_entregado" ? "✕" : String(orden);
+  const resuelta = estado === "entregado" || estado === "no_entregado";
+  const pulso = proxima ? `<span class="parada-pulso" style="border-color:${color}"></span>` : "";
   return L.divIcon({
     className: "",
-    html: `<div style="background:${color};color:#fff;width:${tam}px;height:${tam}px;border-radius:50%;display:flex;align-items:center;justify-content:center;font:700 ${destacada ? 14 : 12}px system-ui;border:3px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.35)">${orden}</div>`,
+    html: `<div style="position:relative;width:${tam}px;height:${tam}px;opacity:${resuelta && !destacada ? 0.78 : 1}">${pulso}<div style="position:relative;background:${color};color:#fff;width:${tam}px;height:${tam}px;border-radius:50%;display:flex;align-items:center;justify-content:center;font:700 ${destacada ? 14 : 12}px system-ui;border:3px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.35)">${marca}</div></div>`,
     iconSize: [tam, tam],
     iconAnchor: [tam / 2, tam / 2],
+  });
+}
+
+/** Cartelito con la hora estimada de llegada, justo debajo de la parada. */
+function iconoEta(hora: string) {
+  return L.divIcon({
+    className: "",
+    html: `<div style="transform:translate(-50%,0);margin-top:16px;white-space:nowrap;background:#1a1a1a;color:#f4b400;font:700 11px system-ui;padding:2px 7px;border-radius:999px;border:1.5px solid #fff;box-shadow:0 2px 5px rgba(0,0,0,.3)">${hora}</div>`,
+    iconSize: [0, 0],
+    iconAnchor: [0, 0],
   });
 }
 
@@ -115,7 +134,7 @@ const iconoDeposito = L.divIcon({
 });
 
 /** Interpola la posición del camión entre dos actualizaciones para que se deslice. */
-function useDeslizar(destino: LatLng, ms = 1900): LatLng {
+function useDeslizar(destino: LatLng, ms = 2000): LatLng {
   const [pos, setPos] = useState<LatLng>(destino);
   const desde = useRef<LatLng>(destino);
   const actual = useRef<LatLng>(destino);
@@ -234,11 +253,16 @@ export function MapaMovii({
         <Encuadrar puntos={puntos} clave={encuadre} />
         {rutas
           .filter((r) => r.geometria.length > 1)
-          .map((r) => (
+          .map((r) => {
+            // El tramo ya recorrido queda gris y fijo; lo que falta, de color y en movimiento.
+            const camion = vehiculos.find((v) => v.id === r.id);
+            const { hecho, resto } = camion ? partirRecorrido(r.geometria, camion.pos) : { hecho: [] as LatLng[], resto: r.geometria };
+            return (
             <Fragment key={r.id}>
-              <Polyline positions={r.geometria} pathOptions={{ color: r.color, weight: r.destacada ? 9 : 7, opacity: r.destacada ? 0.28 : 0.16, lineCap: "round" }} />
+              {hecho.length > 1 && <Polyline positions={hecho} pathOptions={{ color: "#9ca3af", weight: r.destacada ? 5 : 4, opacity: 0.8, lineCap: "round" }} />}
+              <Polyline positions={resto} pathOptions={{ color: r.color, weight: r.destacada ? 9 : 7, opacity: r.destacada ? 0.28 : 0.16, lineCap: "round" }} />
               <Polyline
-                positions={r.geometria}
+                positions={resto}
                 pathOptions={{
                   color: r.color,
                   weight: r.destacada ? 4.5 : 3.5,
@@ -256,7 +280,8 @@ export function MapaMovii({
                 </Tooltip>
               </Marker>
             </Fragment>
-          ))}
+            );
+          })}
         {recorrido && recorrido.length > 1 && (
           <>
             <Polyline positions={recorrido} pathOptions={{ color: "#1a1a1a", weight: 7, opacity: 0.12, lineCap: "round" }} />
@@ -280,7 +305,7 @@ export function MapaMovii({
           <Marker
             key={p.id}
             position={p.pos}
-            icon={iconoParada(p.orden, p.estado, Boolean(p.destacada))}
+            icon={iconoParada(p.orden, p.estado, Boolean(p.destacada), Boolean(p.proxima))}
             zIndexOffset={p.destacada ? 800 : 0}
             eventHandlers={onParadaClick ? { click: () => onParadaClick(p.id) } : undefined}
           >
@@ -300,6 +325,9 @@ export function MapaMovii({
             )}
           </Marker>
         ))}
+        {paradas.map((p) =>
+          p.eta ? <Marker key={`eta-${p.id}`} position={p.pos} icon={iconoEta(p.eta)} interactive={false} keyboard={false} zIndexOffset={-100} /> : null,
+        )}
         {vehiculos.map((v) => (
           <Camion key={v.id} v={v} onClick={onVehiculoClick} />
         ))}

@@ -8,6 +8,7 @@ import { MapaMovii, type ParadaEnMapa, type RutaEnMapa, type VehiculoEnMapa } fr
 import { REGION_CARGA, VehiculoIllustration } from "@/features/flota/VehiculoIllustration";
 import { ContenedorPaquetes } from "@/features/flota/ContenedorPaquetes";
 import { colorDeFlota } from "@/features/flota/colores";
+import { etaParadas, horaCorta } from "@/features/flota/recorrido";
 import { CapacityGauge } from "@/features/flota/CapacityGauge";
 import { VehicleSlider } from "@/features/flota/VehicleSlider";
 import { LineaDeParadas } from "@/features/flota/LineaDeParadas";
@@ -161,25 +162,41 @@ export function OperacionesPage() {
   );
 
   const paquetes = useMemo(() => detalle.data?.paquetes ?? [], [detalle.data]);
-  const paradas = useMemo<ParadaEnMapa[]>(
-    () =>
-      paquetes.flatMap((p) =>
-        p.coordenadas
-          ? [
-              {
-                id: p.envio_id,
-                orden: p.orden,
-                estado: p.estado,
-                pos: [p.coordenadas.lat, p.coordenadas.lng] as LatLng,
-                titulo: `${p.orden}. ${p.codigo_guia}`,
-                detalle: `${p.destinatario_nombre} · ${p.direccion}`,
-                destacada: p.envio_id === envioElegido,
-              },
-            ]
-          : [],
-      ),
-    [paquetes, envioElegido],
-  );
+  // Hora estimada de llegada a cada parada pendiente: a la velocidad media del recorrido por calles desde donde está el camión ahora.
+  const posSel = enMapa.find((v) => v.id === seleccionado?.id)?.pos;
+  const geoSel = detalle.data?.recorrido;
+  const paradas = useMemo<ParadaEnMapa[]>(() => {
+    const pendientes = paquetes.filter((p) => (p.estado === "asignado" || p.estado === "en_camino") && p.coordenadas).sort((a, b) => a.orden - b.orden);
+    const proximaId = (pendientes.find((p) => p.estado === "en_camino") ?? pendientes[0])?.envio_id;
+    const etas =
+      geoSel && posSel
+        ? etaParadas(
+            geoSel.geometria,
+            posSel,
+            pendientes.map((p) => ({ id: p.envio_id, pos: [p.coordenadas!.lat, p.coordenadas!.lng] as LatLng })),
+            geoSel.distancia_m,
+            geoSel.duracion_s,
+            new Date(),
+          )
+        : {};
+    return paquetes.flatMap((p) =>
+      p.coordenadas
+        ? [
+            {
+              id: p.envio_id,
+              orden: p.orden,
+              estado: p.estado,
+              pos: [p.coordenadas.lat, p.coordenadas.lng] as LatLng,
+              titulo: `${p.orden}. ${p.codigo_guia}`,
+              detalle: `${p.destinatario_nombre} · ${p.direccion}${etas[p.envio_id] ? ` · llega ${horaCorta(etas[p.envio_id])}` : ""}`,
+              destacada: p.envio_id === envioElegido,
+              eta: etas[p.envio_id] ? horaCorta(etas[p.envio_id]) : undefined,
+              proxima: p.envio_id === proximaId,
+            },
+          ]
+        : [],
+    );
+  }, [paquetes, envioElegido, geoSel, posSel]);
 
   if (dashboard.isLoading || flota.isLoading) return <SkeletonPagina label="Cargando el centro de operaciones…" />;
   if (flota.isError) return <Alert variant="error">{getApiErrorMessage(flota.error, "No se pudo cargar la flota")}</Alert>;

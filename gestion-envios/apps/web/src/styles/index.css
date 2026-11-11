@@ -80,6 +80,27 @@ body {
   }
 }
 
+/* Latido de la próxima entrega en el mapa. */
+.parada-pulso {
+  position: absolute;
+  inset: -6px;
+  border: 3px solid;
+  border-radius: 50%;
+  opacity: 0.7;
+  animation: parada-pulso 1.6s ease-out infinite;
+  pointer-events: none;
+}
+@keyframes parada-pulso {
+  from {
+    transform: scale(0.7);
+    opacity: 0.8;
+  }
+  to {
+    transform: scale(1.6);
+    opacity: 0;
+  }
+}
+
 /* Paneles flotantes (listas y calendario): entran con un leve rebote. */
 @keyframes popover-in {
   from {
