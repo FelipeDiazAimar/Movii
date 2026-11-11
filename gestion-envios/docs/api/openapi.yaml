@@ -3270,6 +3270,7 @@ components:
         total_paquetes: { type: integer }
         paquetes_entregados: { type: integer }
         paquetes_fallidos: { type: integer }
+        paquetes_en_camino: { type: integer, description: Envíos que el repartidor ya sacó a la calle }
 
     VehiculoRequest:
       type: object

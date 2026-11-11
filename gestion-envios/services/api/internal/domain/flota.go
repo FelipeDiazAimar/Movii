@@ -47,6 +47,8 @@ type Vehiculo struct {
 	TotalPaquetes       int     `json:"total_paquetes"`
 	PaquetesEntregados  int     `json:"paquetes_entregados"`
 	PaquetesFallidos    int     `json:"paquetes_fallidos"`
+	// PaquetesEnCamino son los envíos de la ruta que el repartidor ya sacó a la calle.
+	PaquetesEnCamino int `json:"paquetes_en_camino"`
 }
 
 // PaqueteVehiculo es un envío que viaja (o viajó) en el vehículo.

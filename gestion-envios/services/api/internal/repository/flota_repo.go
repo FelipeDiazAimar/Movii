@@ -34,7 +34,8 @@ const selectVehiculos = `
 	       COALESCE(sum(e.peso) FILTER (WHERE e.estado IN ('asignado', 'en_camino')), 0)::float8,
 	       count(e.id),
 	       count(e.id) FILTER (WHERE e.estado = 'entregado'),
-	       count(e.id) FILTER (WHERE e.estado = 'no_entregado')
+	       count(e.id) FILTER (WHERE e.estado = 'no_entregado'),
+	       count(e.id) FILTER (WHERE e.estado = 'en_camino')
 	FROM vehiculos v
 	LEFT JOIN rutas r ON r.vehiculo_id = v.id AND r.fecha = $1::date
 	LEFT JOIN usuarios u ON u.id = r.repartidor_id
@@ -46,7 +47,7 @@ func scanVehiculo(row pgx.Row) (domain.Vehiculo, error) {
 	err := row.Scan(&v.ID, &v.Patente, &v.Modelo, &v.Tipo, &v.CapacidadPeso, &v.CapacidadVolumen, &v.Estado, &v.Color,
 		&v.Latitud, &v.Longitud, &v.Velocidad, &v.Rumbo, &v.Temperatura, &v.PosicionAt,
 		&v.RutaID, &v.RutaNombre, &v.RutaZona, &v.RutaEstado, &v.RepartidorID, &v.RepartidorNombre,
-		&v.CargaActualPeso, &v.TotalPaquetes, &v.PaquetesEntregados, &v.PaquetesFallidos)
+		&v.CargaActualPeso, &v.TotalPaquetes, &v.PaquetesEntregados, &v.PaquetesFallidos, &v.PaquetesEnCamino)
 	if err != nil {
 		return domain.Vehiculo{}, err
 	}
