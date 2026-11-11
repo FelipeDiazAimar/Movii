@@ -14,7 +14,7 @@ import { getApiErrorMessage } from "@/services/api-client";
  * la confirmación de entrega es del móvil y no tiene formulario en web.
  *
  * Visibilidad por estado (igual que el móvil):
- * - asignado → "Iniciar reparto" (→en_camino) + incidencia
+ * - asignado → "Iniciar reparto" (→en_camino); la incidencia solo desde en_camino
  * - en_camino → "Volver a asignado" + incidencia
  * - no_entregado → reprogramar
  * - entregado / pendiente → sin acciones (nota informativa)
@@ -23,7 +23,7 @@ import { getApiErrorMessage } from "@/services/api-client";
 export type AccionEnvio = "iniciar-reparto" | "volver-asignado" | "incidencia" | "reprogramar";
 
 export function accionesDisponibles(estado: EstadoEnvio): AccionEnvio[] {
-  if (estado === "asignado") return ["iniciar-reparto", "incidencia"];
+  if (estado === "asignado") return ["iniciar-reparto"]; // no entregado solo después de salir a la calle
   if (estado === "en_camino") return ["volver-asignado", "incidencia"];
   if (estado === "no_entregado") return ["reprogramar"];
   return [];

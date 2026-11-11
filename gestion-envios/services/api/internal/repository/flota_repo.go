@@ -224,7 +224,7 @@ type VehiculoEnRuta struct {
 }
 
 // EnRuta devuelve los vehículos activos con ruta en la fecha y, para cada uno,
-// sus paradas todavía no resueltas (asignadas o en camino) con coordenadas,
+// sus paradas en camino (las que el repartidor ya marcó como salidas) con coordenadas,
 // en orden de reparto.
 func (r *FlotaRepo) EnRuta(ctx context.Context, fecha string) ([]VehiculoEnRuta, error) {
 	rows, err := r.pool.Query(ctx, `
@@ -232,7 +232,7 @@ func (r *FlotaRepo) EnRuta(ctx context.Context, fecha string) ([]VehiculoEnRuta,
 		       e.id, d.latitud::float8, d.longitud::float8
 		FROM vehiculos v
 		JOIN rutas r ON r.vehiculo_id = v.id AND r.fecha = $1::date
-		JOIN envios e ON e.ruta_id = r.id AND e.estado IN ('asignado', 'en_camino')
+		JOIN envios e ON e.ruta_id = r.id AND e.estado = 'en_camino'
 		JOIN destinatarios d ON d.id = e.destinatario_id AND d.latitud IS NOT NULL
 		WHERE v.estado = 'activo'
 		ORDER BY v.patente, e.created_at, e.id

@@ -64,8 +64,9 @@ export function accionesDisponibles(estado: EstadoEnvioAPI | undefined) {
   return {
     iniciar: estado === "asignado",
     volverAsignado: estado === "en_camino",
-    entregar: estado === "asignado" || estado === "en_camino",
-    incidencia: estado === "asignado" || estado === "en_camino",
+    // Entregar o marcar "no entregado" solo tiene sentido si el envío ya salió a la calle.
+    entregar: estado === "en_camino",
+    incidencia: estado === "en_camino",
     reprogramar: estado === "no_entregado",
   };
 }

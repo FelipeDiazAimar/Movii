@@ -30,7 +30,7 @@ function renderPage() {
   vi.mocked(api.reporteIncidencias).mockResolvedValue({
     periodo,
     total_incidencias: 45,
-    distribucion: [{ motivo: "cliente_ausente", etiqueta: "Destinatario ausente", cantidad: 25, porcentaje: 55.56 }],
+    distribucion: [{ motivo: "cliente_ausente", etiqueta: "Destinatario ausente", cantidad: 25, porcentaje: 55.56, casos: [{ codigo_guia: "MOV-20261111-0002", destinatario: "Panadería Don Julio", direccion: "Bv. 25 de Mayo 1500, San Francisco", repartidor: "Diego Repartidor", fecha: "2026-11-11T15:00:00Z", comentario: "Nadie atendió" }] }],
   });
   render(
     <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
@@ -56,6 +56,18 @@ describe("ReportesPage", () => {
     expect(await screen.findByText("Destinatario ausente")).toBeInTheDocument();
     expect(screen.getByText("45")).toBeInTheDocument();
     expect(screen.getByText("25 (55.56%)")).toBeInTheDocument();
+  });
+
+  it("al abrir una barra de incidencias muestra qué envío fue y qué repartidor lo registró", async () => {
+    const user = userEvent.setup();
+    renderPage();
+    await user.click(screen.getByRole("tab", { name: "Incidencias" }));
+    expect(screen.queryByText("Diego Repartidor")).not.toBeInTheDocument();
+
+    await user.click(await screen.findByRole("button", { name: /Destinatario ausente: 25 incidencias/ }));
+    expect(screen.getByText("Diego Repartidor")).toBeInTheDocument();
+    expect(screen.getByText("MOV-20261111-0002")).toBeInTheDocument();
+    expect(screen.getByText("Nadie atendió")).toBeInTheDocument();
   });
 
   it("Descargar CSV llama a la API con desde/hasta", async () => {

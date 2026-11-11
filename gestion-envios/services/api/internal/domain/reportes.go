@@ -52,6 +52,19 @@ type MotivoIncidencia struct {
 	Etiqueta   string  `json:"etiqueta"`
 	Cantidad   int     `json:"cantidad"`
 	Porcentaje float64 `json:"porcentaje"`
+	// Casos son los envíos concretos detrás de la barra: quién tuvo el problema y con qué repartidor.
+	Casos []CasoIncidencia `json:"casos"`
+}
+
+// CasoIncidencia es un envío que quedó "no entregado" y el repartidor que lo registró.
+type CasoIncidencia struct {
+	Motivo       string `json:"-"`
+	CodigoGuia   string `json:"codigo_guia"`
+	Destinatario string `json:"destinatario"`
+	Direccion    string `json:"direccion"`
+	Repartidor   string `json:"repartidor"`
+	Fecha        string `json:"fecha"` // RFC 3339, UTC
+	Comentario   string `json:"comentario"`
 }
 
 // ReporteIncidencias es la respuesta de GET /reportes/incidencias (HU-15).

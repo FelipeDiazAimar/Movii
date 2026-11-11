@@ -180,5 +180,17 @@ func (s *ReportesService) Incidencias(ctx context.Context, desde, hasta string) 
 		return domain.ReporteIncidencias{}, err
 	}
 	total, dist := distribucionIncidencias(conteo)
+	casos, err := s.repo.IncidenciasDetalle(ctx, desde, hasta)
+	if err != nil {
+		return domain.ReporteIncidencias{}, err
+	}
+	for i := range dist {
+		dist[i].Casos = []domain.CasoIncidencia{}
+		for _, c := range casos {
+			if c.Motivo == dist[i].Motivo {
+				dist[i].Casos = append(dist[i].Casos, c)
+			}
+		}
+	}
 	return domain.ReporteIncidencias{Periodo: periodo, TotalIncidencias: total, Distribucion: dist}, nil
 }

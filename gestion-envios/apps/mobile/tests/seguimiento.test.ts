@@ -44,11 +44,11 @@ describe("proximasFechas", () => {
 
 describe("accionesDisponibles", () => {
   it("asignado", () => {
-    expect(accionesDisponibles("asignado")).toMatchObject({ iniciar: true, entregar: true, incidencia: true, reprogramar: false });
+    expect(accionesDisponibles("asignado")).toMatchObject({ iniciar: true, entregar: false, incidencia: false, reprogramar: false });
   });
 
   it("en_camino", () => {
-    expect(accionesDisponibles("en_camino")).toMatchObject({ volverAsignado: true, iniciar: false });
+    expect(accionesDisponibles("en_camino")).toMatchObject({ volverAsignado: true, iniciar: false, entregar: true, incidencia: true });
   });
 
   it("no_entregado solo permite reprogramar", () => {

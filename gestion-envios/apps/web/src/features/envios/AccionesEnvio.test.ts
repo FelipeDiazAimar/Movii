@@ -2,8 +2,8 @@ import { describe, expect, it } from "vitest";
 import { accionesDisponibles, extraerBase64, notaSinAcciones } from "./AccionesEnvio";
 
 describe("accionesDisponibles", () => {
-  it("asignado permite iniciar reparto e incidencia", () => {
-    expect(accionesDisponibles("asignado")).toEqual(["iniciar-reparto", "incidencia"]);
+  it("asignado solo permite iniciar reparto (la incidencia exige estar en camino)", () => {
+    expect(accionesDisponibles("asignado")).toEqual(["iniciar-reparto"]);
   });
 
   it("en_camino permite volver a asignado e incidencia", () => {

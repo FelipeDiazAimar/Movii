@@ -21,7 +21,7 @@ type Config struct {
 	PublicWebURL       string  // PUBLIC_WEB_URL: URL pública de la web (links de tracking en los avisos)
 	PublicAppURL       string  // PUBLIC_APP_URL: URL del panel del repartidor (aviso de ruta asignada)
 	SimuladorGPS       bool    // SIMULADOR_GPS=true mueve los vehículos por sus rutas
-	SimuladorFactor    float64 // SIMULADOR_FACTOR: cuántas veces más rápido que la realidad (default 3)
+	SimuladorFactor    float64 // SIMULADOR_FACTOR: cuántas veces más rápido que la realidad (default 1: el vehículo llega a la hora estimada)
 	WhatsappHabilitado bool    // WHATSAPP_HABILITADO=true conecta la cuenta de WhatsApp (whatsmeow)
 	NominatimURL       string  // NOMINATIM_URL (vacío = servidor público de OSM)
 	OSRMURL            string  // OSRM_URL (vacío = servidor público de OSRM)
@@ -105,7 +105,7 @@ func Load() (Config, error) {
 		origins = strings.Split(raw, ",")
 	}
 
-	factor := 3.0
+	factor := 1.0
 	if raw := os.Getenv("SIMULADOR_FACTOR"); raw != "" {
 		if f, err := strconv.ParseFloat(raw, 64); err == nil && f > 0 {
 			factor = f
