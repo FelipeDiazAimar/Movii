@@ -51,7 +51,7 @@
    GOOGLE_CALLBACK_URL=https://<dominio-railway>/api/auth/google/callback
    ```
 3. Settings → Networking → **Generate Domain**. La API queda en `https://<dominio>/api` (eso es `MOVII_API_URL`); en `https://<dominio>/` ya funciona también la web y en `/app/` la app del repartidor.
-4. Datos de demo para la presentación (rutas de hoy con camiones moviéndose): desde la PC, con el `DATABASE_URL` de producción, `go run ./cmd/demo` en `services/api`.
+4. Las rutas se crean desde el panel (Rutas → Nueva ruta, asignar envíos y vehículo). Para la presentación, el botón ▶ de Operaciones arma un día de demostración (ver "Datos de demostración" más abajo).
 
 ## 3. Vercel (web + PWA)
 1. Add New Project → importar el repo → **Root Directory** `gestion-envios`. `vercel.json` ya define install, build y salida.
@@ -99,7 +99,7 @@ Mail con **Gmail** (recomendado: manda a cualquier destinatario sin dominio prop
 3. Cargar `SMTP_USER=<la cuenta>@gmail.com` y `SMTP_PASSWORD=<las 16 letras>`. El panel **WhatsApp y mail** muestra "Mail de respaldo · Gmail".
 4. Los avisos al destinatario salen por WhatsApp; si WhatsApp no está vinculado, el número no es válido o no tiene WhatsApp, salen por mail (si el envío tiene el mail del destinatario). El detalle del envío muestra por qué canal salió cada aviso.
 
-**Datos de demostración: botón ▶.** En el centro de operaciones el admin ve un botón ▶ que deja el estado inicial de un día normal para simular: completa el historial de 30 días si falta y vuelve a armar la operación de hoy (rutas con vehículo y las primeras entregas de la mañana hechas), los pendientes y las rutas de mañana. Cada toque vuelve a ese estado. Solo reescribe datos de demostración (destinatarios marcados `demo` y la flota demo): usuarios, vehículos agregados a mano y envíos o rutas reales no se tocan. Los avisos de esos envíos quedan "simulado" (no se manda nada). Las direcciones salen de un catálogo con coordenadas fijas, así que no depende del geocodificador. `DEMO_REINICIO=false` lo apaga. Lo mismo por consola: `go run ./cmd/demo` (pide escribir "si" y muestra a qué base se conecta); `-limpiar` borra todo lo ficticio. Necesita las migraciones 0014 y 0015 aplicadas (la API nueva desplegada).
+**Datos de demostración: botón ▶.** En el centro de operaciones el admin ve un botón ▶ que deja el estado inicial de un día normal para simular: completa el historial de 30 días si falta y vuelve a armar la operación de hoy (rutas con vehículo y las primeras entregas de la mañana hechas), los pendientes y las rutas de mañana. Cada toque vuelve a ese estado. Solo reescribe datos de demostración (destinatarios marcados `demo` y la flota demo): usuarios, vehículos agregados a mano y envíos o rutas reales no se tocan. Los avisos de esos envíos quedan "simulado" (no se manda nada). Las direcciones salen de un catálogo con coordenadas fijas, así que no depende del geocodificador. `DEMO_REINICIO=false` lo apaga. Lo mismo por consola: `go run ./cmd/demo` (pide escribir "si" y muestra a qué base se conecta); `-limpiar` borra todo lo ficticio. Necesita las migraciones 0016 a 0018 aplicadas (la API nueva desplegada).
 
 **Salir a repartir.** Un envío pasa a "en camino" solo cuando se inicia su ruta (botón "Iniciar ruta" en la web o en la app): todos los envíos de la ruta salen a la vez. Ya no se marca envío por envío (el endpoint `PUT /envios/{id}/estado` sigue en la API, pero ni la web ni la app lo ofrecen). Una ruta que ya salió no admite envíos nuevos (409 `ruta_iniciada`).
 

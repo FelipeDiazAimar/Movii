@@ -14,6 +14,9 @@ import { EmptyState } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Alert } from "@/components/ui/Alert";
 import { SkeletonTarjetas } from "@/components/ui/Skeleton";
+import { DateField } from "@/components/ui/Field";
+import { AsignarRutaAVehiculo } from "@/features/flota/AsignarRutaAVehiculo";
+import { hoyISO } from "@/features/analitica/fechas";
 import { PageHeader, PAGE_WIDE } from "@/components/ui/PageHeader";
 import { getApiErrorMessage } from "@/services/api-client";
 import { Box, ChevronRight, Gauge, LayoutDashboard, Package, Pencil, Plus, Route, Trash2, Truck, Weight, Wrench, X } from "lucide-react";
@@ -90,7 +93,7 @@ function Resumen({ vehiculos }: { vehiculos: Vehiculo[] }) {
   );
 }
 
-function TarjetaVehiculo({ v, color, onEditar, onEliminar }: { v: Vehiculo; color: string; onEditar: () => void; onEliminar?: () => void }) {
+function TarjetaVehiculo({ v, color, fecha, onEditar, onEliminar }: { v: Vehiculo; color: string; fecha: string; onEditar: () => void; onEliminar?: () => void }) {
   const enTaller = v.estado === "mantenimiento";
   const uso = Math.min(100, Math.round(v.capacidad_porcentaje));
   return (
@@ -182,9 +185,12 @@ function TarjetaVehiculo({ v, color, onEditar, onEliminar }: { v: Vehiculo; colo
             <ChevronRight className="h-4 w-4 shrink-0 text-gray-400 transition-transform group-hover:translate-x-0.5" aria-hidden />
           </Link>
         ) : (
-          <div className="mt-auto flex items-center gap-3 rounded-xl border border-dashed border-hormigon-200 p-3 text-sm text-gray-400">
-            <Route className="h-4 w-4 shrink-0" aria-hidden />
-            {enTaller ? "En el taller: no se puede asignar" : "Sin ruta asignada hoy"}
+          <div className="mt-auto flex flex-col gap-2">
+            <div className="flex items-center gap-3 rounded-xl border border-dashed border-hormigon-200 p-3 text-sm text-gray-400">
+              <Route className="h-4 w-4 shrink-0" aria-hidden />
+              {enTaller ? "En el taller: no se puede asignar" : `Sin ruta asignada ${fecha === hoyISO() ? "hoy" : "ese día"}`}
+            </div>
+            {!enTaller && <AsignarRutaAVehiculo vehiculo={v} fecha={fecha} />}
           </div>
         )}
       </div>
@@ -200,7 +206,8 @@ export function VehiculosPage() {
   const [busqueda, setBusqueda] = useState("");
   const [estado, setEstado] = useState("");
   const [tipo, setTipo] = useState("");
-  const { data, isLoading, isError, error } = useQuery({ queryKey: ["operaciones", "flota"], queryFn: () => listarFlota() });
+  const [fecha, setFecha] = useState(hoyISO());
+  const { data, isLoading, isError, error } = useQuery({ queryKey: ["operaciones", "flota", "fecha", fecha], queryFn: () => listarFlota(fecha) });
   const colores = useMemo(() => colorDeFlota(data ?? []), [data]);
   const visibles = useMemo(
     () =>
@@ -217,7 +224,7 @@ export function VehiculosPage() {
       <PageHeader
         title="Vehículos"
         icon={Truck}
-        description="La flota: estado, carga del día y la ruta que tiene asignada cada vehículo."
+        description="La flota: estado, carga y la ruta que tiene asignada cada vehículo el día elegido."
         action={
           <Button type="button" onClick={() => setForm({ modo: "nuevo" })}>
             <Plus className="h-4 w-4" strokeWidth={2.5} aria-hidden />
@@ -257,14 +264,16 @@ export function VehiculosPage() {
             busqueda={busqueda}
             onBusqueda={setBusqueda}
             placeholder="Buscar por patente, modelo, chofer o ruta…"
-            hayFiltros={Boolean(busqueda || tipo || estado)}
+            hayFiltros={Boolean(busqueda || tipo || estado || fecha !== hoyISO())}
             onLimpiar={() => {
               setBusqueda("");
               setEstado("");
               setTipo("");
+              setFecha(hoyISO());
             }}
             resumen={`${visibles.length} de ${data.length}`}
           >
+            <DateField label="Fecha" value={fecha} onChange={(v) => setFecha(v || hoyISO())} />
             <FiltroSelect label="Tipo" value={tipo} onChange={setTipo}>
               <option value="">Todos</option>
               {Object.entries(ETIQUETA_TIPO_VEHICULO).map(([k, label]) => (
@@ -285,6 +294,7 @@ export function VehiculosPage() {
               key={v.id}
               v={v}
               color={colores[v.id]}
+              fecha={fecha}
               onEditar={() => setForm({ modo: "editar", v })}
               onEliminar={puedeEliminar ? () => setAEliminar(v) : undefined}
             />

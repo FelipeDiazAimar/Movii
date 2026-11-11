@@ -24,6 +24,8 @@ export const MEDIDAS_MODELO: Record<TipoVehiculo, { ancho: number; largo: number
   camion: { ancho: 20, largo: 46 },
   furgon: { ancho: 18, largo: 38 },
   utilitario: { ancho: 16, largo: 32 },
+  camioneta: { ancho: 16, largo: 30 },
+  auto: { ancho: 14, largo: 26 },
   moto: { ancho: 10, largo: 24 },
 };
 

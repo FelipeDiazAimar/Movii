@@ -1,6 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 
-import { allSeedShipments, drivers } from "@/mock/shipments";
 import type { Shipment, ShipmentStatus } from "@/types/logistics";
 import { loginConGoogle as apiLoginConGoogle } from "@/lib/login-google";
 import { login as apiLogin, verificarCodigoLogin as apiVerificarCodigo, type DesafioLogin, logout as apiLogout, getEnviosDelDia, getToken, decodeJwt, type EstadoEnvioAPI, type ResumenDelDiaAPI } from "@/lib/api-client";
@@ -23,7 +22,6 @@ type MoviiContextValue = {
   setFiltroEstado: (estado: EstadoEnvioAPI | null) => void;
   cargandoEnviosDelDia: boolean;
   errorEnviosDelDia: string | null;
-  activeDriverId: string;
   /** Devuelve el desafío si hace falta el código de WhatsApp (HU-16); si no, abre la sesión. */
   login: (email: string, password: string) => Promise<DesafioLogin | null>;
   /** Segundo paso del login: código de 6 dígitos recibido por WhatsApp. */
@@ -43,13 +41,12 @@ export function MoviiProvider({ children }: { children: ReactNode }) {
   const [sesionLista, setSesionLista] = useState(false);
   const [role, setRole] = useState<PrototypeRole>(null);
   const [driverName, setDriverName] = useState("");
-  const [shipments, setShipments] = useState<Shipment[]>(allSeedShipments);
+  const [shipments, setShipments] = useState<Shipment[]>([]);
   const [rutasDelDia, setRutasDelDia] = useState<RutaDelDia[]>([]);
   const [resumenDelDia, setResumenDelDia] = useState<ResumenDelDiaAPI | null>(null);
   const [filtroEstado, setFiltroEstado] = useState<EstadoEnvioAPI | null>(null);
   const [cargandoEnviosDelDia, setCargandoEnviosDelDia] = useState(false);
   const [errorEnviosDelDia, setErrorEnviosDelDia] = useState<string | null>(null);
-  const activeDriverId = drivers[0].id;
 
   /**
    * Trae el día completo, sin filtrar por estado en el servidor. El filtro de
@@ -91,7 +88,6 @@ export function MoviiProvider({ children }: { children: ReactNode }) {
         setSesionLista(true);
       }
     })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const abrirSesion = async (claims: { rol: string; nombre?: string }, nombrePorDefecto: string) => {
@@ -159,8 +155,7 @@ export function MoviiProvider({ children }: { children: ReactNode }) {
   // que necesitan buscar un envío por id (detalle de parada).
   const enviosDelDia = useMemo(() => rutasDelDia.flatMap((ruta) => ruta.envios), [rutasDelDia]);
 
-  const value = useMemo<MoviiContextValue>(
-    () => ({
+  const value: MoviiContextValue = {
       sesionLista,
       role,
       driverName,
@@ -172,7 +167,6 @@ export function MoviiProvider({ children }: { children: ReactNode }) {
       setFiltroEstado,
       cargandoEnviosDelDia,
       errorEnviosDelDia,
-      activeDriverId,
       login,
       verificarCodigo,
       loginConGoogle,
@@ -183,9 +177,7 @@ export function MoviiProvider({ children }: { children: ReactNode }) {
         enviosDelDia.find((shipment) => shipment.id === idOrCode || shipment.code.toLowerCase() === idOrCode.toLowerCase()),
       updateShipment,
       setShipmentStatus,
-    }),
-    [sesionLista, role, driverName, shipments, enviosDelDia, rutasDelDia, resumenDelDia, filtroEstado, cargandoEnviosDelDia, errorEnviosDelDia],
-  );
+  };
 
   return <MoviiContext.Provider value={value}>{children}</MoviiContext.Provider>;
 }

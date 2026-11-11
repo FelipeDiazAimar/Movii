@@ -9,7 +9,7 @@ export interface Recorrido {
 }
 
 export type EstadoVehiculo = "activo" | "en_base" | "mantenimiento";
-export type TipoVehiculo = "camion" | "furgon" | "utilitario" | "moto";
+export type TipoVehiculo = "camion" | "furgon" | "utilitario" | "moto" | "camioneta" | "auto";
 
 export interface Vehiculo {
   id: string;
@@ -105,4 +105,6 @@ export const ETIQUETA_TIPO_VEHICULO: Record<TipoVehiculo, string> = {
   furgon: "Furgón",
   utilitario: "Utilitario",
   moto: "Moto",
+  camioneta: "Camioneta",
+  auto: "Auto",
 };

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Animated, Platform, Pressable, StyleSheet, Text, View, type LayoutChangeEvent } from "react-native";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import type { BottomTabBarProps } from "@react-navigation/bottom-tabs";
@@ -9,6 +9,7 @@ import { haptic } from "@/lib/haptics";
 
 const ICONOS: Record<string, keyof typeof MaterialIcons.glyphMap> = {
   index: "route",
+  orders: "inventory-2",
   history: "history",
   profile: "person-outline",
 };
@@ -22,7 +23,7 @@ export type PropsBarra = BottomTabBarProps;
 export function BarraTabs({ state, descriptors, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
   const [ancho, setAncho] = useState(0);
-  const pos = useRef(new Animated.Value(state.index)).current;
+  const [pos] = useState(() => new Animated.Value(state.index));
   const n = state.routes.length;
 
   useEffect(() => {

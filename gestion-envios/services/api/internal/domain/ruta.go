@@ -20,6 +20,7 @@ type RutaConConteo struct {
 	Entregados      int     `json:"entregados"`
 	NoEntregados    int     `json:"no_entregados"`
 	PesoTotal       float64 `json:"peso_total"`
+	VehiculoID      string  `json:"vehiculo_id"`
 	VehiculoPatente string  `json:"vehiculo_patente"`
 	VehiculoTipo    string  `json:"vehiculo_tipo"`
 }

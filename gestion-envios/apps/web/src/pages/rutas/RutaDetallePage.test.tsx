@@ -70,9 +70,9 @@ describe("RutaDetallePage", () => {
     vi.mocked(obtenerMapaRuta).mockResolvedValue(mapa);
     renderPage();
 
-    expect(await screen.findByText("Fecha")).toBeInTheDocument();
+    expect((await screen.findAllByText("Fecha")).length).toBeGreaterThan(0);
     expect(screen.queryByText("2026-11-10")).not.toBeInTheDocument();
-    expect(screen.getByText(/nov/)).toBeInTheDocument();
+    expect(screen.getAllByText(/nov/).length).toBeGreaterThan(0);
 
     expect(screen.getByRole("columnheader", { name: "Destinatario" })).toBeInTheDocument();
     expect(await screen.findByText("Ana Pérez")).toBeInTheDocument();

@@ -10,7 +10,7 @@ const (
 )
 
 // TiposVehiculo es la lista cerrada de tipos de vehículo.
-var TiposVehiculo = []string{"camion", "furgon", "utilitario", "moto"}
+var TiposVehiculo = []string{"camion", "furgon", "utilitario", "moto", "camioneta", "auto"}
 
 // EstadosVehiculo es la lista cerrada de estados de vehículo.
 var EstadosVehiculo = []string{EstadoVehiculoActivo, EstadoVehiculoEnBase, EstadoVehiculoMantenimiento}

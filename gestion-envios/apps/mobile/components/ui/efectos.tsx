@@ -5,7 +5,7 @@ import { M } from "@/constants/movii-design";
 
 /** Entrada escalonada: aparece subiendo y con fundido (estilo React Bits "Animated Content"). */
 export function Aparecer({ children, indice = 0, style, desde = 18 }: { children: ReactNode; indice?: number; style?: StyleProp<ViewStyle>; desde?: number }) {
-  const v = useRef(new Animated.Value(0)).current;
+  const [v] = useState(() => new Animated.Value(0));
   useEffect(() => {
     Animated.timing(v, { toValue: 1, duration: 520, delay: Math.min(indice, 12) * 70, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
   }, [v, indice]);
@@ -32,7 +32,7 @@ export function NumeroAnimado({ valor, sufijo = "", style, duracion = 900 }: { v
 
 /** Botón/superficie que responde al toque con un resorte. */
 export function Presionable({ children, style, onPress, escala = 0.97, ...rest }: PressableProps & { style?: StyleProp<ViewStyle>; escala?: number; children: ReactNode }) {
-  const s = useRef(new Animated.Value(1)).current;
+  const [s] = useState(() => new Animated.Value(1));
   const a = (to: number) => Animated.spring(s, { toValue: to, useNativeDriver: true, speed: 40, bounciness: 6 }).start();
   return (
     <Pressable {...rest} onPress={onPress} onPressIn={() => a(escala)} onPressOut={() => a(1)}>
@@ -43,7 +43,7 @@ export function Presionable({ children, style, onPress, escala = 0.97, ...rest }
 
 /** Destello que cruza una superficie cada tanto (React Bits "Shiny"). */
 export function Brillo({ radio = 14, intervalo = 3400 }: { radio?: number; intervalo?: number }) {
-  const v = useRef(new Animated.Value(0)).current;
+  const [v] = useState(() => new Animated.Value(0));
   const [ancho, setAncho] = useState(0);
   useEffect(() => {
     const loop = Animated.loop(
@@ -74,7 +74,7 @@ export function Brillo({ radio = 14, intervalo = 3400 }: { radio?: number; inter
 
 /** Línea de carril discontinua que avanza (la misma del panel web). */
 export function Carril({ color = M.amarillo, alto = 4, opacidad = 0.85, velocidad = 1400 }: { color?: string; alto?: number; opacidad?: number; velocidad?: number }) {
-  const v = useRef(new Animated.Value(0)).current;
+  const [v] = useState(() => new Animated.Value(0));
   useEffect(() => {
     const l = Animated.loop(Animated.timing(v, { toValue: 1, duration: velocidad, easing: Easing.linear, useNativeDriver: true }));
     l.start();
@@ -95,7 +95,7 @@ export function Carril({ color = M.amarillo, alto = 4, opacidad = 0.85, velocida
 
 /** Punto que late (estado "en vivo"). */
 export function PuntoVivo({ color = M.verde, tam = 9 }: { color?: string; tam?: number }) {
-  const v = useRef(new Animated.Value(0)).current;
+  const [v] = useState(() => new Animated.Value(0));
   useEffect(() => {
     const l = Animated.loop(Animated.timing(v, { toValue: 1, duration: 1600, easing: Easing.out(Easing.quad), useNativeDriver: true }));
     l.start();

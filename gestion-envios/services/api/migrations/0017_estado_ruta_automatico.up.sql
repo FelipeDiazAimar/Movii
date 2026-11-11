@@ -1,3 +1,5 @@
+-- Complementa a la 0014 (estado derivado en Go al cambiar un envío): el trigger
+-- también recalcula al asignar, quitar o borrar envíos de la ruta.
 -- El estado de la ruta se deriva de sus envíos (antes nada lo actualizaba y
 -- todas las rutas quedaban "planificada"):
 --   sin envíos pendientes de entrega (asignado/en_camino) -> completada

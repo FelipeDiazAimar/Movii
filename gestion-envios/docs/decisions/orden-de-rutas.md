@@ -11,7 +11,7 @@ volver por la ciudad. En la demo se notaba (14,5 km para una ruta que se puede h
 
 ## Decisión
 
-- Nueva columna `envios.orden_ruta` (migración 0016). Las consultas de paradas (mapa, simulador,
+- Nueva columna `envios.orden_ruta` (migración 0018). Las consultas de paradas (mapa, simulador,
   app del repartidor, detalle de ruta) ordenan por ella.
 - `services.OrdenadorRutas` calcula el orden que minimiza la distancia total por calles: sale del
   depósito (o, con la ruta en curso, de donde está el camión), pasa por las paradas pendientes y

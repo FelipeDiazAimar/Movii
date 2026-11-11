@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -17,6 +18,18 @@ import (
 // EnvioHandler expone HU-02: alta, listado y detalle de envíos.
 type EnvioHandler struct {
 	svc *services.EnvioService
+	dir DireccionValidator
+}
+
+// DireccionValidator comprueba que una dirección exista en el mapa (T4).
+type DireccionValidator interface {
+	ValidarDireccion(ctx context.Context, calle, numero, localidad, cp string) error
+}
+
+// ConValidacionDireccion rechaza al crear los envíos cuya dirección no se ubica en el mapa.
+func (h *EnvioHandler) ConValidacionDireccion(v DireccionValidator) *EnvioHandler {
+	h.dir = v
+	return h
 }
 
 // NewEnvioHandler crea un EnvioHandler.
@@ -56,6 +69,14 @@ func (h *EnvioHandler) Create(w http.ResponseWriter, r *http.Request) {
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		httpx.WriteError(w, http.StatusBadRequest, "body_invalido", "el cuerpo de la petición no es JSON válido")
 		return
+	}
+
+	if h.dir != nil && req.Destinatario.Calle != "" {
+		d := req.Destinatario
+		if err := h.dir.ValidarDireccion(r.Context(), d.Calle, d.Numero, d.Localidad, d.CodigoPostal); err != nil {
+			httpx.WriteError(w, http.StatusUnprocessableEntity, "direccion_invalida", "la dirección no se pudo ubicar en el mapa: revisá calle, número y localidad")
+			return
+		}
 	}
 
 	envio, err := h.svc.Create(r.Context(), services.CrearEnvioInput{

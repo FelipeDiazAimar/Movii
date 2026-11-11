@@ -153,9 +153,12 @@ func main() {
 		log.Printf("simulador GPS activo (x%.1f)", cfg.SimuladorFactor)
 	}
 
+	envioHandler := handlers.NewEnvioHandler(envioService)
 	rutaHandler := handlers.NewRutaHandler(rutaService, asignacionService)
 	if cfg.Geocodificar { // GEOCODIFICAR=false = sin red: no se valida ni recomienda
-		rutaHandler.ConRecomendacion(services.NewRecomendacionService(rutaRepo, repository.NewGeoRepo(pool), proveedor, cfg.RecomiendaOKKm, cfg.RecomiendaNoKm))
+		reco := services.NewRecomendacionService(rutaRepo, repository.NewGeoRepo(pool), proveedor, cfg.RecomiendaOKKm, cfg.RecomiendaNoKm)
+		rutaHandler.ConRecomendacion(reco)
+		envioHandler.ConValidacionDireccion(reco)
 	}
 
 	api := httprouter.New(httprouter.Deps{
@@ -163,7 +166,7 @@ func main() {
 		JWTSecret:          cfg.JWTSecret,
 		AuthHandler:        handlers.NewAuthHandler(authService).ConSegundoFactor(otpService),
 		UsuariosHandler:    handlers.NewUsuariosHandler(usuarioRepo),
-		EnvioHandler:       handlers.NewEnvioHandler(envioService),
+		EnvioHandler:       envioHandler,
 		RutaHandler:        rutaHandler,
 		RepartidorHandler:  handlers.NewRepartidorHandler(repartidorService).ConPerfil(repository.NewPerfilRepo(pool)),
 		EstadoHandler:      handlers.NewEstadoHandler(estadoService),
@@ -174,6 +177,8 @@ func main() {
 		WhatsappHandler:    handlers.NewWhatsappHandler(wa, usuarioRepo, whatsappRepo).ConMail(estadoMail),
 		EliminarHandler:    handlers.NewEliminarHandler(pool),
 		DemoHandler:        demoHandler(cfg, pool, estadoService, rutaService, flotaRepo, ordenador, sim),
+		PedidosHandler:     handlers.NewPedidosHandler(envioRepo, envioService),
+		SugerenciaHandler:  handlers.NewSugerenciaHandler(services.NewSugerenciaService(repository.NewSugerenciaRepo(pool))),
 		GoogleHandler:      handlers.NewGoogleHandler(googleCliente, authService, otpService, cfg.JWTSecret, cfg.PublicWebURL, cfg.Env != "production"),
 	})
 

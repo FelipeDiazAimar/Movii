@@ -2720,6 +2720,13 @@ components:
           properties:
             destinatario:
               $ref: "#/components/schemas/DestinatarioConId"
+            remitente:
+              type: object
+              properties:
+                id: {type: string}
+                nombre: {type: string}
+                telefono: {type: string}
+                direccion: {type: string}
             ruta_nombre:
               type: string
           required: [destinatario, ruta_nombre]

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { router } from "expo-router";
-import axios from "axios";
+import { isAxiosError } from "axios";
 
 import { AuroraBackground } from "@/components/aurora-background";
 import { AppInput, AppMark, GlassCard, PrimaryButton } from "@/components/ui/movii-ui";
@@ -13,7 +13,7 @@ import { ErrorLoginGoogle } from "@/lib/login-google";
 /** Mensaje de error de la API ({ error: { message } }) o un texto por defecto. */
 function mensajeDeError(err: unknown, porDefecto: string): string {
   if (err instanceof ErrorLoginGoogle) return err.message;
-  if (axios.isAxiosError(err)) {
+  if (isAxiosError(err)) {
     const msg = (err.response?.data as { error?: { message?: string } } | undefined)?.error?.message;
     if (msg) return msg;
   }
@@ -21,8 +21,8 @@ function mensajeDeError(err: unknown, porDefecto: string): string {
 }
 
 export default function LoginScreen() {
-  const [email, setEmail] = useState("repartidor@movii.demo");
-  const [password, setPassword] = useState("Movii2026!");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [keepSignedIn, setKeepSignedIn] = useState(true);
   // Segundo paso (HU-16): código de 6 dígitos que llega por WhatsApp.
   const [desafio, setDesafio] = useState<DesafioLogin | null>(null);

@@ -245,6 +245,17 @@ func (r *EnvioRepo) DesasignarEnvio(ctx context.Context, envioID, rutaID string)
 	return tx.Commit(ctx)
 }
 
+// sqlEstadoRuta deriva el estado de la ruta de sus envíos: completada si todos
+// terminaron (entregados o no entregados), en curso si alguno ya salió, y
+// planificada si todos siguen asignados.
+const sqlEstadoRuta = `
+	UPDATE rutas r SET estado = (CASE
+		WHEN EXISTS (SELECT 1 FROM envios e WHERE e.ruta_id = r.id)
+		 AND NOT EXISTS (SELECT 1 FROM envios e WHERE e.ruta_id = r.id AND e.estado IN ('pendiente', 'asignado', 'en_camino')) THEN 'completada'
+		WHEN EXISTS (SELECT 1 FROM envios e WHERE e.ruta_id = r.id AND e.estado <> 'asignado') THEN 'en_curso'
+		ELSE 'planificada' END)::estado_ruta
+`
+
 // ActualizarEstado cambia el estado de un envío. q suele ser la transacción
 // de la operación de HU-06/HU-07 (el UPDATE corre junto al INSERT del evento
 // en eventos_envio). Devuelve ErrNoEncontrado si el envío no existe.
@@ -256,7 +267,9 @@ func (r *EnvioRepo) ActualizarEstado(ctx context.Context, q Querier, envioID, nu
 	if tag.RowsAffected() == 0 {
 		return ErrNoEncontrado
 	}
-	return nil
+	// La ruta pasa a en curso / completada según lo que pasó con sus envíos.
+	_, err = q.Exec(ctx, sqlEstadoRuta+` WHERE r.id = (SELECT ruta_id FROM envios WHERE id = $1)`, envioID)
+	return err
 }
 
 // Reprogramar vuelve un envío a "pendiente" para una fecha + franja (HU-09):
@@ -266,6 +279,8 @@ func (r *EnvioRepo) ActualizarEstado(ctx context.Context, q Querier, envioID, nu
 // valores del enum franja_horaria (0004). Devuelve ErrNoEncontrado si el
 // envío no existe.
 func (r *EnvioRepo) Reprogramar(ctx context.Context, q Querier, envioID, fechaYYYYMMDD, franja string) error {
+	var rutaAnterior *string // el UPDATE le saca la ruta: hay que recalcular su estado después
+	_ = q.QueryRow(ctx, `SELECT ruta_id::text FROM envios WHERE id = $1::uuid`, envioID).Scan(&rutaAnterior)
 	tag, err := q.Exec(ctx, `
 		UPDATE envios
 		SET estado = 'pendiente', fecha_entrega = $2::date, reprogramado_para = $2::date, franja = $3::franja_horaria, ruta_id = NULL
@@ -277,7 +292,10 @@ func (r *EnvioRepo) Reprogramar(ctx context.Context, q Querier, envioID, fechaYY
 	if tag.RowsAffected() == 0 {
 		return ErrNoEncontrado
 	}
-	return nil
+	if rutaAnterior != nil {
+		_, err = q.Exec(ctx, sqlEstadoRuta+` WHERE r.id::text = $1`, *rutaAnterior)
+	}
+	return err
 }
 
 // ReprogramacionDe devuelve la fecha ("YYYY-MM-DD") y franja de
@@ -324,9 +342,10 @@ func (r *EnvioRepo) ListDelDiaPorRepartidor(ctx context.Context, repartidorID, f
 		SELECT e.id, e.codigo_guia, e.estado, e.peso, e.tamano, e.tipo_contenido, e.fragil, e.urgente,
 		       e.remitente_id, e.destinatario_id, e.ruta_id, to_char(e.fecha_entrega, 'YYYY-MM-DD'),
 		       d.id, d.nombre, d.telefono, d.calle, d.numero, COALESCE(d.piso_depto, ''), d.localidad, d.codigo_postal, COALESCE(d.email, ''),
-		       r.nombre
+		       r.nombre, rem.nombre, COALESCE(rem.telefono, ''), COALESCE(rem.direccion, '')
 		FROM envios e
 		JOIN rutas r ON r.id = e.ruta_id
+		JOIN remitentes rem ON rem.id = e.remitente_id
 		JOIN destinatarios d ON d.id = e.destinatario_id
 		WHERE r.repartidor_id = $1
 		  AND (e.fecha_entrega = $2::date
@@ -343,16 +362,16 @@ func (r *EnvioRepo) ListDelDiaPorRepartidor(ctx context.Context, repartidorID, f
 	for rows.Next() {
 		var e domain.EnvioDelDia
 		var rutaID sql.NullString
-		// Orden exacto de columnas del SELECT (22 en total):
+		// Orden exacto de columnas del SELECT (25 en total):
 		// 1-10: e.id, codigo_guia, estado, peso, tamano, tipo_contenido, fragil, urgente, remitente_id, destinatario_id
 		// 11: e.ruta_id, 12: fecha_entrega
 		// 13-21: d.id, nombre, telefono, calle, numero, piso_depto, localidad, codigo_postal, email
-		// 22: r.nombre
+		// 22: r.nombre, 23-25: remitente nombre, telefono, direccion
 		if err := rows.Scan(&e.ID, &e.CodigoGuia, &e.Estado, &e.Peso, &e.Tamano, &e.TipoContenido, &e.Fragil, &e.Urgente,
 			&e.RemitenteID, &e.DestinatarioID, &rutaID, &e.FechaEntrega,
 			&e.Destinatario.ID, &e.Destinatario.Nombre, &e.Destinatario.Telefono, &e.Destinatario.Calle,
 			&e.Destinatario.Numero, &e.Destinatario.PisoDepto, &e.Destinatario.Localidad, &e.Destinatario.CodigoPostal, &e.Destinatario.Email,
-			&e.RutaNombre,
+			&e.RutaNombre, &e.Remitente.Nombre, &e.Remitente.Telefono, &e.Remitente.Direccion,
 		); err != nil {
 			return nil, err
 		}

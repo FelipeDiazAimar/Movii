@@ -33,6 +33,6 @@ describe("RutaForm", () => {
     await userEvent.type(screen.getByLabelText(/Nombre/), "  Ruta Centro ");
     await userEvent.click(screen.getByRole("button", { name: "Crear ruta" }));
 
-    expect(onSubmit).toHaveBeenCalledWith({ nombre: "Ruta Centro", zona: "", repartidor_id: REPARTIDOR });
+    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ nombre: "Ruta Centro", zona: "", repartidor_id: REPARTIDOR }));
   });
 });

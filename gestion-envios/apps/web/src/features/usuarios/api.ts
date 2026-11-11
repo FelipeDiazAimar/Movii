@@ -27,6 +27,28 @@ export async function listarRepartidores(): Promise<RepartidorOpcion[]> {
   return data;
 }
 
+/** Repartidor con su carga del día y cercanía a la ruta (GET /repartidores/sugeridos). */
+export interface RepartidorSugerido {
+  id: string;
+  nombre: string;
+  rutas: number;
+  envios: number;
+  peso_kg: number;
+  en_curso: boolean;
+  distancia_km: number | null;
+  actual: boolean;
+  recomendado: boolean;
+  motivo: string;
+}
+
+/** Con rutaId mide cercanía a esa ruta; sin ella solo la carga de la fecha. */
+export async function repartidoresSugeridos(params: { rutaId?: string; fecha?: string }): Promise<RepartidorSugerido[]> {
+  const { data } = await apiClient.get<RepartidorSugerido[]>("/repartidores/sugeridos", {
+    params: { ruta_id: params.rutaId || undefined, fecha: params.fecha || undefined },
+  });
+  return data;
+}
+
 export async function eliminarUsuario(id: string): Promise<void> {
   await apiClient.delete(`/users/${id}`);
 }

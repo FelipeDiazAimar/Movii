@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import axios from "axios";
+import { isAxiosError } from "axios";
 
 import { AppInput, PrimaryButton } from "@/components/ui/movii-ui";
 import { M, SOMBRA } from "@/constants/movii-design";
@@ -40,7 +40,7 @@ export function CambiarPassword() {
       setAbierto(false);
     } catch (err) {
       haptic.error();
-      const msg = axios.isAxiosError(err) ? (err.response?.data as { error?: { message?: string } } | undefined)?.error?.message : undefined;
+      const msg = isAxiosError(err) ? (err.response?.data as { error?: { message?: string } } | undefined)?.error?.message : undefined;
       setError(msg ?? "No se pudo cambiar la contraseña. Probá de nuevo.");
     } finally {
       setEnviando(false);

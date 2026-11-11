@@ -38,7 +38,9 @@ export default function RouteMapScreen() {
   const [mapa, setMapa] = useState<MapaRutaAPI | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [elegida, setElegida] = useState<string | null>(null);
-  const [trayecto, setTrayecto] = useState<TrayectoAPI | null>(null);
+  const [trayectoCargado, setTrayecto] = useState<TrayectoAPI | null>(null);
+  // Sin parada elegida no hay trayecto, aunque quede el último cargado.
+  const trayecto = elegida ? trayectoCargado : null;
   const [expanded, setExpanded] = useState(false);
   const [modoMaps, setModoMaps] = useState<ModoMaps>("proximo");
 
@@ -54,16 +56,13 @@ export default function RouteMapScreen() {
 
   // El camión se mueve: se refresca la posición cada 5 s.
   useEffect(() => {
-    void cargar();
+    void Promise.resolve().then(cargar);
     const t = setInterval(() => void cargar(), 5000);
     return () => clearInterval(t);
   }, [cargar]);
 
   useEffect(() => {
-    if (!elegida) {
-      setTrayecto(null);
-      return;
-    }
+    if (!elegida) return;
     let vigente = true;
     const traer = () =>
       obtenerTrayecto(elegida)

@@ -19,7 +19,9 @@ export function MapaRuta({
   const [listo, setListo] = useState(false);
   const html = useMemo(() => htmlMapa(), []);
   const onParadaRef = useRef(onParadaPress);
-  onParadaRef.current = onParadaPress;
+  useEffect(() => {
+    onParadaRef.current = onParadaPress;
+  }, [onParadaPress]);
 
   useEffect(() => {
     const escuchar = (e: MessageEvent) => {

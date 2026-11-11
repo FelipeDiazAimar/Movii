@@ -128,7 +128,7 @@ func TestEliminar_Ruta(t *testing.T) {
 
 		rec := borrar(t, h.Ruta, ruta.ID)
 		require.Equal(t, http.StatusLocked, rec.Code)
-		// Desde la migración 0015 la ruta pasa sola a "en_curso" cuando un envío sale a reparto.
+		// Desde la migración 0017 la ruta pasa sola a "en_curso" cuando un envío sale a reparto.
 		require.Equal(t, "ruta_en_curso", codigoDe(t, rec))
 		var existe bool
 		require.NoError(t, pool.QueryRow(ctx, "SELECT EXISTS (SELECT 1 FROM rutas WHERE id = $1)", ruta.ID).Scan(&existe))

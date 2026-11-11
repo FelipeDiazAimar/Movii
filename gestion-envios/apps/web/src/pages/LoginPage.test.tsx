@@ -94,7 +94,6 @@ describe("LoginPage — login en dos pasos (HU-16)", () => {
     login.mockResolvedValue({ desafio_id: "d1", telefono: "+54 9 3564 ••••45", vence_en_segundos: 300 });
     verificarCodigo.mockResolvedValue(sesion);
     renderPage();
-
     await completarCredenciales();
     await userEvent.click(screen.getByRole("button", { name: "Ingresar" }));
     expect(await screen.findByText(/\+54 9 3564 ••••45/)).toBeInTheDocument();

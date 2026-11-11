@@ -74,6 +74,8 @@ Nueva ruta</Button>
               <tr>
                 <th className="px-4 py-2">Ruta</th>
                 <th className="px-4 py-2">Fecha</th>
+                <th className="px-4 py-2">Zona</th>
+                <th className="px-4 py-2">Vehículo</th>
                 <th className="px-4 py-2">Envíos</th>
                 <th className="px-4 py-2">Estado</th>
               </tr>
@@ -87,7 +89,9 @@ Nueva ruta</Button>
                     </Link>
                   </td>
                   <td className="whitespace-nowrap px-4 py-2 text-gray-700">{formatearDia(r.fecha)}</td>
-                  <td className="px-4 py-2 text-gray-700">{r.cantidad_envios}</td>
+                  <td className="px-4 py-2 text-gray-700">{r.zona || "—"}</td>
+                  <td className="whitespace-nowrap px-4 py-2 text-gray-700">{r.vehiculo_patente || "—"}</td>
+                  <td className="whitespace-nowrap px-4 py-2 text-gray-700">{r.cantidad_envios} · {r.peso_total} kg</td>
                   <td className="px-4 py-2">
                     <EstadoRutaBadge estado={r.estado} />
                   </td>
@@ -123,7 +127,7 @@ Nueva ruta</Button>
                 <option value="">Seleccionar…</option>
                 {asignables.map((r) => (
                   <option key={r.id} value={r.id}>
-                    {r.nombre || "(sin nombre)"} · {formatearDia(r.fecha)} · {r.repartidor_nombre ?? "sin repartidor"}
+                    {r.nombre || "(sin nombre)"} · {formatearDia(r.fecha)} · {r.cantidad_envios} envío(s), {r.peso_total} kg · hoy de {r.repartidor_nombre ?? "nadie"}{r.vehiculo_patente ? ` · ${r.vehiculo_patente}` : ""}
                   </option>
                 ))}
               </SelectField>

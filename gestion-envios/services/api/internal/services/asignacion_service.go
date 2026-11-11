@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"fmt"
 	"log"
 
 	"movii/api/internal/domain"
@@ -52,8 +53,8 @@ func (s *AsignacionService) Asignar(ctx context.Context, rutaID string, envioIDs
 	if err != nil {
 		return 0, err
 	}
-	// Una ruta que ya salió del depósito no puede sumar paquetes: el camión no
-	// está para cargarlos (quedarían "asignados" en una ruta en curso).
+	// Una ruta que ya salió del depósito (o se cerró) no puede sumar paquetes:
+	// el camión no está para cargarlos (quedarían "asignados" en una ruta en curso).
 	if ruta.Estado != domain.EstadoRutaPlanificada {
 		return 0, repository.ErrRutaNoEditable
 	}
@@ -69,6 +70,16 @@ func (s *AsignacionService) Asignar(ctx context.Context, rutaID string, envioIDs
 		s.avisos.RutaAsignada(rutaID)
 	}
 	return n, err
+}
+
+// ExcedeVehiculo indica si sumar los envíos supera la capacidad del vehículo de
+// la ruta (sin vehículo nunca excede) y devuelve el detalle para mostrarlo.
+func (s *AsignacionService) ExcedeVehiculo(ctx context.Context, rutaID string, envioIDs []string) (bool, string, error) {
+	cap, actual, nuevo, err := s.rutaRepo.CargaConEnvios(ctx, rutaID, envioIDs)
+	if err != nil || cap == 0 || actual+nuevo <= cap {
+		return false, "", err
+	}
+	return true, fmt.Sprintf("la carga quedaría en %.1f kg y el vehículo admite %.1f kg", actual+nuevo, cap), nil
 }
 
 // Desasignar valida que la ruta esté planificada y quita el envío de ella.

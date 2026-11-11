@@ -11,7 +11,7 @@ vi.mock("@/features/usuarios/api", () => ({ listarRepartidores: vi.fn() }));
 vi.mock("@/features/rutas/api", () => ({ listarRutas: vi.fn(), editarRuta: vi.fn() }));
 vi.mock("@/services/api-client", () => ({ getApiErrorMessage: (_e: unknown, f?: string) => f ?? "error" }));
 
-const base = { zona: "Centro", estado: "planificada", repartidor_id: "u1", repartidor_nombre: "Carla", cantidad_envios: 1 } as const;
+const base = { zona: "Centro", estado: "planificada", repartidor_id: "u1", repartidor_nombre: "Carla", cantidad_envios: 1, peso_total: 0, vehiculo_id: "", vehiculo_patente: "" } as const;
 const rutas: RutaListItem[] = [
   { ...base, id: "r1", nombre: "Ruta Centro", fecha: "2026-11-09" },
   { ...base, id: "r2", nombre: "Ruta Centro", fecha: "2026-11-10" },
