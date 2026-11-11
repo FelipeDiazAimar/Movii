@@ -18,7 +18,7 @@ import { urlGoogleMaps, type ModoMaps } from "@/lib/google-maps";
 
 export default function StopDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { findShipment, setShipmentStatus, rutasDelDia } = useMovii();
+  const { findShipment, setShipmentStatus, rutasDelDia, driverName } = useMovii();
   const [modoMaps, setModoMaps] = useState<ModoMaps>("proximo");
   const { ejecutar, enviando, error } = useAccionEnvio();
   const shipment = findShipment(id);
@@ -32,7 +32,11 @@ export default function StopDetailScreen() {
       .map((e) => `${e.recipient.address}, ${e.recipient.locality}`);
   }, [rutasDelDia, shipment]);
   if (!shipment) return null;
-  const driver = getDriver(shipment.driverId);
+  // El repartidor es quien inició sesión (la API solo devuelve sus envíos); el mock solo aplica a los envíos de ejemplo.
+  const esEnvioReal = shipment.driverId === "drv-real";
+  const driver = esEnvioReal
+    ? { name: driverName, initials: driverName.split(" ").filter(Boolean).slice(0, 2).map((p) => p[0]?.toUpperCase()).join("") }
+    : getDriver(shipment.driverId);
   const abrirMaps = () => {
     const paradas = modoMaps === "completo" && paradasRuta.length > 0 ? paradasRuta : [`${shipment.recipient.address}, ${shipment.recipient.locality}`];
     const url = urlGoogleMaps({ paradas, modo: modoMaps });

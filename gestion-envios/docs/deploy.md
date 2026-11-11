@@ -49,7 +49,7 @@
    GOOGLE_CALLBACK_URL=https://<dominio-railway>/api/auth/google/callback
    ```
 3. Settings → Networking → **Generate Domain**. La API queda en `https://<dominio>/api` (eso es `MOVII_API_URL`); en `https://<dominio>/` ya funciona también la web y en `/app/` la app del repartidor.
-4. Datos de demo para la presentación (rutas de hoy con camiones moviéndose): desde la PC, con el `DATABASE_URL` de producción, `go run ./cmd/demo` en `services/api`.
+4. Las rutas se crean desde el panel (Rutas → Nueva ruta, asignar envíos y vehículo); ya no hay un comando que cargue rutas de demostración.
 
 ## 3. Vercel (web + PWA)
 1. Add New Project → importar el repo → **Root Directory** `gestion-envios`. `vercel.json` ya define install, build y salida.
