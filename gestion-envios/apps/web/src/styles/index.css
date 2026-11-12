@@ -3,6 +3,9 @@
 @tailwind utilities;
 
 :root {
+  /* Solo claro: scrollbars y controles nativos no siguen el modo oscuro del sistema. El modo claro/oscuro
+     del panel es propio (ver hooks/useTema.ts). */
+  color-scheme: light;
   /* Colores de los bordes del navegador (barra de estado arriba, barra de
      herramientas abajo). useBordesNavegador() los ajusta por pantalla para que
      Safari/Chrome móviles se fundan con la página. */
