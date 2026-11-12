@@ -50,5 +50,8 @@ export default {
       },
     },
   },
-  plugins: [],
+  plugins: [
+    // Modo claro del panel: html[data-tema="claro"] (ver hooks/useTema.ts).
+    ({ addVariant }) => addVariant("claro", ':is([data-tema="claro"] &)'),
+  ],
 };

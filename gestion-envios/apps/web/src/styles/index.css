@@ -70,6 +70,17 @@ body {
   background-color: rgba(255, 255, 255, 0.28);
 }
 
+/* Menú lateral en modo claro: scroll gris sobre fondo claro. */
+[data-tema="claro"] .scroll-oscuro {
+  scrollbar-color: rgba(20, 24, 31, 0.22) transparent;
+}
+[data-tema="claro"] .scroll-oscuro::-webkit-scrollbar-thumb {
+  background-color: rgba(20, 24, 31, 0.22);
+}
+[data-tema="claro"] .scroll-oscuro::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(20, 24, 31, 0.38);
+}
+
 /* Foco visible y consistente con la marca. */
 :focus-visible {
   outline: 2px solid #f4b400;

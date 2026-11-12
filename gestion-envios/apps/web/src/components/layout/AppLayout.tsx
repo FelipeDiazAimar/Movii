@@ -7,10 +7,12 @@ import {
   LogOut,
   Menu,
   MessageCircle,
+  Moon,
   Package,
   PanelLeftClose,
   PanelLeftOpen,
   Route,
+  Sun,
   Truck,
   UserRound,
   Users,
@@ -19,6 +21,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useBordesNavegador } from "@/hooks/useBordesNavegador";
+import { useTema, type Tema } from "@/hooks/useTema";
 
 type Rol = "operador" | "admin";
 
@@ -75,7 +78,7 @@ function Marca({ compacta }: { compacta: boolean }) {
           <path d="M9 6l6 6-6 6" />
         </svg>
       </span>
-      {!compacta && <span className="font-expandida text-xl font-black tracking-tight text-white">movii</span>}
+      {!compacta && <span className="font-expandida text-xl font-black tracking-tight text-white claro:text-gray-900">movii</span>}
     </div>
   );
 }
@@ -88,7 +91,7 @@ function Navegacion({ compacta, rol, alNavegar }: { compacta: boolean; rol: Rol;
         if (items.length === 0) return null;
         return (
           <div key={g.titulo}>
-            {!compacta && <p className="mb-2 px-3 text-xs font-medium text-white/40">{g.titulo}</p>}
+            {!compacta && <p className="mb-2 px-3 text-xs font-medium text-white/40 claro:text-gray-400">{g.titulo}</p>}
             <ul className="flex flex-col gap-1">
               {items.map((item) => (
                 <li key={item.to}>
@@ -98,7 +101,9 @@ function Navegacion({ compacta, rol, alNavegar }: { compacta: boolean; rol: Rol;
                     title={compacta ? item.label : undefined}
                     className={({ isActive }) =>
                       `group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors ${
-                        isActive ? "bg-white/[0.08] text-white" : "text-white/60 hover:bg-white/[0.05] hover:text-white"
+                        isActive
+                          ? "bg-white/[0.08] text-white claro:bg-hormigon-100 claro:text-gray-900"
+                          : "text-white/60 hover:bg-white/[0.05] hover:text-white claro:text-gray-500 claro:hover:bg-hormigon-100 claro:hover:text-gray-900"
                       } ${compacta ? "justify-center" : ""}`
                     }
                   >
@@ -110,7 +115,7 @@ function Navegacion({ compacta, rol, alNavegar }: { compacta: boolean; rol: Rol;
                           className={`absolute left-0 top-1/2 h-7 w-[3px] -translate-y-1/2 rounded-full transition-opacity ${isActive ? "opacity-100" : "opacity-0"}`}
                           style={{ backgroundImage: "linear-gradient(to bottom, #f4b400 0 60%, transparent 60% 100%)", backgroundSize: "3px 8px" }}
                         />
-                        <item.icon className={`h-[18px] w-[18px] shrink-0 ${isActive ? "text-movii-500" : ""}`} strokeWidth={2} aria-hidden />
+                        <item.icon className={`h-[18px] w-[18px] shrink-0 ${isActive ? "text-movii-500 claro:text-movii-600" : ""}`} strokeWidth={2} aria-hidden />
                         {!compacta && <span className="truncate">{item.label}</span>}
                       </>
                     )}
@@ -125,6 +130,28 @@ function Navegacion({ compacta, rol, alNavegar }: { compacta: boolean; rol: Rol;
   );
 }
 
+function BotonTema({ tema, onTema, compacto = false }: { tema: Tema; onTema: () => void; compacto?: boolean }) {
+  const aClaro = tema === "oscuro";
+  const etiqueta = aClaro ? "Modo claro" : "Modo oscuro";
+  const Icono = aClaro ? Sun : Moon;
+  return (
+    <button
+      type="button"
+      onClick={onTema}
+      title={etiqueta}
+      aria-label={etiqueta}
+      className={
+        compacto
+          ? "flex h-9 w-9 items-center justify-center rounded-xl text-white/60 transition-colors hover:bg-white/10 hover:text-white claro:text-gray-500 claro:hover:bg-hormigon-100 claro:hover:text-gray-900"
+          : "mb-1 flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-white/60 transition-colors hover:bg-white/[0.05] hover:text-white claro:text-gray-500 claro:hover:bg-hormigon-100 claro:hover:text-gray-900"
+      }
+    >
+      <Icono className="h-[18px] w-[18px] shrink-0" aria-hidden />
+      {!compacto && etiqueta}
+    </button>
+  );
+}
+
 function PieUsuario({
   expandida,
   fijada,
@@ -133,6 +160,8 @@ function PieUsuario({
   rol,
   onLogout,
   onAlternar,
+  tema,
+  onTema,
 }: {
   expandida: boolean;
   fijada: boolean;
@@ -141,6 +170,8 @@ function PieUsuario({
   rol: string;
   onLogout: () => void;
   onAlternar?: () => void;
+  tema: Tema;
+  onTema: () => void;
 }) {
   // La sesión restaurada puede no traer el email: se muestra el rol.
   const nombre = email || (rol === "admin" ? "Admin" : "Operador");
@@ -149,14 +180,15 @@ function PieUsuario({
   // Riel contraído: abajo va solo el botón de expandir/fijar, sin "Cerrar sesión".
   if (!expandida) {
     return (
-      <div className="flex justify-center border-t border-white/10 p-3">
+      <div className="flex flex-col items-center gap-1 border-t border-white/10 p-3 claro:border-hormigon-200">
+        <BotonTema tema={tema} onTema={onTema} compacto />
         <button
           type="button"
           onClick={onAlternar}
           title="Expandir menú"
           aria-label="Expandir menú"
           aria-expanded={false}
-          className="flex h-9 w-9 items-center justify-center rounded-xl text-white/60 transition-colors hover:bg-white/10 hover:text-white"
+          className="flex h-9 w-9 items-center justify-center rounded-xl text-white/60 transition-colors hover:bg-white/10 hover:text-white claro:text-gray-500 claro:hover:bg-hormigon-100 claro:hover:text-gray-900"
         >
           <PanelLeftOpen className="h-[18px] w-[18px]" aria-hidden />
         </button>
@@ -167,7 +199,7 @@ function PieUsuario({
   const etiquetaFijar = fijada ? "Contraer menú" : "Fijar menú";
   const IconoFijar = fijada ? PanelLeftClose : PanelLeftOpen;
   return (
-    <div className="border-t border-white/10 p-3">
+    <div className="border-t border-white/10 p-3 claro:border-hormigon-200">
       {mostrarFijar && (
         <button
           type="button"
@@ -175,32 +207,33 @@ function PieUsuario({
           title={etiquetaFijar}
           aria-label={etiquetaFijar}
           aria-expanded={fijada}
-          className="mb-1 flex w-full items-center gap-3 rounded-xl px-3 py-2 text-xs font-medium text-white/40 transition-colors hover:text-white"
+          className="mb-1 flex w-full items-center gap-3 rounded-xl px-3 py-2 text-xs font-medium text-white/40 transition-colors hover:text-white claro:text-gray-400 claro:hover:text-gray-900"
         >
           <IconoFijar className="h-4 w-4 shrink-0" aria-hidden />
           {etiquetaFijar}
         </button>
       )}
+      <BotonTema tema={tema} onTema={onTema} />
       <a
         href={import.meta.env.VITE_REPARTIDOR_URL ?? "/app/"}
         target="_blank"
         rel="noreferrer"
-        className="mb-2 flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-white/60 transition-colors hover:bg-white/[0.05] hover:text-white"
+        className="mb-2 flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-white/60 transition-colors hover:bg-white/[0.05] hover:text-white claro:text-gray-500 claro:hover:bg-hormigon-100 claro:hover:text-gray-900"
       >
         <ExternalLink className="h-[18px] w-[18px] shrink-0" aria-hidden />
         Panel del repartidor
       </a>
-      <div className="flex items-center gap-3 rounded-2xl bg-white/[0.06] p-2.5">
+      <div className="flex items-center gap-3 rounded-2xl bg-white/[0.06] p-2.5 claro:bg-hormigon-100">
         <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-movii-500 text-sm font-bold text-movii-900">{inicial}</span>
         <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-semibold text-white">{nombre}</p>
-          <p className="text-xs capitalize text-white/50">{rol}</p>
+          <p className="truncate text-sm font-semibold text-white claro:text-gray-900">{nombre}</p>
+          <p className="text-xs capitalize text-white/50 claro:text-gray-500">{rol}</p>
         </div>
         <button
           type="button"
           onClick={onLogout}
           title="Cerrar sesión"
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-white/60 transition-colors hover:bg-white/10 hover:text-white"
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-white/60 transition-colors hover:bg-white/10 hover:text-white claro:text-gray-500 claro:hover:bg-white claro:hover:text-gray-900"
         >
           <LogOut className="h-4 w-4" aria-hidden />
           <span className="sr-only">Cerrar sesión</span>
@@ -219,8 +252,9 @@ export function AppLayout() {
   const [flotante, setFlotante] = useState(false);
   const temporizadorCierre = useRef<number | undefined>(undefined);
   const location = useLocation();
-  // Barra de estado del celular = barra superior oscura; abajo = fondo de trabajo.
-  useBordesNavegador("#1a1a1a", "#eef0f2");
+  const { tema, alternar: alternarTema } = useTema();
+  // Barra de estado del celular = barra superior (oscura, o blanca en modo claro); abajo = fondo de trabajo.
+  useBordesNavegador(tema === "claro" ? "#ffffff" : "#1a1a1a", "#eef0f2");
 
   useEffect(() => setAbierto(false), [location.pathname]);
   useEffect(() => () => window.clearTimeout(temporizadorCierre.current), []);
@@ -277,7 +311,7 @@ export function AppLayout() {
             cancelarCierre();
             setFlotante(false);
           }}
-          className={`h-screen flex-col bg-asfalto-900 transition-[width] duration-300 ease-out motion-reduce:transition-none lg:flex ${
+          className={`h-screen flex-col bg-asfalto-900 claro:border-r claro:border-hormigon-200 claro:bg-white transition-[width] duration-300 ease-out motion-reduce:transition-none lg:flex ${
             flotante ? "fixed left-0 top-0 z-[1090] w-64 shadow-2xl" : "sticky top-0 w-full"
           }`}
         >
@@ -293,6 +327,8 @@ export function AppLayout() {
             rol={sesion.rol}
             onLogout={logout}
             onAlternar={alternar}
+            tema={tema}
+            onTema={alternarTema}
           />
         </aside>
       </div>
@@ -306,30 +342,30 @@ export function AppLayout() {
       {abierto && (
         <div className="fixed inset-0 z-[1090] lg:hidden" role="dialog" aria-modal="true">
           <button type="button" aria-label="Cerrar menú" className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setAbierto(false)} />
-          <aside className="pt-safe pb-safe relative flex h-full w-72 max-w-[85vw] flex-col bg-asfalto-900 shadow-2xl">
+          <aside className="pt-safe pb-safe relative flex h-full w-72 max-w-[85vw] flex-col bg-asfalto-900 shadow-2xl claro:bg-white">
             <div className="flex items-center justify-between px-5 pb-4 pt-5">
               <Marca compacta={false} />
-              <button type="button" onClick={() => setAbierto(false)} className="rounded-xl p-2 text-white/60 hover:bg-white/10 hover:text-white">
+              <button type="button" onClick={() => setAbierto(false)} className="rounded-xl p-2 text-white/60 hover:bg-white/10 hover:text-white claro:text-gray-500 claro:hover:bg-hormigon-100 claro:hover:text-gray-900">
                 <X className="h-5 w-5" aria-hidden />
                 <span className="sr-only">Cerrar menú</span>
               </button>
             </div>
             <Navegacion compacta={false} rol={rol} alNavegar={() => setAbierto(false)} />
-            <PieUsuario expandida fijada={false} mostrarFijar={false} email={sesion.email} rol={sesion.rol} onLogout={logout} />
+            <PieUsuario expandida fijada={false} mostrarFijar={false} email={sesion.email} rol={sesion.rol} onLogout={logout} tema={tema} onTema={alternarTema} />
           </aside>
         </div>
       )}
 
       <div className="flex min-w-0 flex-1 flex-col">
         {/* Barra superior solo en celular/tablet */}
-        <header className="pt-safe sticky top-0 z-[1080] bg-asfalto-900 lg:hidden">
+        <header className="pt-safe sticky top-0 z-[1080] bg-asfalto-900 claro:border-b claro:border-hormigon-200 claro:bg-white lg:hidden">
           <div className="flex items-center justify-between px-4 py-3">
-            <button type="button" onClick={() => setAbierto(true)} className="rounded-xl p-2 text-white/80 hover:bg-white/10">
+            <button type="button" onClick={() => setAbierto(true)} className="rounded-xl p-2 text-white/80 hover:bg-white/10 claro:text-gray-700 claro:hover:bg-hormigon-100">
               <Menu className="h-5 w-5" aria-hidden />
               <span className="sr-only">Abrir menú</span>
             </button>
             <Marca compacta={false} />
-            <span className="w-9" />
+            <BotonTema tema={tema} onTema={alternarTema} compacto />
           </div>
         </header>
 

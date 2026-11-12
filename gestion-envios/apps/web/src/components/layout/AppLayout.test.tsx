@@ -102,3 +102,29 @@ describe("AppLayout (sidebar escritorio)", () => {
     expect(screen.getByRole("button", { name: "Expandir menú" })).toBeInTheDocument();
   });
 });
+
+describe("AppLayout (modo claro)", () => {
+  afterEach(() => {
+    delete document.documentElement.dataset.tema;
+  });
+
+  it("arranca en el look de siempre y alterna a claro, recordando la elección", () => {
+    renderLayout();
+    expect(document.documentElement.dataset.tema).toBe("oscuro");
+
+    fireEvent.click(screen.getAllByRole("button", { name: "Modo claro" })[0]);
+    expect(document.documentElement.dataset.tema).toBe("claro");
+    expect(localStorage.getItem("movii.web.tema")).toBe("claro");
+    expect(screen.getAllByRole("button", { name: "Modo oscuro" }).length).toBeGreaterThan(0);
+
+    fireEvent.click(screen.getAllByRole("button", { name: "Modo oscuro" })[0]);
+    expect(document.documentElement.dataset.tema).toBe("oscuro");
+    expect(localStorage.getItem("movii.web.tema")).toBe("oscuro");
+  });
+
+  it("respeta el tema claro guardado", () => {
+    localStorage.setItem("movii.web.tema", "claro");
+    renderLayout();
+    expect(document.documentElement.dataset.tema).toBe("claro");
+  });
+});
