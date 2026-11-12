@@ -143,7 +143,7 @@ function BotonTema({ tema, onTema, compacto = false }: { tema: Tema; onTema: () 
       className={
         compacto
           ? "flex h-9 w-9 items-center justify-center rounded-xl text-white/60 transition-colors hover:bg-white/10 hover:text-white claro:text-gray-500 claro:hover:bg-hormigon-100 claro:hover:text-gray-900"
-          : "mb-1 flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-white/60 transition-colors hover:bg-white/[0.05] hover:text-white claro:text-gray-500 claro:hover:bg-hormigon-100 claro:hover:text-gray-900"
+          : "flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-white/60 transition-colors hover:bg-white/[0.05] hover:text-white claro:text-gray-500 claro:hover:bg-hormigon-100 claro:hover:text-gray-900"
       }
     >
       <Icono className="h-[18px] w-[18px] shrink-0" aria-hidden />
@@ -181,7 +181,6 @@ function PieUsuario({
   if (!expandida) {
     return (
       <div className="flex flex-col items-center gap-1 border-t border-white/10 p-3 claro:border-hormigon-200">
-        <BotonTema tema={tema} onTema={onTema} compacto />
         <button
           type="button"
           onClick={onAlternar}
@@ -192,6 +191,7 @@ function PieUsuario({
         >
           <PanelLeftOpen className="h-[18px] w-[18px]" aria-hidden />
         </button>
+        <BotonTema tema={tema} onTema={onTema} compacto />
       </div>
     );
   }
@@ -213,7 +213,6 @@ function PieUsuario({
           {etiquetaFijar}
         </button>
       )}
-      <BotonTema tema={tema} onTema={onTema} />
       <a
         href={import.meta.env.VITE_REPARTIDOR_URL ?? "/app/"}
         target="_blank"
@@ -238,6 +237,9 @@ function PieUsuario({
           <LogOut className="h-4 w-4" aria-hidden />
           <span className="sr-only">Cerrar sesión</span>
         </button>
+      </div>
+      <div className="mt-2 border-t border-white/10 pt-2 claro:border-hormigon-200">
+        <BotonTema tema={tema} onTema={onTema} />
       </div>
     </div>
   );
@@ -365,7 +367,7 @@ export function AppLayout() {
               <span className="sr-only">Abrir menú</span>
             </button>
             <Marca compacta={false} />
-            <BotonTema tema={tema} onTema={alternarTema} compacto />
+            <span className="w-9" />
           </div>
         </header>
 
