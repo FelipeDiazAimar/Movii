@@ -9,6 +9,7 @@ import { haptic } from "@/lib/haptics";
 import { useMovii } from "@/lib/movii-context";
 import { cambiarPasswordPrimerAcceso, obtenerConfigAuth, reenviarCodigoLogin, reenviarPrimerAcceso, type DesafioLogin, type PrimerAccesoPendiente } from "@/lib/api-client";
 import { REGLAS } from "@/components/cambiar-password";
+import { CodigoInput } from "@/components/codigo-input";
 import { ErrorLoginGoogle } from "@/lib/login-google";
 
 /** Mensaje de error de la API ({ error: { message } }) o un texto por defecto. */
@@ -28,6 +29,7 @@ export default function LoginScreen() {
   // Segundo paso (HU-16): código de 6 dígitos que llega por WhatsApp.
   const [desafio, setDesafio] = useState<DesafioLogin | null>(null);
   const [codigo, setCodigo] = useState("");
+  const [verificado, setVerificado] = useState(false);
   const [espera, setEspera] = useState(0);
   const [aviso, setAviso] = useState<string | null>(null);
   // Primer acceso (T1): el 428 del login pide elegir una contraseña nueva antes del código.
@@ -119,6 +121,8 @@ export default function LoginScreen() {
       if (!desafio) return;
       if (pendiente) await verificarPrimerAcceso(desafio.desafio_id, codigo, email);
       else await verificarCodigo(desafio.desafio_id, codigo, email);
+      setVerificado(true);
+      await new Promise((r) => setTimeout(r, 650)); // deja ver las celdas en verde
       router.replace("/(tabs)");
     }, "El código es incorrecto o venció.");
 
@@ -212,27 +216,21 @@ export default function LoginScreen() {
             ) : (
               <>
                 <View style={styles.cardIntro}>
-                  <View style={styles.waIcon}>
-                    <Text style={styles.waIconText}>✆</Text>
-                  </View>
                   <Text style={styles.cardTitle}>Verificá que sos vos</Text>
-                  <Text style={styles.cardDescription}>
+                </View>
+                <View style={[styles.canal, desafio.canal === "mail" && styles.canalMail]}>
+                  <View style={[styles.waIcon, desafio.canal === "mail" && styles.waIconMail]}>
+                    <Text style={styles.waIconText}>{desafio.canal === "mail" ? "✉" : "✆"}</Text>
+                  </View>
+                  <Text style={styles.canalTexto}>
                     Te mandamos un código de 6 dígitos {desafio.canal === "mail" ? "por mail a " : "por WhatsApp al "}
                     <Text style={styles.strong}>{desafio.destino || desafio.telefono}</Text>. Vence en {Math.round(desafio.vence_en_segundos / 60)} minutos.
                   </Text>
                 </View>
                 {aviso ? <Text style={styles.aviso}>{aviso}</Text> : null}
-                <AppInput
-                  label="Código de verificación"
-                  value={codigo}
-                  onChangeText={(t) => setCodigo(t.replace(/\D/g, "").slice(0, 6))}
-                  placeholder="000000"
-                  keyboardType="number-pad"
-                  textContentType="oneTimeCode"
-                  autoComplete="sms-otp"
-                />
-                <PrimaryButton label={cargando ? "Verificando…" : "Verificar e ingresar"} onPress={confirmarCodigo} icon="✓" disabled={cargando || codigo.length !== 6} />
-                {error ? <Text style={styles.errorText}>{error}</Text> : null}
+                <CodigoInput value={codigo} onChange={setCodigo} error={error} ok={verificado} disabled={cargando || verificado} />
+                {error ? <Text style={styles.errorCaja}>{error}</Text> : null}
+                <PrimaryButton label={cargando ? "Verificando…" : "Verificar e ingresar"} onPress={confirmarCodigo} icon="✓" disabled={cargando || verificado || codigo.length !== 6} />
                 <View style={styles.row}>
                   <Pressable
                     onPress={volverAlLogin}
@@ -266,8 +264,13 @@ const styles = StyleSheet.create({
   cardTitle: { color: "#1C1C1E", fontSize: 21, lineHeight: 25, fontWeight: "800", letterSpacing: -0.55, textAlign: "center" },
   cardDescription: { color: "#6E6E73", fontSize: 14, lineHeight: 20, textAlign: "center" },
   strong: { color: "#1C1C1E", fontWeight: "800" },
-  waIcon: { width: 44, height: 44, borderRadius: 22, backgroundColor: "#25D366", alignItems: "center", justifyContent: "center", marginBottom: 6 },
-  waIconText: { color: "#FFFFFF", fontSize: 22, fontWeight: "800" },
+  canal: { flexDirection: "row", alignItems: "flex-start", gap: 12, borderRadius: 14, padding: 12, backgroundColor: "#E8F8EE" },
+  canalMail: { backgroundColor: "#FFF4CC" },
+  canalTexto: { flex: 1, color: "#3A3A3C", fontSize: 13.5, lineHeight: 19 },
+  waIcon: { width: 32, height: 32, borderRadius: 16, backgroundColor: "#25D366", alignItems: "center", justifyContent: "center" },
+  waIconMail: { backgroundColor: "#F4B400" },
+  waIconText: { color: "#FFFFFF", fontSize: 16, fontWeight: "800" },
+  errorCaja: { color: "#B91C1C", backgroundColor: "#FEF2F2", borderRadius: 12, padding: 11, fontSize: 13, fontWeight: "600", textAlign: "center" },
   form: { gap: 12 },
   aviso: { color: "#1E7F3C", backgroundColor: "#E8F7EC", borderRadius: 12, padding: 11, fontSize: 13, textAlign: "center" },
   keepSession: { flexDirection: "row", alignItems: "center", gap: 9, alignSelf: "flex-start", minHeight: 30, marginTop: -2 },
