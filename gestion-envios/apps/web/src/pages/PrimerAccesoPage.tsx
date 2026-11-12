@@ -109,8 +109,8 @@ export function PrimerAccesoPage() {
       const { token } = await verificarPrimerAcceso(desafio.desafio_id, codigo);
       setVerificado(true);
       await new Promise((r) => setTimeout(r, 650)); // deja ver la ola verde de aceptación
-      const sesion = abrirSesion(token, email);
-      navigate(sesion.rol === "repartidor" ? "/acceso-denegado" : "/operaciones", { replace: true });
+      abrirSesion(token, email);
+      navigate("/operaciones", { replace: true });
     } catch (err) {
       setError(getApiErrorMessage(err, "No se pudo verificar el código"));
     } finally {

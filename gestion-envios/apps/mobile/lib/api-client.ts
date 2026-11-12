@@ -1,4 +1,4 @@
-import { create } from "axios";
+import { create, isAxiosError } from "axios";
 import * as SecureStore from "expo-secure-store";
 import { Platform } from "react-native";
 
@@ -77,8 +77,18 @@ export async function clearToken(): Promise<void> {
  * login llama a POST /auth/login, guarda el token y devuelve las claims
  * decodificadas junto con el token crudo.
  */
-export async function login(email: string, password: string): Promise<(ClaimsJWT & { token: string }) | DesafioLogin> {
-  const { data } = await api.post<{ token?: string } & Partial<DesafioLogin>>("/auth/login", { email, password });
+export async function login(email: string, password: string): Promise<(ClaimsJWT & { token: string }) | DesafioLogin | PrimerAccesoPendiente> {
+  let data: { token?: string } & Partial<DesafioLogin>;
+  try {
+    ({ data } = await api.post<{ token?: string } & Partial<DesafioLogin>>("/auth/login", { email, password }));
+  } catch (err) {
+    // 428 (T1): primer acceso, hay que elegir una contraseña nueva antes de entrar.
+    if (isAxiosError(err) && err.response?.status === 428) {
+      const d = (err.response.data ?? {}) as { user_id?: string; token?: string };
+      return { user_id: d.user_id ?? "", token: d.token ?? "" };
+    }
+    throw err;
+  }
   if (!data.token) {
     // Segundo paso (HU-16): el código de 6 dígitos ya salió por WhatsApp.
     return { desafio_id: data.desafio_id ?? "", telefono: data.telefono ?? "", vence_en_segundos: data.vence_en_segundos ?? 300 };
@@ -86,6 +96,32 @@ export async function login(email: string, password: string): Promise<(ClaimsJWT
   await saveToken(data.token);
   const claims = decodeJwt(data.token);
   return { ...claims, token: data.token };
+}
+
+/** 428 del login (T1): primer acceso pendiente; el token solo sirve para cambiar la contraseña (15 min). */
+export type PrimerAccesoPendiente = { user_id: string; token: string };
+
+/** Primer acceso (T1): guarda la contraseña nueva y manda el código de verificación por mail o WhatsApp. */
+export async function cambiarPasswordPrimerAcceso(p: PrimerAccesoPendiente, nuevaPassword: string): Promise<DesafioLogin> {
+  const { data } = await api.post<DesafioLogin>("/auth/primer-acceso/cambiar-password", {
+    user_id: p.user_id,
+    token: p.token,
+    nueva_password: nuevaPassword,
+  });
+  return data;
+}
+
+/** Primer acceso (T1): canjea el código por el token de sesión y lo guarda. */
+export async function verificarPrimerAcceso(desafioId: string, codigo: string): Promise<ClaimsJWT & { token: string }> {
+  const { data } = await api.post<{ token: string }>("/auth/primer-acceso/verificar", { desafio_id: desafioId, codigo });
+  await saveToken(data.token);
+  return { ...decodeJwt(data.token), token: data.token };
+}
+
+/** Primer acceso (T1): manda un código nuevo (invalida el anterior). */
+export async function reenviarPrimerAcceso(desafioId: string): Promise<DesafioLogin> {
+  const { data } = await api.post<DesafioLogin>("/auth/primer-acceso/reenviar", { desafio_id: desafioId });
+  return data;
 }
 
 /** Segundo paso pendiente del login: el código ya salió por WhatsApp (o por mail, primer acceso T1). */

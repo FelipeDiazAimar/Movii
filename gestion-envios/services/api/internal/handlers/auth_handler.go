@@ -99,8 +99,8 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		var cuerpo primerAccesoResponse
-		cuerpo.Code, cuerpo.UserID, cuerpo.Token = "must_change_password", u.ID, token
-		cuerpo.Error.Code, cuerpo.Error.Message = "must_change_password", "es tu primer acceso: elegí una contraseña nueva desde la web de Movii"
+		cuerpo.Code, cuerpo.UserID, cuerpo.Token, cuerpo.Rol = "must_change_password", u.ID, token, u.Rol
+		cuerpo.Error.Code, cuerpo.Error.Message = "must_change_password", "es tu primer acceso: elegí una contraseña nueva"
 		httpx.WriteJSON(w, http.StatusPreconditionRequired, cuerpo)
 		return
 	}
@@ -135,6 +135,7 @@ type primerAccesoResponse struct {
 	Code   string `json:"code"`
 	UserID string `json:"user_id"`
 	Token  string `json:"token"` // solo para /auth/primer-acceso/cambiar-password (15 min)
+	Rol    string `json:"rol"`   // para que cada cliente (web operadores / app repartidores) rechace roles ajenos
 	httpx.APIError
 }
 

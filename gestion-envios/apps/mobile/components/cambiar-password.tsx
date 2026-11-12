@@ -7,7 +7,7 @@ import { M, SOMBRA } from "@/constants/movii-design";
 import { cambiarPassword } from "@/lib/api-client";
 import { haptic } from "@/lib/haptics";
 
-const REGLAS = [
+export const REGLAS = [
   { texto: "8 caracteres o más", ok: (p: string) => p.length >= 8 },
   { texto: "Una mayúscula", ok: (p: string) => /\p{Lu}/u.test(p) },
   { texto: "Un número", ok: (p: string) => /\d/.test(p) },

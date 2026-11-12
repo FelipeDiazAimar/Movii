@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useMemo, useState, type ReactNode
 
 import type { Shipment, ShipmentStatus } from "@/types/logistics";
 import { loginConGoogle as apiLoginConGoogle } from "@/lib/login-google";
-import { login as apiLogin, verificarCodigoLogin as apiVerificarCodigo, type DesafioLogin, logout as apiLogout, getEnviosDelDia, getToken, decodeJwt, type EstadoEnvioAPI, type ResumenDelDiaAPI } from "@/lib/api-client";
+import { login as apiLogin, verificarCodigoLogin as apiVerificarCodigo, verificarPrimerAcceso as apiVerificarPrimerAcceso, type DesafioLogin, type PrimerAccesoPendiente, logout as apiLogout, getEnviosDelDia, getToken, decodeJwt, type EstadoEnvioAPI, type ResumenDelDiaAPI } from "@/lib/api-client";
 import { agruparEnviosPorRuta, type RutaDelDia } from "@/lib/envios-del-dia";
 
 type PrototypeRole = "repartidor" | "operador" | null;
@@ -23,7 +23,10 @@ type MoviiContextValue = {
   cargandoEnviosDelDia: boolean;
   errorEnviosDelDia: string | null;
   /** Devuelve el desafío si hace falta el código de WhatsApp (HU-16); si no, abre la sesión. */
-  login: (email: string, password: string) => Promise<DesafioLogin | null>;
+  /** Devuelve el desafío del código, el primer acceso pendiente (428: hay que elegir contraseña) o null si ya entró. */
+  login: (email: string, password: string) => Promise<DesafioLogin | PrimerAccesoPendiente | null>;
+  /** Último paso del primer acceso: valida el código y abre la sesión. */
+  verificarPrimerAcceso: (desafioId: string, codigo: string, email: string) => Promise<void>;
   /** Segundo paso del login: código de 6 dígitos recibido por WhatsApp. */
   verificarCodigo: (desafioId: string, codigo: string, email: string) => Promise<void>;
   /** Login con Google (T2): true si entró, el desafío si falta el código (primer acceso), null si se canceló. */
@@ -100,15 +103,19 @@ export function MoviiProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const login = async (email: string, password: string): Promise<DesafioLogin | null> => {
+  const login = async (email: string, password: string): Promise<DesafioLogin | PrimerAccesoPendiente | null> => {
     const r = await apiLogin(email, password);
-    if ("desafio_id" in r) return r;
+    if ("desafio_id" in r || "user_id" in r) return r;
     await abrirSesion(r, email.split("@")[0]);
     return null;
   };
 
   const verificarCodigo = async (desafioId: string, codigo: string, email: string) => {
     await abrirSesion(await apiVerificarCodigo(desafioId, codigo), email.split("@")[0]);
+  };
+
+  const verificarPrimerAcceso = async (desafioId: string, codigo: string, email: string) => {
+    await abrirSesion(await apiVerificarPrimerAcceso(desafioId, codigo), email.split("@")[0]);
   };
 
   const loginConGoogle = async (): Promise<DesafioLogin | boolean | null> => {
@@ -168,6 +175,7 @@ export function MoviiProvider({ children }: { children: ReactNode }) {
       cargandoEnviosDelDia,
       errorEnviosDelDia,
       login,
+      verificarPrimerAcceso,
       verificarCodigo,
       loginConGoogle,
       logout,

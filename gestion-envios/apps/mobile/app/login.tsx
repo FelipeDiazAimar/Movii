@@ -7,7 +7,8 @@ import { AuroraBackground } from "@/components/aurora-background";
 import { AppInput, AppMark, GlassCard, PrimaryButton } from "@/components/ui/movii-ui";
 import { haptic } from "@/lib/haptics";
 import { useMovii } from "@/lib/movii-context";
-import { obtenerConfigAuth, reenviarCodigoLogin, type DesafioLogin } from "@/lib/api-client";
+import { cambiarPasswordPrimerAcceso, obtenerConfigAuth, reenviarCodigoLogin, reenviarPrimerAcceso, type DesafioLogin, type PrimerAccesoPendiente } from "@/lib/api-client";
+import { REGLAS } from "@/components/cambiar-password";
 import { ErrorLoginGoogle } from "@/lib/login-google";
 
 /** Mensaje de error de la API ({ error: { message } }) o un texto por defecto. */
@@ -29,9 +30,13 @@ export default function LoginScreen() {
   const [codigo, setCodigo] = useState("");
   const [espera, setEspera] = useState(0);
   const [aviso, setAviso] = useState<string | null>(null);
+  // Primer acceso (T1): el 428 del login pide elegir una contraseña nueva antes del código.
+  const [pendiente, setPendiente] = useState<PrimerAccesoPendiente | null>(null);
+  const [nueva, setNueva] = useState("");
+  const [repetida, setRepetida] = useState("");
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const { login, verificarCodigo, loginConGoogle } = useMovii();
+  const { login, verificarCodigo, verificarPrimerAcceso, loginConGoogle } = useMovii();
   // Botón de Google (T2) solo si la API lo tiene configurado; no en la PWA (web).
   const [conGoogle, setConGoogle] = useState(false);
 
@@ -70,6 +75,12 @@ export default function LoginScreen() {
   const ingresar = () =>
     ejecutar(async () => {
       const d = await login(email, password);
+      if (d && "user_id" in d) {
+        setPendiente(d);
+        setNueva("");
+        setRepetida("");
+        return;
+      }
       if (d) {
         haptic.success();
         empezarDesafio(d);
@@ -89,17 +100,32 @@ export default function LoginScreen() {
       if (r) empezarDesafio(r);
     }, "No se pudo iniciar sesión con Google.");
 
+  const guardarPasswordNueva = () =>
+    ejecutar(async () => {
+      if (!pendiente) return;
+      haptic.success();
+      empezarDesafio(await cambiarPasswordPrimerAcceso(pendiente, nueva));
+    }, "No se pudo guardar la contraseña. Volvé a iniciar sesión e intentá de nuevo.");
+
+  const volverAlLogin = () => {
+    setDesafio(null);
+    setPendiente(null);
+    setError(null);
+    setAviso(null);
+  };
+
   const confirmarCodigo = () =>
     ejecutar(async () => {
       if (!desafio) return;
-      await verificarCodigo(desafio.desafio_id, codigo, email);
+      if (pendiente) await verificarPrimerAcceso(desafio.desafio_id, codigo, email);
+      else await verificarCodigo(desafio.desafio_id, codigo, email);
       router.replace("/(tabs)");
     }, "El código es incorrecto o venció.");
 
   const reenviar = () =>
     ejecutar(async () => {
       if (!desafio) return;
-      empezarDesafio(await reenviarCodigoLogin(desafio.desafio_id));
+      empezarDesafio(await (pendiente ? reenviarPrimerAcceso : reenviarCodigoLogin)(desafio.desafio_id));
       setAviso("Te mandamos un código nuevo.");
     }, "No se pudo reenviar el código.");
 
@@ -114,7 +140,38 @@ export default function LoginScreen() {
             <Text style={styles.subtitle}>Ingresá y continuá con la ruta asignada a tu perfil.</Text>
           </View>
           <GlassCard style={styles.card}>
-            {!desafio ? (
+            {!desafio && pendiente ? (
+              <>
+                <View style={styles.cardIntro}>
+                  <Text style={styles.cardTitle}>Elegí tu contraseña</Text>
+                  <Text style={styles.cardDescription}>Es tu primer ingreso: reemplazá la contraseña temporal por una propia.</Text>
+                </View>
+                <View style={styles.form}>
+                  <AppInput label="Contraseña nueva" value={nueva} onChangeText={setNueva} placeholder="••••••••" secureTextEntry />
+                  <AppInput label="Repetí la contraseña" value={repetida} onChangeText={setRepetida} placeholder="••••••••" secureTextEntry />
+                </View>
+                <View style={styles.reglas}>
+                  {REGLAS.map((r) => (
+                    <Text key={r.texto} style={[styles.regla, r.ok(nueva) && styles.reglaOk]}>
+                      {r.ok(nueva) ? "✓" : "•"} {r.texto}
+                    </Text>
+                  ))}
+                  <Text style={[styles.regla, nueva.length > 0 && nueva === repetida && styles.reglaOk]}>
+                    {nueva.length > 0 && nueva === repetida ? "✓" : "•"} Las dos coinciden
+                  </Text>
+                </View>
+                <PrimaryButton
+                  label={cargando ? "Guardando…" : "Guardar y continuar"}
+                  onPress={guardarPasswordNueva}
+                  icon="→"
+                  disabled={cargando || !REGLAS.every((r) => r.ok(nueva)) || nueva !== repetida}
+                />
+                {error ? <Text style={styles.errorText}>{error}</Text> : null}
+                <Pressable onPress={volverAlLogin} style={({ pressed }) => [styles.forgotButton, pressed && styles.pressed]} accessibilityRole="button">
+                  <Text style={styles.link}>‹ Volver</Text>
+                </Pressable>
+              </>
+            ) : !desafio ? (
               <>
                 <View style={styles.cardIntro}>
                   <Text style={styles.cardTitle}>Bienvenido de nuevo</Text>
@@ -178,11 +235,7 @@ export default function LoginScreen() {
                 {error ? <Text style={styles.errorText}>{error}</Text> : null}
                 <View style={styles.row}>
                   <Pressable
-                    onPress={() => {
-                      setDesafio(null);
-                      setError(null);
-                      setAviso(null);
-                    }}
+                    onPress={volverAlLogin}
                     style={({ pressed }) => pressed && styles.pressed}
                     accessibilityRole="button"
                   >
@@ -228,5 +281,8 @@ const styles = StyleSheet.create({
   disabled: { color: "#AEAEB2" },
   row: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", minHeight: 30 },
   pressed: { opacity: 0.72, transform: [{ scale: 0.985 }] },
+  reglas: { gap: 3 },
+  regla: { color: "#8E8E93", fontSize: 13 },
+  reglaOk: { color: "#1E7F3C", fontWeight: "700" },
   errorText: { color: "#D70015", fontSize: 13, fontWeight: "700", textAlign: "center", marginTop: -6 },
 });

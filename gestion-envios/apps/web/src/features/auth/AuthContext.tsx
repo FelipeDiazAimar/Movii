@@ -3,6 +3,7 @@ import axios from "axios";
 import { TOKEN_STORAGE_KEY, setOnUnauthorized } from "@/services/api-client";
 import { decodeJwt, isTokenExpired } from "./jwt";
 import * as authApi from "./api";
+import { RolNoPermitidoError } from "./errors";
 import type { DesafioLogin, LoginInput, PrimerAccesoPendiente, Sesion } from "./types";
 
 const EMAIL_STORAGE_KEY = "movii.web.email";
@@ -30,7 +31,8 @@ function leerSesionGuardada(): Sesion | null {
   if (!token) return null;
 
   const claims = decodeJwt(token);
-  if (!claims || isTokenExpired(claims)) {
+  // Una sesión de repartidor (de antes de este control) no entra al panel.
+  if (!claims || isTokenExpired(claims) || claims.rol === "repartidor") {
     localStorage.removeItem(TOKEN_STORAGE_KEY);
     localStorage.removeItem(EMAIL_STORAGE_KEY);
     return null;
@@ -69,6 +71,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!claims) {
       throw new Error("El servidor devolvió un token inválido");
     }
+    // Los repartidores usan la app móvil: no se guarda ninguna sesión.
+    if (claims.rol === "repartidor") throw new RolNoPermitidoError();
 
     localStorage.setItem(TOKEN_STORAGE_KEY, token);
     localStorage.setItem(EMAIL_STORAGE_KEY, identificador);
@@ -89,8 +93,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         r = await authApi.login(input);
       } catch (err) {
-        if (axios.isAxiosError<{ user_id?: string; token?: string }>(err) && err.response?.status === 428) {
-          const { user_id = "", token = "" } = err.response.data ?? {};
+        if (axios.isAxiosError<{ user_id?: string; token?: string; rol?: string }>(err) && err.response?.status === 428) {
+          const { user_id = "", token = "", rol = "" } = err.response.data ?? {};
+          if (rol === "repartidor") throw new RolNoPermitidoError();
           return { user_id, token, email: input.email };
         }
         throw err;

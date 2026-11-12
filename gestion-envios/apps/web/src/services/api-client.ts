@@ -65,5 +65,6 @@ export function getApiErrorMessage(error: unknown, fallback = "Ocurrió un error
       return "No se pudo conectar con el servidor. Verificá que la API esté corriendo.";
     }
   }
+  if (error instanceof Error && error.name === "RolNoPermitidoError") return error.message;
   return fallback;
 }

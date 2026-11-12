@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/Button";
 import { InputField } from "@/components/ui/Field";
 import { Alert } from "@/components/ui/Alert";
 import { obtenerConfigAuth, reenviarCodigo, urlLoginGoogle } from "@/features/auth/api";
-import type { DesafioLogin, Sesion } from "@/features/auth/types";
+import type { DesafioLogin } from "@/features/auth/types";
 import { useBordesNavegador } from "@/hooks/useBordesNavegador";
 import { ShieldCheck } from "lucide-react";
 import { CodigoInput } from "@/components/ui/CodigoInput";
@@ -76,9 +76,10 @@ export function LoginPage() {
     const token = datos.get("token");
     if (!token) return;
     try {
-      entrar(abrirSesion(token, datos.get("email") ?? ""));
-    } catch {
-      setError("No se pudo iniciar sesión con Google.");
+      abrirSesion(token, datos.get("email") ?? "");
+      entrar();
+    } catch (err) {
+      setError(getApiErrorMessage(err, "No se pudo iniciar sesión con Google."));
     }
     // Solo al volver de Google (una vez).
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -95,8 +96,8 @@ export function LoginPage() {
     return <Navigate to={destino} replace />;
   }
 
-  function entrar(nueva: Sesion) {
-    navigate(nueva.rol === "repartidor" ? "/acceso-denegado" : "/operaciones", { replace: true });
+  function entrar() {
+    navigate("/operaciones", { replace: true });
   }
 
   function empezarDesafio(d: DesafioLogin) {
@@ -126,7 +127,7 @@ export function LoginPage() {
         empezarDesafio(r);
       } else {
         console.info(`[login] contraseña OK en ${ms} ms: sesión iniciada (sin segundo paso)`, { rol: r.rol });
-        entrar(r);
+        entrar();
       }
     } catch (err) {
       registrarFallo(`[login] paso 1 falló después de ${Math.round(performance.now() - t0)} ms`, err);
@@ -147,7 +148,7 @@ export function LoginPage() {
       console.info("[login] código correcto: sesión iniciada", { rol: nueva.rol });
       setVerificado(true);
       await new Promise((r) => setTimeout(r, 650)); // deja ver la ola verde de aceptación
-      entrar(nueva);
+      entrar();
     } catch (err) {
       registrarFallo("[login] paso 2 falló", err);
       setError(getApiErrorMessage(err, "No se pudo verificar el código"));
