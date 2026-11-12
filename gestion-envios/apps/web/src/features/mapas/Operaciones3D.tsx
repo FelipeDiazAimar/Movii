@@ -11,6 +11,8 @@ interface Props {
   vehiculo: Vehiculo;
   color: string;
   recorrido: Recorrido | null | undefined;
+  /** Tramo ya recorrido de la ruta completa (apagado), para ver la ruta entera. */
+  hecho?: LngLat[];
   paquetes: PaqueteVehiculo[];
   vivo?: PosicionVehiculo;
   /** Envío elegido en la lista: la cámara vuela hasta su destino. */
@@ -18,7 +20,7 @@ interface Props {
 }
 
 /** El recorrido del camión elegido en 3D, dentro del centro de operaciones. */
-export function Operaciones3D({ vehiculo, color, recorrido, paquetes, vivo, envioElegido }: Props) {
+export function Operaciones3D({ vehiculo, color, recorrido, hecho, paquetes, vivo, envioElegido }: Props) {
   const linea = useMemo<LngLat[]>(() => (recorrido?.geometria ?? []).map(([lat, lng]) => [lng, lat]), [recorrido?.geometria]);
   const paradas = useMemo<Parada3D[]>(
     () =>
@@ -52,6 +54,7 @@ export function Operaciones3D({ vehiculo, color, recorrido, paquetes, vivo, envi
     <Escena3D
       className="h-[460px]"
       linea={linea}
+      hecho={hecho}
       paradas={paradas}
       color={color}
       vivo={gps}

@@ -5,6 +5,7 @@ import "maplibre-gl/dist/maplibre-gl.css";
 // módulo queda en otra carpeta, así que se sirve como asset y se indica la URL.
 import urlWorker from "maplibre-gl/dist/maplibre-gl-worker.mjs?url";
 import { Camera, ChevronDown, Clapperboard, Map as MapaIcono, Maximize2, Minimize2, Moon, Orbit, Pause, Play, Sun, Truck, type LucideIcon } from "lucide-react";
+import { mezclarColor } from "@/features/flota/ruta2d";
 import { COLOR_PARADA, acumulados, caja, distanciaM, mezclarAngulo, paddingEncuadre, puntoEnDistancia, rumbo as rumboEntre, type LngLat } from "./geo3d";
 
 maplibregl.setWorkerUrl(urlWorker);
@@ -73,9 +74,9 @@ type Modo = "dia" | "noche";
 export interface Parada3D {
   pos: LngLat;
   estado: string;
-  /** Texto encima de la columna (número de parada, "Tu zona"…). */
+  /** Texto del pin (número de parada, "Tu zona"…). */
   etiqueta: string;
-  /** Tarjeta que se abre al tocar la columna. */
+  /** Tarjeta que se abre al tocar el pin. */
   info?: { titulo: string; detalle?: string; estado?: string };
 }
 
@@ -88,6 +89,8 @@ export interface Vivo3D {
 
 interface Props {
   linea: LngLat[];
+  /** Tramo que el camión ya recorrió: se dibuja apagado, así la ruta se ve entera (lo hecho + `linea`, que es lo que falta). */
+  hecho?: LngLat[];
   paradas: Parada3D[];
   /** Color del vehículo (caja del camión y ruta). */
   color: string;
@@ -140,15 +143,53 @@ function paradasGeoJSON(paradas: Parada3D[]): GeoJSON.FeatureCollection {
       type: "Feature",
       properties: {
         color: COLOR_PARADA[p.estado] ?? COLOR_PARADA.pendiente,
-        alto: p.estado === "entregado" ? 18 : 42,
         etiqueta: p.etiqueta,
         titulo: p.info?.titulo ?? "",
         detalle: p.info?.detalle ?? "",
         estado: p.info?.estado ?? "",
       },
-      geometry: { type: "Polygon", coordinates: [caja(p.pos, 45, 7, 7)] },
+      geometry: { type: "Point", coordinates: p.pos },
     })),
   };
+}
+
+/**
+ * Pin de una parada: una cabeza redonda con el número (✓ si ya se entregó, ! si no se pudo) y una punta
+ * que apoya en el suelo. Es HTML (siempre de frente y legible, con cualquier inclinación de cámara) y
+ * al tocarlo abre la tarjeta de la parada.
+ */
+function pinParada(m: maplibregl.Map, p: Parada3D): maplibregl.Marker {
+  const color = COLOR_PARADA[p.estado] ?? COLOR_PARADA.pendiente;
+  const texto = p.estado === "entregado" ? "✓" : p.estado === "no_entregado" ? "!" : p.etiqueta;
+  const largo = texto.length > 3; // "Tu zona", etc.: va como cartelito en vez de círculo
+  const hecho = p.estado === "entregado" || p.estado === "no_entregado";
+
+  const el = document.createElement("div");
+  el.style.cssText = "display:flex;flex-direction:column;align-items:center;cursor:pointer;filter:drop-shadow(0 3px 3px rgba(0,0,0,.4))";
+  const cabeza = document.createElement("div");
+  cabeza.textContent = texto;
+  cabeza.style.cssText = largo
+    ? `padding:4px 11px;border-radius:999px;background:${color};color:#fff;border:2.5px solid #fff;font:800 12px system-ui;white-space:nowrap`
+    : `width:30px;height:30px;border-radius:50%;background:${color};color:#fff;border:3px solid #fff;font:800 13px system-ui;display:flex;align-items:center;justify-content:center;${hecho ? "opacity:.92" : ""}`;
+  const punta = document.createElement("div");
+  punta.style.cssText = "width:0;height:0;border-left:6px solid transparent;border-right:6px solid transparent;border-top:9px solid #fff;margin-top:-2px";
+  el.append(cabeza, punta);
+
+  el.addEventListener("click", (e) => {
+    e.stopPropagation();
+    if (!p.info?.titulo && !p.info?.detalle) return;
+    new maplibregl.Popup({ offset: [0, -44], closeButton: false })
+      .setLngLat(p.pos)
+      .setDOMContent(tarjetaParada({ titulo: p.info?.titulo, detalle: p.info?.detalle, estado: p.info?.estado, etiqueta: p.etiqueta }, color))
+      .addTo(m);
+  });
+  return new maplibregl.Marker({ element: el, anchor: "bottom" }).setLngLat(p.pos).addTo(m);
+}
+
+/** Reemplaza los pines del mapa por los de las paradas actuales. */
+function colocarPines(m: maplibregl.Map, paradas: Parada3D[], anteriores: maplibregl.Marker[]): maplibregl.Marker[] {
+  for (const a of anteriores) a.remove();
+  return paradas.map((p) => pinParada(m, p));
 }
 
 function lineaGeoJSON(linea: LngLat[]): GeoJSON.Feature {
@@ -178,7 +219,7 @@ function margenEncuadre(m: maplibregl.Map, conHud: boolean) {
 
 /**
  * Escena 3D (MapLibre GL + OpenFreeMap, sin costo): edificios y terreno,
- * recorrido luminoso con cometas de luz, columnas en las paradas y un camión
+ * recorrido luminoso con cometas de luz, pines en las paradas y un camión
  * 3D que sigue la posición en vivo (o simula el recorrido). Cámaras seguir,
  * órbita y general, y modo día/noche. La usan el panel y el seguimiento público.
  */
@@ -208,8 +249,9 @@ function tarjetaParada(props: Record<string, unknown>, color: string): HTMLEleme
   return el;
 }
 
-export function Escena3D({ linea, paradas, color, vivo, simular = false, zona, hud, className = "h-[calc(100vh-180px)] min-h-[560px]", camaraInicial = "general", enfoque }: Props) {
+export function Escena3D({ linea, hecho = [], paradas, color, vivo, simular = false, zona, hud, className = "h-[calc(100vh-180px)] min-h-[560px]", camaraInicial = "general", enfoque }: Props) {
   const contenedor = useRef<HTMLDivElement>(null);
+  const pines = useRef<maplibregl.Marker[]>([]);
   const mapa = useRef<maplibregl.Map | null>(null);
   const halo = useRef<maplibregl.Marker | null>(null);
   const [camara, setCamara] = useState<Camara>(camaraInicial);
@@ -226,8 +268,8 @@ export function Escena3D({ linea, paradas, color, vivo, simular = false, zona, h
   }, [linea, paradas, vivo]);
 
   // Todo lo que el bucle de animación lee en cada frame, en refs (sin re-render).
-  const estado = useRef({ linea, acum, color, vivo, simular, paradas, zona, modo });
-  estado.current = { linea, acum, color, vivo, simular, paradas, zona, modo };
+  const estado = useRef({ linea, hecho, acum, color, vivo, simular, paradas, zona, modo });
+  estado.current = { linea, hecho, acum, color, vivo, simular, paradas, zona, modo };
   const anim = useRef({ pos: null as LngLat | null, dist: 0, rumbo: 0, rumboCam: 0, ultimo: 0, cometa: 0, orbita: 0 });
   const camaraRef = useRef(camara);
   const pausaRef = useRef(enPausa);
@@ -236,7 +278,7 @@ export function Escena3D({ linea, paradas, color, vivo, simular = false, zona, h
 
   // Capas propias: se montan con cada estilo (al cambiar día/noche se borran).
   function montarCapas(m: maplibregl.Map) {
-    const { color: col, linea: ln, paradas: pr, zona: zn } = estado.current;
+    const { color: col, linea: ln, hecho: hc, paradas: pr, zona: zn } = estado.current;
     try {
       m.setSky(CIELO.dia as maplibregl.SkySpecification);
     } catch {
@@ -283,20 +325,37 @@ export function Escena3D({ linea, paradas, color, vivo, simular = false, zona, h
       // Un solo color, el del vehículo (igual que el mapa 2D).
       paint: { "line-width": 7, "line-color": col },
     });
+    // Lo que el camión ya recorrió: la misma ruta, apagada, para que se vea entera.
+    m.addSource("ruta-hecho", { type: "geojson", data: lineaGeoJSON(hc) });
+    m.addLayer({
+      id: "ruta-hecho",
+      type: "line",
+      source: "ruta-hecho",
+      layout: { "line-cap": "round", "line-join": "round" },
+      paint: { "line-width": 7, "line-color": mezclarColor(col, "#9ca3af", 0.7) },
+    });
     // Cometas de luz que recorren la ruta en el sentido del viaje (el dasharray animado rompe MapLibre 6).
     m.addSource("flujo", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
     m.addLayer({ id: "flujo-halo", type: "circle", source: "flujo", paint: { "circle-radius": 9, "circle-color": col, "circle-blur": 1, "circle-opacity": ["*", 0.8, ["get", "o"]] } });
     m.addLayer({ id: "flujo-punto", type: "circle", source: "flujo", paint: { "circle-radius": 3.2, "circle-color": "#ffffff", "circle-opacity": ["get", "o"] } });
 
     m.addSource("paradas", { type: "geojson", data: paradasGeoJSON(pr) });
-    m.addLayer({ id: "paradas-luz", type: "fill-extrusion", source: "paradas", paint: { "fill-extrusion-color": ["get", "color"], "fill-extrusion-height": ["get", "alto"], "fill-extrusion-opacity": 0.85 } });
+    // Aro de color apoyado en la calle, bajo cada pin (el pin y el número son HTML).
     m.addLayer({
-      id: "paradas-etiqueta",
-      type: "symbol",
+      id: "paradas-suelo",
+      type: "circle",
       source: "paradas",
-      layout: { "text-field": ["get", "etiqueta"], "text-font": ["Noto Sans Bold"], "text-size": 14, "text-allow-overlap": true },
-      paint: { "text-color": "#ffffff", "text-halo-color": "#1a1a1a", "text-halo-width": 2 },
+      paint: {
+        "circle-radius": 15,
+        "circle-color": ["get", "color"],
+        "circle-opacity": 0.28,
+        "circle-stroke-color": ["get", "color"],
+        "circle-stroke-width": 2.5,
+        "circle-pitch-alignment": "map",
+        "circle-pitch-scale": "map",
+      },
     });
+    pines.current = colocarPines(m, pr, pines.current);
 
     const inicio = anim.current.pos ?? ln[0] ?? pr[0]?.pos ?? [0, 0];
     m.addSource("camion", { type: "geojson", data: camionGeoJSON(inicio, anim.current.rumbo, col) });
@@ -324,18 +383,7 @@ export function Escena3D({ linea, paradas, color, vivo, simular = false, zona, h
       // Entrada de cine: de la vista cenital a la escena inclinada.
       m.fitBounds(encuadre(puntos), { padding: margenEncuadre(m, Boolean(hud)), maxZoom: 16.5, pitch: 62, bearing: -25, duration: 3200, essential: true });
     });
-    // Tocar una parada abre su tarjeta.
-    const abrirParada = (e: maplibregl.MapLayerMouseEvent) => {
-      const f = e.features?.[0];
-      if (!f || !(f.properties?.titulo || f.properties?.detalle)) return;
-      new maplibregl.Popup({ offset: 12, closeButton: false })
-        .setLngLat(e.lngLat)
-        .setDOMContent(tarjetaParada(f.properties ?? {}, String(f.properties?.color ?? "#1a1a1a")))
-        .addTo(m);
-    };
-    m.on("click", "paradas-luz", abrirParada);
-    m.on("mouseenter", "paradas-luz", () => (m.getCanvas().style.cursor = "pointer"));
-    m.on("mouseleave", "paradas-luz", () => (m.getCanvas().style.cursor = ""));
+    // Tocar una parada (su pin) abre su tarjeta: ver pinParada().
     // Si la persona mueve el mapa, la cámara queda libre.
     const soltar = () => setCamara((c) => (c === "general" ? c : "libre"));
     m.on("dragstart", soltar);
@@ -350,6 +398,8 @@ export function Escena3D({ linea, paradas, color, vivo, simular = false, zona, h
     halo.current = new maplibregl.Marker({ element: el, pitchAlignment: "map", rotationAlignment: "map" }).setLngLat(puntos[0]).addTo(m);
 
     return () => {
+      for (const pin of pines.current) pin.remove();
+      pines.current = [];
       m.remove();
       mapa.current = null;
       halo.current = null;
@@ -407,9 +457,11 @@ export function Escena3D({ linea, paradas, color, vivo, simular = false, zona, h
     const m = mapa.current;
     if (!m) return;
     (m.getSource("ruta") as maplibregl.GeoJSONSource | undefined)?.setData(lineaGeoJSON(linea));
+    (m.getSource("ruta-hecho") as maplibregl.GeoJSONSource | undefined)?.setData(lineaGeoJSON(hecho));
     (m.getSource("paradas") as maplibregl.GeoJSONSource | undefined)?.setData(paradasGeoJSON(paradas));
+    if (m.getSource("paradas")) pines.current = colocarPines(m, paradas, pines.current);
     (m.getSource("zona") as maplibregl.GeoJSONSource | undefined)?.setData(circuloGeoJSON(zona));
-  }, [linea, paradas, zona]);
+  }, [linea, hecho, paradas, zona]);
 
   // Parada elegida afuera (lista): la cámara vuela hasta ella.
   useEffect(() => {

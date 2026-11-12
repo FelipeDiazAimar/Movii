@@ -4,7 +4,7 @@ import "leaflet/dist/leaflet.css";
 import { Info, X } from "lucide-react";
 import { CircleMarker, MapContainer, Marker, Polyline, Popup, TileLayer, Tooltip, useMap } from "react-leaflet";
 import type { LatLng, TipoVehiculo } from "./types";
-import { MEDIDAS_MODELO, VELOCIDAD_SIMULADA, svgVehiculoArriba } from "./ruta2d";
+import { MEDIDAS_MODELO, VELOCIDAD_SIMULADA, mezclarColor, svgVehiculoArriba } from "./ruta2d";
 import { htmlParada, MarcaParada } from "./paradas";
 import { acumulados, distanciaM, mezclarAngulo, puntoEnDistancia, rumbo as rumboEntre, type LngLat } from "@/features/mapas/geo3d";
 import { partirRecorrido } from "./recorrido";
@@ -44,6 +44,8 @@ export interface RutaEnMapa {
   nombre: string;
   color: string;
   geometria: LatLng[];
+  /** true si `geometria` es la ruta entera (depósito → todas las paradas) y no solo lo que falta. */
+  completa?: boolean;
   destacada?: boolean;
   /** Si se pasa, se marca con una bandera (ej. la zona del cliente en el tracking público). */
   destino?: LatLng;
@@ -206,21 +208,83 @@ function Camion({ v, onClick }: { v: VehiculoEnMapa; onClick?: (id: string) => v
   );
 }
 
-/** Ruta del color del vehículo, con brillo y un flujo blanco en el sentido del viaje. */
-function RutaColoreada({ geometria, color, destacada, nombre }: { geometria: LatLng[]; color: string; destacada: boolean; nombre?: string }) {
+/** Color del tramo que el camión ya recorrió: el del vehículo, apagado (se ve que es el mismo camino, pero ya hecho). */
+function colorTramoHecho(color: string): string {
+  return mezclarColor(color, "#9ca3af", 0.7);
+}
+
+/**
+ * La ruta COMPLETA, siempre entera y del color del vehículo (el de la base de datos). Lo que el camión
+ * ya recorrió queda apagado encima y lo que falta lleva el flujo blanco en el sentido del viaje.
+ */
+function RutaConAvance({
+  geometria,
+  hecho,
+  resto,
+  color,
+  destacada,
+  nombre,
+}: {
+  geometria: LatLng[];
+  hecho?: LatLng[];
+  resto?: LatLng[];
+  color: string;
+  destacada: boolean;
+  nombre?: string;
+}) {
+  const hayHecho = Boolean(hecho && hecho.length > 1);
+  const hayResto = !hayHecho || Boolean(resto && resto.length > 1);
+  const linea = { lineCap: "round", lineJoin: "round" } as const;
   return (
     <>
-      <Polyline positions={geometria} pathOptions={{ color, weight: destacada ? 16 : 11, opacity: destacada ? 0.22 : 0.12, lineCap: "round", lineJoin: "round" }} />
-      <Polyline positions={geometria} pathOptions={{ color: "#1a1a1a", weight: destacada ? 8 : 6, opacity: 0.25, lineCap: "round", lineJoin: "round" }} />
-      <Polyline positions={geometria} pathOptions={{ color, weight: destacada ? 5.5 : 4, opacity: destacada ? 1 : 0.85, lineCap: "round", lineJoin: "round" }} />
-      <Polyline
-        positions={geometria}
-        pathOptions={{ color: "#ffffff", weight: destacada ? 2.4 : 1.8, opacity: 0.95, dashArray: "2 10", lineCap: "round", className: destacada ? "ruta-flujo" : "ruta-flujo-lenta" }}
-      >
-        {nombre && <Tooltip sticky>{nombre}</Tooltip>}
-      </Polyline>
+      <Polyline positions={geometria} pathOptions={{ color, weight: destacada ? 16 : 11, opacity: destacada ? 0.22 : 0.12, ...linea }} interactive={false} />
+      <Polyline positions={geometria} pathOptions={{ color: "#1a1a1a", weight: destacada ? 8 : 6, opacity: 0.25, ...linea }} interactive={false} />
+      <Polyline positions={geometria} pathOptions={{ color, weight: destacada ? 5.5 : 4, opacity: destacada ? 1 : 0.85, ...linea }} interactive={false} />
+      {hayHecho && (
+        <Polyline positions={hecho!} pathOptions={{ color: colorTramoHecho(color), weight: destacada ? 5.5 : 4, opacity: 1, ...linea }}>
+          {nombre && <Tooltip sticky>{nombre} · ya recorrido</Tooltip>}
+        </Polyline>
+      )}
+      {hayResto && (
+        <Polyline
+          positions={hayHecho ? resto! : geometria}
+          pathOptions={{ color: "#ffffff", weight: destacada ? 2.4 : 1.8, opacity: 0.95, dashArray: "2 10", lineCap: "round", className: destacada ? "ruta-flujo" : "ruta-flujo-lenta" }}
+        >
+          {nombre && <Tooltip sticky>{nombre}</Tooltip>}
+        </Polyline>
+      )}
     </>
   );
+}
+
+/**
+ * Parte cada ruta en lo hecho y lo que falta según dónde está su camión. Recuerda en qué tramo estaba
+ * para no saltar hacia atrás cuando la ruta pasa dos veces por la misma calle.
+ */
+function useAvances(rutas: RutaEnMapa[], vehiculos: VehiculoEnMapa[]) {
+  const [previos, setPrevios] = useState<Record<string, number>>({});
+  const avances = useMemo(() => {
+    const out: Record<string, { hecho: LatLng[]; resto: LatLng[]; indice: number }> = {};
+    for (const r of rutas) {
+      const camion = vehiculos.find((v) => v.id === r.id);
+      if (camion && r.geometria.length > 1) out[r.id] = partirRecorrido(r.geometria, camion.pos, previos[r.id]);
+    }
+    return out;
+  }, [rutas, vehiculos, previos]);
+  useEffect(() => {
+    setPrevios((prev) => {
+      let cambio = false;
+      const nuevo = { ...prev };
+      for (const [id, a] of Object.entries(avances)) {
+        if (nuevo[id] !== a.indice) {
+          nuevo[id] = a.indice;
+          cambio = true;
+        }
+      }
+      return cambio ? nuevo : prev;
+    });
+  }, [avances]);
+  return avances;
 }
 
 /** Qué significa cada cosa del mapa (se abre y se cierra). */
@@ -254,7 +318,11 @@ function Referencias({ color }: { color: string }) {
         </li>
         <li className={fila}>
           <span className="h-1.5 w-7 rounded-full" style={{ background: color }} />
-          Lo que le falta recorrer: el camino más corto por calles
+          La ruta completa, del color del vehículo (el de la ficha en Vehículos)
+        </li>
+        <li className={fila}>
+          <span className="h-1.5 w-7 rounded-full" style={{ background: colorTramoHecho(color) }} />
+          Lo que el camión ya recorrió (apagado); lo que falta sigue con movimiento
         </li>
         <li className={fila}>
           <span className="h-1 w-7 rounded-full bg-[repeating-linear-gradient(90deg,#f4b400_0_5px,transparent_5px_9px)]" />
@@ -302,8 +370,10 @@ function Encuadrar({ puntos, clave }: { puntos: LatLng[]; clave?: string }) {
     const lats = ps.map((p) => p[0]);
     const lngs = ps.map((p) => p[1]);
     console.debug("[mapa] encuadre " + JSON.stringify({ puntos: ps.length, lat: [Math.min(...lats), Math.max(...lats)], lng: [Math.min(...lngs), Math.max(...lngs)], tam: map.getSize() }));
-    if (ps.length === 1) map.setView(ps[0], 15);
-    else map.fitBounds(ps, { padding: [36, 36], maxZoom: 16 });
+    // Sin animación: un encuadre animado que llega mientras otro sigue en curso se pierde y el mapa
+    // queda en el primero (centrado en un solo punto) en vez de mostrar toda la ruta.
+    if (ps.length === 1) map.setView(ps[0], 15, { animate: false });
+    else map.fitBounds(ps, { padding: [36, 36], maxZoom: 16, animate: false });
   };
 
   useEffect(() => {
@@ -385,10 +455,11 @@ export function MapaMovii({
     return ps;
   }, [enfoque, paradas, vehiculos, deposito, trayecto, recorrido, rutas]);
 
-  // El tramo que ya hizo el camión elegido (GPS en vivo) queda gris; lo que falta, del color del vehículo.
+  // El tramo que ya hizo el camión elegido (GPS en vivo) queda apagado; la ruta se sigue viendo entera, del color del vehículo.
   const camionDestacado = vehiculos.find((v) => v.destacado && v.enVivo);
   const recorridoPartido =
     recorrido && recorrido.length > 1 ? (camionDestacado ? partirRecorrido(recorrido, camionDestacado.pos) : { hecho: [] as LatLng[], resto: recorrido }) : null;
+  const avances = useAvances(rutas, vehiculos);
 
   const centro: LatLng = puntos[0] ?? [-31.4279718, -62.0826608];
 
@@ -413,13 +484,11 @@ export function MapaMovii({
         {rutas
           .filter((r) => r.geometria.length > 1)
           .map((r) => {
-            // El tramo ya recorrido queda gris y fijo; lo que falta, de color y en movimiento.
-            const camion = vehiculos.find((v) => v.id === r.id);
-            const { hecho, resto } = camion ? partirRecorrido(r.geometria, camion.pos) : { hecho: [] as LatLng[], resto: r.geometria };
+            // La ruta se ve siempre entera; lo ya recorrido queda apagado y lo que falta, con movimiento.
+            const av = avances[r.id];
             return (
             <Fragment key={r.id}>
-              {hecho.length > 1 && <Polyline positions={hecho} pathOptions={{ color: "#9ca3af", weight: r.destacada ? 5 : 4, opacity: 0.8, lineCap: "round" }} />}
-              <RutaColoreada geometria={resto} color={r.color} destacada={Boolean(r.destacada)} nombre={r.nombre} />
+              <RutaConAvance geometria={r.geometria} hecho={av?.hecho} resto={av?.resto} color={r.color} destacada={Boolean(r.destacada)} nombre={r.nombre} />
               {r.destino && (
               <Marker position={r.destino} icon={iconoDestino(r.color)} zIndexOffset={r.destacada ? 700 : 300}>
                 <Tooltip direction="top" offset={[8, -34]}>
@@ -430,10 +499,9 @@ export function MapaMovii({
             </Fragment>
             );
           })}
-        {recorridoPartido && recorridoPartido.hecho.length > 1 && (
-          <Polyline positions={recorridoPartido.hecho} pathOptions={{ color: "#9ca3af", weight: 5, opacity: 0.8, lineCap: "round" }} />
+        {recorrido && recorridoPartido && colorRecorrido && (
+          <RutaConAvance geometria={recorrido} hecho={recorridoPartido.hecho} resto={recorridoPartido.resto} color={colorRecorrido} destacada />
         )}
-        {recorridoPartido && colorRecorrido && <RutaColoreada geometria={recorridoPartido.resto} color={colorRecorrido} destacada />}
         {recorrido && recorrido.length > 1 && !colorRecorrido && (
           <>
             <Polyline positions={recorrido} pathOptions={{ color: "#1a1a1a", weight: 7, opacity: 0.12, lineCap: "round" }} />

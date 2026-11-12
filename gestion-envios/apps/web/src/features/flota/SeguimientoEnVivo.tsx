@@ -6,6 +6,7 @@ import { Spinner } from "@/components/ui/Spinner";
 import { hayWebGL } from "@/features/mapas/webgl";
 import { MapaMovii, type ParadaEnMapa, type RutaEnMapa, type VehiculoEnMapa } from "./MapaMovii";
 import { ParadasRuta } from "./ParadasRuta";
+import { partirRecorrido } from "./recorrido";
 import { BotonIniciarRuta } from "@/features/rutas/BotonIniciarRuta";
 import type { LatLng, PaqueteVehiculo, PosicionVehiculo, TrayectoEnvio, Vehiculo, VehiculoDetalle } from "./types";
 
@@ -93,13 +94,21 @@ export function SeguimientoEnVivo(p: Props) {
   // los dos; si no, la ruta del camión (los camiones de otras rutas no alejan el zoom).
   const camion = p.enMapa.find((v) => v.id === seleccionado.id)?.pos;
   const elegida = paradas.find((x) => x.id === envioElegido)?.pos;
-  const geometriaRuta = p.rutas.find((r) => r.id === seleccionado.id)?.geometria;
+  const rutaSel = p.rutas.find((r) => r.id === seleccionado.id);
+  const geometriaRuta = rutaSel?.geometria;
+  // Al llegar la ruta entera se vuelve a encuadrar para que entre completa en el mapa.
+  const rutaCompleta = Boolean(rutaSel?.completa);
   const enfoque: LatLng[] | null = !enRuta
     ? null
     : elegida
       ? [elegida, ...(camion ? [camion] : []), ...(p.trayecto?.envio_id === envioElegido ? (p.trayecto?.recorrido?.geometria ?? []) : [])]
       : [...paradas.map((x) => x.pos), ...(camion ? [camion] : []), ...(geometriaRuta ?? [])];
   const recorrido = p.detalle?.recorrido;
+  // Para el 3D: lo que el camión ya recorrió de la ruta completa (en [lng, lat]).
+  const hecho3d = useMemo(() => {
+    if (!rutaSel?.completa || !camion) return undefined;
+    return partirRecorrido(rutaSel.geometria, camion).hecho.map(([lat, lng]) => [lng, lat] as [number, number]);
+  }, [rutaSel, camion]);
   const enDeposito = enRuta && seleccionado.ruta_estado === "planificada";
   const estadoGps = enRuta && recorrido && seleccionado.estado === "activo" && !enDeposito ? (p.vivo ? "vivo" : "simulado") : null;
 
@@ -207,6 +216,7 @@ export function SeguimientoEnVivo(p: Props) {
                 vehiculo={seleccionado}
                 color={color}
                 recorrido={recorrido}
+                hecho={hecho3d}
                 paquetes={paquetes}
                 vivo={p.vivo}
                 envioElegido={envioElegido}
@@ -226,7 +236,11 @@ export function SeguimientoEnVivo(p: Props) {
               enfoque={enfoque}
               onVehiculoClick={(id) => p.onElegirVehiculo(id)}
               onParadaClick={(id) => p.onElegirEnvio(id === envioElegido ? null : id)}
-              encuadre={enRuta ? `${seleccionado.id}-${envioElegido ?? ""}-${p.detalle ? "ok" : ""}-${p.trayecto?.envio_id === envioElegido ? "t" : ""}` : "todas"}
+              encuadre={
+                enRuta
+                  ? `${seleccionado.id}-${envioElegido ?? ""}-${p.detalle ? "ok" : ""}-${p.trayecto?.envio_id === envioElegido ? "t" : ""}-${rutaCompleta ? "c" : ""}`
+                  : `todas-${p.rutas.filter((r) => r.completa).length}`
+              }
             />
           )}
         </div>

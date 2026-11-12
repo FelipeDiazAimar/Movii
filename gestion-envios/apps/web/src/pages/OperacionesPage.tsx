@@ -9,6 +9,7 @@ import { SeguimientoEnVivo, type VistaSeguimiento } from "@/features/flota/Segui
 import { REGION_CARGA, VehiculoIllustration } from "@/features/flota/VehiculoIllustration";
 import { ContenedorPaquetes } from "@/features/flota/ContenedorPaquetes";
 import { colorDeFlota } from "@/features/flota/colores";
+import { obtenerMapaRuta } from "@/features/analitica/api";
 import { CapacityGauge } from "@/features/flota/CapacityGauge";
 import { VehicleSlider } from "@/features/flota/VehicleSlider";
 import { LineaDeParadas } from "@/features/flota/LineaDeParadas";
@@ -110,24 +111,38 @@ export function OperacionesPage() {
       refetchInterval: 20_000,
     })),
   });
+  // La ruta COMPLETA de cada camión (depósito → todas sus paradas, también las ya entregadas). El
+  // `recorrido` del detalle del vehículo es solo lo que falta desde donde está ahora, así que no sirve
+  // para ver el camino entero ni lo ya recorrido. Comparte la clave con el botón "Abrir en Google Maps".
+  const mapasRuta = useQueries({
+    queries: conRuta.map((v) => ({
+      queryKey: ["rutas", v.ruta_id, "mapa"],
+      queryFn: () => obtenerMapaRuta(v.ruta_id!),
+      staleTime: 30_000,
+      refetchInterval: 60_000,
+    })),
+  });
   const rutasEnMapa = useMemo<RutaEnMapa[]>(
     () =>
       conRuta.flatMap((v, i) => {
-        const geo = detalles[i]?.data?.recorrido?.geometria;
-        if (!geo) return [];
+        // Con la ruta completa se ve entera; si todavía no llegó, se muestra lo que falta mientras tanto.
+        const completa = mapasRuta[i]?.data?.recorrido?.geometria;
+        const geo = completa ?? detalles[i]?.data?.recorrido?.geometria;
+        if (!geo || geo.length < 2) return [];
         return [
           {
             id: v.id,
             nombre: `${v.ruta_nombre} (${v.patente})`,
             color: colorDe[v.id],
             geometria: geo,
+            completa: Boolean(completa),
             destacada: v.id === seleccionado?.id,
           },
         ];
       }),
     // Una sola clave con los refrescos: la lista de dependencias no puede cambiar de tamaño.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [conRuta, colorDe, seleccionado?.id, detalles.map((d) => d.dataUpdatedAt).join(",")],
+    [conRuta, colorDe, seleccionado?.id, detalles.map((d) => d.dataUpdatedAt).join(","), mapasRuta.map((m) => m.dataUpdatedAt).join(",")],
   );
 
   const enMapa = useMemo<VehiculoEnMapa[]>(
