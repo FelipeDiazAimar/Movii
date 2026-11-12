@@ -255,8 +255,8 @@ export function AppLayout() {
   const temporizadorCierre = useRef<number | undefined>(undefined);
   const location = useLocation();
   const { tema, alternar: alternarTema } = useTema();
-  // Barra de estado del celular = barra superior (oscura, o blanca en modo claro); abajo = fondo de trabajo.
-  useBordesNavegador(tema === "claro" ? "#ffffff" : "#1a1a1a", "#eef0f2");
+  // Barra de estado del celular = barra superior (oscura, o blanca en modo claro); abajo = fondo de trabajo (gris, o blanco en modo claro).
+  useBordesNavegador(tema === "claro" ? "#ffffff" : "#1a1a1a", tema === "claro" ? "#ffffff" : "#eef0f2");
 
   useEffect(() => setAbierto(false), [location.pathname]);
   useEffect(() => () => window.clearTimeout(temporizadorCierre.current), []);
@@ -298,7 +298,7 @@ export function AppLayout() {
   }
 
   return (
-    <div className="flex min-h-screen bg-hormigon-100">
+    <div className="flex min-h-screen bg-hormigon-100 claro:bg-white">
       {/* Sidebar de escritorio. El contenedor reserva el lugar en el layout (riel de
           84 px o menú fijado de w-64) para que el contenido no se re-acomode cuando
           el panel se abre por hover como overlay por encima de la página. */}
